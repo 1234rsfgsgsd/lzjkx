@@ -1,2 +1,5 @@
 # lzjkx
 zxczxc
+VISION_API_URL
+VISION_API_KEY
+VISION_MODEL
