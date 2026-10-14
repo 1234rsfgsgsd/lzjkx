@@ -2107,10 +2107,12 @@ window.SCENE_LIBRARY = (function(){
       const elements = Array.isArray(result.elements) ? result.elements.map(v => String(v).trim()).filter(Boolean).slice(0, 12) : [];
       if (!elements.length) throw new Error('模型没有返回可用的照片内容，请重试或手动选择主题');
       recognizedImageResult = { category, name: String(result.scene || '照片场景').slice(0, 60), elements };
-      $('uploadThemePanel').classList.remove('hidden');
       $('recognizedElements').textContent = elements.join('、');
-      selectUploadCategory(category);
-      showStatus('照片识别完成，请检查场景和关键词后开始练习。','success');
+      // Recognition supplies the topic and keywords. Start the uploaded-photo
+      // practice immediately so the user does not have to choose a theme again.
+      $('uploadThemePanel').classList.add('hidden');
+      selectUploadCategory(category, { autoStart: true });
+      showStatus('照片识别完成，已自动生成关键词并进入练习。','success');
     } catch (error) {
       showStatus(`识图失败：${error.message || '请检查网络后重试'}`,'error');
     } finally {
@@ -2132,7 +2134,7 @@ window.SCENE_LIBRARY = (function(){
     });
   }
 
-  function selectUploadCategory(category) {
+  function selectUploadCategory(category, options = {}) {
     document.querySelectorAll('#uploadCategoryGrid .category-card').forEach(c => {
       c.classList.toggle('selected', c.dataset.category === category);
     });
@@ -2150,6 +2152,9 @@ window.SCENE_LIBRARY = (function(){
 
       $('photoCaption').textContent = `【${category} · ${recognizedImageResult?.category === category ? recognizedImageResult.name : '上传图片'}】`;
       $('recognizedElements').textContent = keywords.join('、') + '（从该主题场景中随机选取）';
+      $('entrySection').classList.add('hidden');
+      $('themeSelectionSection').classList.add('hidden');
+      $('uploadPanel').classList.add('hidden');
       $('photoSection').classList.remove('hidden');
       $('hintSection').classList.remove('hidden');
       $('hintsContainer').classList.add('hidden');

@@ -84,7 +84,6 @@ async function analyze(req, res) {
         { type: 'image_url', image_url: { url: body.image } }
       ] }],
       temperature: 0.2,
-      response_format: { type: 'json_object' }
     }),
     signal: AbortSignal.timeout(45_000)
   });
@@ -94,9 +93,11 @@ async function analyze(req, res) {
     send(res, 502, { error: '视觉模型暂时无法识别这张照片' });
     return;
   }
-  const content = result.choices?.[0]?.message?.content;
+  let content = result.choices?.[0]?.message?.content;
+  if (Array.isArray(content)) content = content.map(part => part?.text || '').join('');
   try {
-    const parsed = JSON.parse(content);
+    const cleaned = String(content || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const parsed = JSON.parse(cleaned);
     send(res, 200, {
       scene: String(parsed.scene || '照片场景').slice(0, 60),
       category: categories.includes(parsed.category) ? parsed.category : '日常生活',
