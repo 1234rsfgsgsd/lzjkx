@@ -1,0 +1,12 @@
+{
+  "name": "langsidu-sharing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "朗思渡英语口语练习共享版",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}

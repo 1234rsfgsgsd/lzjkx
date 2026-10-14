@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: langsidu-sharing
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: VISION_API_URL
+        sync: false
+      - key: VISION_API_KEY
+        sync: false
+      - key: VISION_MODEL
+        sync: false
