@@ -2,10 +2,9 @@ services:
   - type: web
     name: langsidu-sharing
     runtime: node
-    rootDir: 朗思渡共享版
     plan: free
-    buildCommand: npm install --omit=dev
-    startCommand: npm start
+    buildCommand: npm install --prefix "./朗思渡共享版" --omit=dev
+    startCommand: node "./朗思渡共享版/server.js"
     healthCheckPath: /health
     envVars:
       - key: VISION_API_URL
