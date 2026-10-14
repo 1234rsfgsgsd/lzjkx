@@ -2082,19 +2082,51 @@ window.SCENE_LIBRARY = (function(){
     reader.readAsDataURL(file);
   });
 
+  async function normalizeVisionImage(file) {
+    const sourceUrl = URL.createObjectURL(file);
+    let bitmap;
+    try {
+      let width;
+      let height;
+      let draw;
+      if ('createImageBitmap' in window) {
+        try {
+          bitmap = await createImageBitmap(file);
+          width = bitmap.width;
+          height = bitmap.height;
+          draw = context => context.drawImage(bitmap, 0, 0, width, height);
+        } catch {}
+      }
+      if (!draw) {
+        const image = new Image();
+        image.src = sourceUrl;
+        await image.decode();
+        width = image.naturalWidth;
+        height = image.naturalHeight;
+        draw = context => context.drawImage(image, 0, 0, width, height);
+      }
+      const scale = Math.min(1, 2400 / Math.max(width, height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(width * scale));
+      canvas.height = Math.max(1, Math.round(height * scale));
+      draw(canvas.getContext('2d'));
+      return canvas.toDataURL('image/jpeg', 0.9);
+    } catch {
+      throw new Error('浏览器无法读取这张图片，请先另存为 JPG 或 PNG 后重试');
+    } finally {
+      bitmap?.close();
+      URL.revokeObjectURL(sourceUrl);
+    }
+  }
+
   $('recognizeImageBtn').addEventListener('click', async () => {
     if (!uploadedFile) return;
     const button = $('recognizeImageBtn');
     button.disabled = true;
     button.textContent = '正在识别照片...';
-    showStatus('正在分析照片内容，请稍候...','info');
+    showStatus('正在整理照片并分析内容，请稍候...','info');
     try {
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('无法读取照片'));
-        reader.readAsDataURL(uploadedFile);
-      });
+      const dataUrl = await normalizeVisionImage(uploadedFile);
       const response = await fetch('/api/analyze-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
