@@ -87,10 +87,20 @@ async function analyze(req, res) {
     }),
     signal: AbortSignal.timeout(45_000)
   });
-  const result = await upstream.json().catch(() => ({}));
+  const responseText = await upstream.text();
+  let result = {};
+  try { result = JSON.parse(responseText); } catch {}
   if (!upstream.ok) {
-    console.error('Vision provider returned', upstream.status, result.error?.message || 'unknown error');
-    send(res, 502, { error: '视觉模型暂时无法识别这张照片' });
+    const providerMessage = String(result.error?.message || result.message || responseText || 'no response details')
+      .replaceAll(apiKey, '[redacted]')
+      .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
+      .replace(/[\r\n\t]+/g, ' ')
+      .slice(0, 500);
+    console.error('Vision provider returned', upstream.status, providerMessage);
+    const guidance = upstream.status === 401 || upstream.status === 403
+      ? `视觉服务拒绝了请求（${upstream.status}）。请在 SiliconFlow 检查 API Key、账户余额和该模型的调用权限。${providerMessage}`
+      : `视觉服务请求失败（${upstream.status}）：${providerMessage}`;
+    send(res, 502, { error: guidance });
     return;
   }
   let content = result.choices?.[0]?.message?.content;
