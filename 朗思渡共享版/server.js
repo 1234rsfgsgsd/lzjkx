@@ -113,11 +113,11 @@ async function analyze(req, res) {
       String(item?.us || '').trim().slice(0, 120),
       String(item?.uk || '').trim().slice(0, 120),
       String(item?.zh || '').trim().slice(0, 120)
-    ]).filter(item => item[0] && item[1] && item[2] && item[3]).slice(0, limit) : [];
+    ]).filter(item => item[0] && item[3]).slice(0, limit) : [];
     const words = toPairs(parsed.words, 10);
     const phrases = toPairs(parsed.phrases, 5);
     const sentences = toPairs(parsed.sentences, 3);
-    if (!words.length || !phrases.length || !sentences.length) throw new Error('incomplete coaching hints');
+    if (!words.length) throw new Error('incomplete coaching hints');
     send(res, 200, {
       scene: String(parsed.scene || '照片场景').slice(0, 60),
       category: categories.includes(parsed.category) ? parsed.category : '日常生活',
