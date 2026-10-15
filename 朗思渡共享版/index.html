@@ -160,6 +160,15 @@
   .error-item.suggestion{border-left-color:#4caf50;background:#f1f8e9;}
   .error-item.vocab{border-left-color:#2196f3;background:#e3f2fd;}
   .corrected-box{background:#e9f4ea;border-radius:1.5rem;padding:1.4rem 1.6rem;border-left:6px solid #27ae60;margin:1.5rem 0 .5rem;line-height:1.7;}
+  .score-panel{background:#f7faff;border:1px solid #d9e6f5;border-radius:1.5rem;padding:1.2rem 1.3rem;margin:1rem 0;}
+  .score-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.65rem;margin-top:.8rem;}
+  .score-card{background:#fff;border-radius:1rem;padding:.7rem .8rem;border:1px solid #e3edf8;text-align:center;}
+  .score-card .score-value{font-size:1.35rem;font-weight:750;color:var(--primary);display:block;}
+  .score-card .score-label{font-size:.78rem;color:#5c7b9c;display:block;margin-top:.15rem;}
+  .speak-btn{padding:.45rem .8rem;font-size:.82rem;border:1px solid #b8d1ec;background:#fff;color:#1e4e7d;border-radius:2rem;cursor:pointer;margin-top:.55rem;}
+  .speak-btn:hover{background:var(--primary-soft);border-color:var(--primary);}
+  .polished-line{padding:.65rem .8rem;border-bottom:1px solid #d9e6f5;}
+  .polished-line:last-child{border-bottom:0;}
 
   .flex-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;}
   .recording-indicator{display:flex;align-items:center;gap:.75rem;font-weight:500;color:#c0392b;}
@@ -418,11 +427,25 @@
         <div id="transcriptArea" class="hidden" style="margin-top:1.6rem;">
           <h3 style="font-size:1rem;margin-bottom:.5rem;color:#0f2b4b;">📝 你的口述文稿</h3>
           <div id="transcriptText" class="transcript"></div>
-          <h3 style="font-size:1rem;margin:1.4rem 0 .5rem;color:#0f2b4b;">🔎 智能检索到的可能错误</h3>
+          <div id="scorePanel" class="score-panel hidden">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;">
+              <strong style="color:#0f2b4b;">📊 多维度口语评分</strong><span id="scoreSummary" style="color:#5c7b9c;font-size:.85rem;"></span>
+            </div>
+            <div class="score-grid">
+              <div class="score-card"><span id="scoreOverall" class="score-value">—</span><span class="score-label">综合</span></div>
+              <div class="score-card"><span id="scoreGrammar" class="score-value">—</span><span class="score-label">语法准确度</span></div>
+              <div class="score-card"><span id="scoreVocabulary" class="score-value">—</span><span class="score-label">词汇</span></div>
+              <div class="score-card"><span id="scoreFluency" class="score-value">—</span><span class="score-label">流利度</span></div>
+              <div class="score-card"><span id="scoreCoherence" class="score-value">—</span><span class="score-label">连贯性</span></div>
+              <div class="score-card"><span id="scoreTask" class="score-value">—</span><span class="score-label">任务完成度</span></div>
+            </div>
+          </div>
+          <h3 style="font-size:1rem;margin:1.4rem 0 .5rem;color:#0f2b4b;">🔎 语法与表达问题</h3>
           <div id="errorList"></div>
           <div class="corrected-box">
             <h3 style="font-size:1rem;margin-bottom:.5rem;color:#0f4b2b;">✨ 修正润色后的文稿</h3>
             <div id="correctedText" style="color:#154f2b;"></div>
+            <div id="polishedSentences" style="margin-top:.8rem;"></div>
           </div>
           <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
             <button id="saveSessionBtn" class="btn">💾 保存到 PAST</button>
@@ -2010,6 +2033,8 @@ window.SCENE_LIBRARY = (function(){
     $('transcriptEdit').value = '';
     $('errorList').innerHTML = '';
     $('correctedText').textContent = '';
+    $('scorePanel').classList.add('hidden');
+    $('polishedSentences').innerHTML = '';
     $('liveTranscriptText').textContent = '';
     finalTranscript = ''; interimTranscript = '';
   }
@@ -2617,22 +2642,50 @@ window.SCENE_LIBRARY = (function(){
     showStatus('🔄 已重置，请重新点击"开始录音"。','info');
   });
 
-  function displayTranscriptAndCorrections(text) {
+  async function displayTranscriptAndCorrections(text) {
     $('transcriptText').textContent = text;
-    const errors = detectErrors(text);
-    if (errors.length > 0) {
-      $('errorList').innerHTML = errors.map(err => {
-        let cls = 'error-item';
-        if (/升级|润色|连接词|句式/.test(err)) cls += ' suggestion';
-        if (/词汇升级/.test(err)) cls += ' vocab';
-        return `<div class="${cls}">🔹 ${err}</div>`;
-      }).join('');
-    } else {
-      $('errorList').innerHTML = '<div class="error-item" style="border-left-color:#27ae60;">✅ 未检测到明显语法或词汇错误，继续保持！</div>';
-    }
-    $('correctedText').textContent = generateCorrectedVersion(text, errors);
     $('transcriptArea').classList.remove('hidden');
+    $('scorePanel').classList.add('hidden');
+    $('polishedSentences').innerHTML = '';
+    $('errorList').innerHTML = '<div class="error-item" style="border-left-color:#2d7aff;background:#eef5ff;">⏳ 正在分析语法、词汇、流利度和表达连贯性，请稍候...</div>';
+    $('correctedText').textContent = '';
     $('transcriptArea').scrollIntoView({ behavior:'smooth', block:'nearest' });
+    showStatus('正在进行智能口语评测...','info');
+    try {
+      const response = await fetch('/api/analyze-speech', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, scene: currentScene?.name || currentScene?.category || '一般口语练习', education: state.prefs.education, accent: state.prefs.accent })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || '智能评测失败');
+      renderSpeechEvaluation(data);
+      showStatus('✅ 评测完成，已生成纠错、评分和地道表达。','success');
+    } catch (error) {
+      const errors = detectErrors(text);
+      $('errorList').innerHTML = errors.length ? errors.map(err => `<div class="error-item">🔹 ${escapeHintText(err)}</div>`).join('') : '<div class="error-item" style="border-left-color:#e0a000;background:#fff8e1;">⚠️ 智能评测暂时不可用，已显示基础检查结果。</div>';
+      $('correctedText').textContent = generateCorrectedVersion(text, errors);
+      showStatus(`⚠️ ${error.message}，已使用基础检查结果。`,'error');
+    }
+  }
+
+  function renderSpeechEvaluation(data) {
+    const labels = { overall:'scoreOverall', grammar:'scoreGrammar', vocabulary:'scoreVocabulary', fluency:'scoreFluency', coherence:'scoreCoherence', taskCompletion:'scoreTask' };
+    Object.entries(labels).forEach(([key, id]) => { $(id).textContent = `${Number(data[key] || 0)}分`; });
+    $('scoreSummary').textContent = data.summary || '';
+    $('scorePanel').classList.remove('hidden');
+    const escape = value => escapeHintText(value);
+    const errors = Array.isArray(data.errors) ? data.errors : [];
+    $('errorList').innerHTML = errors.length ? errors.map(item => `<div class="error-item"><strong>${escape(item.category || '表达问题')}</strong>：${escape(item.original)} → <span style="color:#176b36;">${escape(item.correction)}</span><div style="margin-top:.35rem;color:#5c6570;">${escape(item.explanation)}</div></div>`).join('') : '<div class="error-item" style="border-left-color:#27ae60;background:#f1f8e9;">✅ 本次没有发现明确的语法或用词错误。</div>';
+    $('correctedText').textContent = data.polished || '（模型没有生成润色稿）';
+    const sentences = Array.isArray(data.sentences) && data.sentences.length ? data.sentences : [{ en: data.polished || '', zh: '' }];
+    const lang = state.prefs.accent === '英式' ? 'en-GB' : 'en-US';
+    $('polishedSentences').innerHTML = `<div style="font-weight:600;color:#0f4b2b;margin:.8rem 0 .25rem;">🔊 点击听取${state.prefs.accent === '英式' ? '英式' : '美式'}发音</div>` + sentences.map((item, index) => `<div class="polished-line"><span style="color:#154f2b;">${escape(item.en)}</span>${item.zh ? `<div style="font-size:.82rem;color:#6a7a8d;margin-top:.2rem;">${escape(item.zh)}</div>` : ''}<button class="speak-btn" data-speak="${escape(item.en)}" data-lang="${lang}">🔊 播放第${index + 1}句</button></div>`).join('');
+    $('polishedSentences').querySelectorAll('[data-speak]').forEach(button => button.addEventListener('click', () => {
+      if (!('speechSynthesis' in window)) { showStatus('当前浏览器不支持发音播放。','error'); return; }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(button.dataset.speak);
+      utterance.lang = button.dataset.lang; utterance.rate = .88; window.speechSynthesis.speak(utterance);
+    }));
   }
 
   function detectErrors(text) {
@@ -2885,6 +2938,7 @@ window.SCENE_LIBRARY = (function(){
       keywords: $('recognizedElements').textContent,
       transcript: currentEditedTranscript || $('transcriptText').textContent,
       corrected: $('correctedText').textContent,
+      scores: ['scoreOverall','scoreGrammar','scoreVocabulary','scoreFluency','scoreCoherence','scoreTask'].reduce((out, id) => { out[id] = $(id).textContent; return out; }, {}),
       audio: audioURL || ''
     };
     state.history.unshift(item);

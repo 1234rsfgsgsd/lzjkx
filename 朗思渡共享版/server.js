@@ -131,6 +131,64 @@ async function analyze(req, res) {
   }
 }
 
+async function analyzeSpeech(req, res) {
+  if (!apiKey || !apiUrl || !model) {
+    send(res, 503, { error: '服务器还没有配置语言模型服务' });
+    return;
+  }
+  const body = await readBody(req);
+  const text = typeof body.text === 'string' ? body.text.trim().slice(0, 6000) : '';
+  if (!text) {
+    send(res, 400, { error: '口述内容为空' });
+    return;
+  }
+  const education = String(body.education || '大学及以上').slice(0, 60);
+  const accent = body.accent === '英式' ? '英式英语' : '美式英语';
+  const scene = String(body.scene || '一般口语练习').slice(0, 160);
+  const prompt = `你是严格、具体、友善的英语口语评测老师。请分析学习者的英文口述，不要因为能理解就判定“没有错误”。区分真正错误（grammar、word_choice、word_form、article、preposition、tense、sentence_structure）和可选的自然表达建议。结合场景“${scene}”、学习阶段“${education}”，目标发音为“${accent}”。只返回严格 JSON，不要 markdown，不要补充说明。每项分数是0到100的整数：grammar语法准确度，vocabulary词汇，fluency流利度（根据文本的重复、停顿词和句子完整度推断），coherence连贯性，taskCompletion是否完成场景表达，overall为综合分。errors 是数组，每项包含 original（原文片段）、correction（修正片段）、category（错误类别）、explanation（中文解释）、severity（high/medium/low）；只列出确实存在的问题，最多8项。polished 必须保留原意、纠正错误并改成自然地道的${accent}表达，不要凭空增加事实；sentences 是适合逐句朗读的润色句子数组，每项包含 en 和 zh。格式：{"overall":0,"grammar":0,"vocabulary":0,"fluency":0,"coherence":0,"taskCompletion":0,"errors":[{"original":"","correction":"","category":"","explanation":"","severity":"medium"}],"polished":"","sentences":[{"en":"","zh":""}],"summary":""}。待评测口述：${text}`;
+  const upstream = await fetch(apiUrl, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0.15, max_tokens: 1400 }),
+    signal: AbortSignal.timeout(60_000)
+  });
+  const responseText = await upstream.text();
+  let result = {};
+  try { result = JSON.parse(responseText); } catch {}
+  if (!upstream.ok) {
+    const providerMessage = String(result.error?.message || result.message || responseText || 'no response details')
+      .replaceAll(apiKey, '[redacted]').replace(/Bearer\s+\S+/gi, 'Bearer [redacted]').replace(/[\r\n\t]+/g, ' ').slice(0, 500);
+    console.error('Speech provider returned', upstream.status, providerMessage);
+    send(res, 502, { error: `语言模型请求失败（${upstream.status}）：${providerMessage}` });
+    return;
+  }
+  let content = result.choices?.[0]?.message?.content;
+  if (Array.isArray(content)) content = content.map(part => part?.text || '').join('');
+  try {
+    const cleaned = String(content || '').replace(/^\`\`\`(?:json)?\s*/i, '').replace(/\s*\`\`\`$/i, '').trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
+    const score = value => Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+    const errors = Array.isArray(parsed.errors) ? parsed.errors.map(item => ({
+      original: String(item?.original || '').slice(0, 180), correction: String(item?.correction || '').slice(0, 180),
+      category: String(item?.category || '表达'), explanation: String(item?.explanation || '').slice(0, 240),
+      severity: ['high', 'medium', 'low'].includes(item?.severity) ? item.severity : 'medium'
+    })).filter(item => item.original && item.correction).slice(0, 8) : [];
+    const sentences = Array.isArray(parsed.sentences) ? parsed.sentences.map(item => ({
+      en: String(item?.en || '').trim().slice(0, 300), zh: String(item?.zh || '').trim().slice(0, 240)
+    })).filter(item => item.en).slice(0, 8) : [];
+    const polished = String(parsed.polished || '').trim().slice(0, 2500);
+    if (!polished) throw new Error('incomplete speech evaluation');
+    send(res, 200, {
+      overall: score(parsed.overall), grammar: score(parsed.grammar), vocabulary: score(parsed.vocabulary),
+      fluency: score(parsed.fluency), coherence: score(parsed.coherence), taskCompletion: score(parsed.taskCompletion),
+      errors, polished, sentences, summary: String(parsed.summary || '').slice(0, 400)
+    });
+  } catch {
+    send(res, 502, { error: '语言模型返回的评测结果无法解析，请重试' });
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   if (req.method === 'GET' && url.pathname === '/health') {
@@ -142,6 +200,15 @@ const server = http.createServer(async (req, res) => {
     catch (error) {
       console.error('Analyze request failed', error.name || 'Error', String(error.message || error).slice(0, 300));
       if (!res.headersSent) send(res, error.status || 502, { error: error.status ? error.message : (error.name === 'TimeoutError' || error.name === 'AbortError' ? '视觉模型响应超时，请稍后重试' : '识图服务暂时不可用，请稍后重试') });
+    }
+    return;
+  }
+  if (req.method === 'POST' && url.pathname === '/api/analyze-speech') {
+    if (!allowedRequest(req, res)) return;
+    try { await analyzeSpeech(req, res); }
+    catch (error) {
+      console.error('Speech analysis failed', error.name || 'Error', String(error.message || error).slice(0, 300));
+      if (!res.headersSent) send(res, error.status || 502, { error: error.status ? error.message : (error.name === 'TimeoutError' || error.name === 'AbortError' ? '语言模型响应超时，请稍后重试' : '语言评测服务暂时不可用，请稍后重试') });
     }
     return;
   }
