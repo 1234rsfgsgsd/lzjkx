@@ -2097,6 +2097,9 @@ window.SCENE_LIBRARY = (function(){
     recognizedImageResult = null;
     $('fileNameDisplay').textContent = `已选择：${file.name}`;
     $('recognizeImageBtn').classList.remove('hidden');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      showStatus(`当前图片格式为 ${file.type || '未知格式'}，浏览器可能无法转换。请优先使用 JPG、PNG 或 WebP。`, 'error');
+    }
     const reader = new FileReader();
     reader.onload = ev => {
       $('photoPreview').src = ev.target.result;
@@ -2132,13 +2135,14 @@ window.SCENE_LIBRARY = (function(){
         height = image.naturalHeight;
         draw = (context, targetWidth, targetHeight) => context.drawImage(image, 0, 0, targetWidth, targetHeight);
       }
-      const scale = Math.min(1, 2400 / Math.max(width, height));
+      // 控制上传尺寸，减少视觉模型处理时间，同时保留足够的细节。
+      const scale = Math.min(1, 1280 / Math.max(width, height));
       const canvas = document.createElement('canvas');
       // Qwen 视觉模型拒绝宽或高不超过 28px 的小图标，统一保证最小尺寸。
       canvas.width = Math.max(32, Math.round(width * scale));
       canvas.height = Math.max(32, Math.round(height * scale));
       draw(canvas.getContext('2d'), canvas.width, canvas.height);
-      return canvas.toDataURL('image/jpeg', 0.9);
+      return canvas.toDataURL('image/jpeg', 0.82);
     } catch {
       throw new Error('浏览器无法读取这张图片，请先另存为 JPG 或 PNG 后重试');
     } finally {
@@ -2156,7 +2160,7 @@ window.SCENE_LIBRARY = (function(){
     try {
       const dataUrl = await normalizeVisionImage(uploadedFile);
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 75_000);
+      const timeout = setTimeout(() => controller.abort(), 90_000);
       const response = await fetch('/api/analyze-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2173,7 +2177,7 @@ window.SCENE_LIBRARY = (function(){
       recognizedImageResult = { category, name: String(result.scene || '照片场景').slice(0, 60), likelyIntent: String(result.likelyIntent || ''), elements, hints: result.hints };
       startUploadedPhotoPractice(recognizedImageResult);
     } catch (error) {
-      const message = error.name === 'AbortError' ? '识图等待超过 65 秒，请稍后重试' : (error.message || '请检查网络后重试');
+      const message = error.name === 'AbortError' ? '识图等待超过 90 秒，请稍后重试' : (error.message || '请检查网络后重试');
       showStatus(`识图失败：${message}`,'error');
     } finally {
       button.disabled = false;
