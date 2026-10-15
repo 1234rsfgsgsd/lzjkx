@@ -340,10 +340,6 @@
           <button id="pickFileBtn" class="btn" style="margin-bottom:.8rem;">📷 选择照片</button>
           <button id="recognizeImageBtn" class="btn btn-secondary hidden" style="margin-bottom:.8rem;">🔍 识别照片内容</button>
           <p id="fileNameDisplay" style="font-size:.9rem;color:#5c7b9c;margin-bottom:.8rem;">尚未选择文件</p>
-          <div id="uploadThemePanel" class="hidden">
-            <p style="color:#1d3f62;font-weight:500;margin-bottom:.3rem;">请为这张照片选择主题：</p>
-            <div class="category-grid" id="uploadCategoryGrid"></div>
-          </div>
         </div>
       </div>
 
@@ -1987,7 +1983,6 @@ window.SCENE_LIBRARY = (function(){
     cleanupRecording(); clearAudioPlayback();
     $('entrySection').classList.remove('hidden');
     $('uploadPanel').classList.add('hidden');
-    $('uploadThemePanel').classList.add('hidden');
     $('themeSelectionSection').classList.add('hidden');
     $('photoSection').classList.add('hidden');
     $('hintSection').classList.add('hidden');
@@ -2051,11 +2046,9 @@ window.SCENE_LIBRARY = (function(){
       if (currentMode === 'upload') {
         $('uploadPanel').classList.remove('hidden');
         $('themeSelectionSection').classList.add('hidden');
-        $('uploadThemePanel').classList.add('hidden');
       } else {
         $('uploadPanel').classList.add('hidden');
         $('themeSelectionSection').classList.remove('hidden');
-        $('uploadThemePanel').classList.add('hidden');
       }
     });
   });
@@ -2071,13 +2064,11 @@ window.SCENE_LIBRARY = (function(){
     const reader = new FileReader();
     reader.onload = ev => {
       $('photoPreview').src = ev.target.result;
-      $('uploadThemePanel').classList.remove('hidden');
       $('photoSection').classList.add('hidden');
       $('hintSection').classList.add('hidden');
       $('recordingSection').classList.add('hidden');
       $('transcriptArea').classList.add('hidden');
       hideStatus();
-      document.querySelectorAll('#uploadCategoryGrid .category-card').forEach(c => c.classList.remove('selected'));
     };
     reader.readAsDataURL(file);
   });
@@ -2137,14 +2128,9 @@ window.SCENE_LIBRARY = (function(){
       const allowed = CATEGORY_META.map(item => item.name);
       const category = allowed.includes(result.category) ? result.category : '日常生活';
       const elements = Array.isArray(result.elements) ? result.elements.map(v => String(v).trim()).filter(Boolean).slice(0, 12) : [];
-      if (!elements.length) throw new Error('模型没有返回可用的照片内容，请重试或手动选择主题');
-      recognizedImageResult = { category, name: String(result.scene || '照片场景').slice(0, 60), elements };
-      $('recognizedElements').textContent = elements.join('、');
-      // Recognition supplies the topic and keywords. Start the uploaded-photo
-      // practice immediately so the user does not have to choose a theme again.
-      $('uploadThemePanel').classList.add('hidden');
-      selectUploadCategory(category, { autoStart: true });
-      showStatus('照片识别完成，已自动生成关键词并进入练习。','success');
+      if (!elements.length) throw new Error('模型没有返回可用的照片内容，请重试');
+      recognizedImageResult = { category, name: String(result.scene || '照片场景').slice(0, 60), likelyIntent: String(result.likelyIntent || ''), elements, hints: result.hints };
+      startUploadedPhotoPractice(recognizedImageResult);
     } catch (error) {
       showStatus(`识图失败：${error.message || '请检查网络后重试'}`,'error');
     } finally {
@@ -2153,37 +2139,11 @@ window.SCENE_LIBRARY = (function(){
     }
   });
 
-  function renderUploadCategoryGrid() {
-    const grid = $('uploadCategoryGrid');
-    grid.innerHTML = '';
-    CATEGORY_META.forEach(cat => {
-      const card = document.createElement('div');
-      card.className = 'category-card';
-      card.dataset.category = cat.name;
-      card.innerHTML = `<span class="emoji">${cat.emoji}</span>${cat.name}`;
-      card.addEventListener('click', () => selectUploadCategory(cat.name));
-      grid.appendChild(card);
-    });
-  }
-
-  function selectUploadCategory(category, options = {}) {
-    document.querySelectorAll('#uploadCategoryGrid .category-card').forEach(c => {
-      c.classList.toggle('selected', c.dataset.category === category);
-    });
+  function startUploadedPhotoPractice(result) {
     try {
-      const pool = SCENE_LIBRARY.filter(s => s.category === category);
-      let keywords;
-      if (recognizedImageResult && recognizedImageResult.category === category) {
-        keywords = recognizedImageResult.elements;
-      } else if (pool.length === 0) {
-        keywords = ['桌子','椅子','窗户','书本','手机','咖啡','朋友'];
-      } else {
-        const scene = pool[Math.floor(Math.random() * pool.length)];
-        keywords = scene.elements || [];
-      }
-
-      $('photoCaption').textContent = `【${category} · ${recognizedImageResult?.category === category ? recognizedImageResult.name : '上传图片'}】`;
-      $('recognizedElements').textContent = keywords.join('、') + '（从该主题场景中随机选取）';
+      const keywords = result.elements;
+      $('photoCaption').textContent = `【${result.category} · ${result.name}】`;
+      $('recognizedElements').textContent = `${result.likelyIntent ? `可能表达：${result.likelyIntent}；` : ''}画面要点：${keywords.join('、')}`;
       $('entrySection').classList.add('hidden');
       $('themeSelectionSection').classList.add('hidden');
       $('uploadPanel').classList.add('hidden');
@@ -2198,13 +2158,15 @@ window.SCENE_LIBRARY = (function(){
       $('manualInputBox').classList.add('hidden');
       $('regenerateBtn').classList.add('hidden');
 
-      currentScene = { category, name: recognizedImageResult?.category === category ? recognizedImageResult.name : '上传图片', elements: keywords, hints: null };
+      currentScene = { category: result.category, name: result.name, elements: keywords, hints: result.hints ? { '大学及以上': result.hints } : null };
       resetRecordingUI();
-      hideStatus();
+      $('hintsContainer').classList.remove('hidden');
+      renderHints(result.hints || fallbackHints(currentScene), state.prefs.education);
+      showStatus('识图完成，已根据照片生成场景分析、可能表达和专属词句。','success');
       checkEnvironment();
     } catch(e) {
-      console.error('选择上传主题失败:', e);
-      showStatus('⚠️ 选择主题失败，请重试', 'error');
+      console.error('生成照片练习内容失败:', e);
+      showStatus('⚠️ 已识别照片，但生成练习提示失败，请重试', 'error');
     }
   }
 
@@ -2355,13 +2317,17 @@ window.SCENE_LIBRARY = (function(){
   }
 
   // ========== 提示词渲染 ==========
+  function escapeHintText(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+
   function formatWord(item) {
     if (Array.isArray(item)) {
       const [en, us, uk, zh] = item;
       const accent = state.prefs.accent === '英式' ? uk : us;
-      return `${en} <span style="color:#5c7b9c;font-size:.82rem;">[${accent}]</span> <span style="color:#5c7b9c;font-size:.82rem;">${zh || ''}</span>`;
+      return `${escapeHintText(en)}${accent ? ` <span style="color:#5c7b9c;font-size:.82rem;">[${escapeHintText(accent)}]</span>` : ''}${zh ? ` <span style="color:#5c7b9c;font-size:.82rem;">${escapeHintText(zh)}</span>` : ''}`;
     }
-    return item;
+    return escapeHintText(item);
   }
 
   function renderHints(set, eduLabel) {
@@ -2377,19 +2343,19 @@ window.SCENE_LIBRARY = (function(){
 
     // 1. 提示词（场景元素英文 + 音标 + 中文）
     if (set.words && set.words.length) {
-      items.push({ label: '提示词', list: set.words, type: 'word' });
+      items.push({ label: currentMode === 'upload' ? '照片关键词' : '提示词', list: set.words, type: 'word' });
     }
 
     // 2. 通用词组：从全部 20 个词组中随机抽 3 个
     if (set.phrases && set.phrases.length) {
       const picked = (window.pickRandom ? window.pickRandom(set.phrases, 3) : set.phrases.slice(0, 3));
-      items.push({ label: '常用词组', list: picked, type: 'word' });
+      items.push({ label: currentMode === 'upload' ? '相关表达' : '常用词组', list: picked, type: 'word' });
     }
 
     // 3. 通用句型：从全部 10 个句型中随机抽 2 个
     if (set.sentences && set.sentences.length) {
       const picked = (window.pickRandom ? window.pickRandom(set.sentences, 2) : set.sentences.slice(0, 2));
-      items.push({ label: '万能句型', list: picked, type: 'sentence' });
+      items.push({ label: currentMode === 'upload' ? '你可以这样说' : '万能句型', list: picked, type: 'sentence' });
     }
 
     $('hintList').innerHTML = items.map(it => {
@@ -2401,7 +2367,7 @@ window.SCENE_LIBRARY = (function(){
           const uk = arr[2] || '';
           const zh = arr[3] || '';
           const accent = state.prefs.accent === '英式' ? uk : us;
-          return `<span class="sentence-line">• ${en}${accent ? ' <span style="color:#5c7b9c;font-size:.82rem;">[' + accent + ']</span>' : ''}${zh ? ' <span style="color:#5c7b9c;font-size:.82rem;">（' + zh + '）</span>' : ''}</span>`;
+          return `<span class="sentence-line">• ${escapeHintText(en)}${accent ? ' <span style="color:#5c7b9c;font-size:.82rem;">[' + escapeHintText(accent) + ']</span>' : ''}${zh ? ' <span style="color:#5c7b9c;font-size:.82rem;">（' + escapeHintText(zh) + '）</span>' : ''}</span>`;
         }).join('');
         return `<li><span class="cat-label">${it.label}:</span>${lines}</li>`;
       }
@@ -2413,7 +2379,8 @@ window.SCENE_LIBRARY = (function(){
   $('needHintsBtn').addEventListener('click', () => {
     if (!currentScene) { showStatus('⚠️ 请先选择素材。','error'); return; }
     let hints;
-    if (currentMode === 'upload' && currentScene.category) hints = getHintsForUpload(currentScene.category);
+    if (currentMode === 'upload' && recognizedImageResult?.hints) hints = recognizedImageResult.hints;
+    else if (currentMode === 'upload' && currentScene.category) hints = getHintsForUpload(currentScene.category);
     else hints = getHintsForScene(currentScene);
     renderHints(hints, state.prefs.education);
     $('hintsContainer').classList.remove('hidden');
@@ -3036,7 +3003,6 @@ window.SCENE_LIBRARY = (function(){
     $('entrySection').classList.remove('hidden');
     $('uploadPanel').classList.add('hidden');
     $('themeSelectionSection').classList.add('hidden');
-    $('uploadThemePanel').classList.add('hidden');
     hideStatus(); cleanupRecording(); clearAudioPlayback();
     document.querySelectorAll('.entry-card').forEach(c => c.classList.remove('selected'));
   });
@@ -3046,7 +3012,6 @@ window.SCENE_LIBRARY = (function(){
   renderProfile();
   renderEmojiGrid();
   renderCategoryGrid();
-  renderUploadCategoryGrid();
 
   function initApp() {
     applyTheme(state.theme);

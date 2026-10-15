@@ -73,7 +73,7 @@ async function analyze(req, res) {
   }
 
   const categories = ['日常生活','餐饮美食','出行交通','旅游观光','工作职场','休闲娱乐','购物消费','宠物动物','运动健身','自然风景','学习校园','医疗健康'];
-  const prompt = `请分析用户上传的照片，用于英语口语练习。返回严格 JSON，不要 markdown：{"scene":"简短中文场景描述","category":"从以下类别选一个：${categories.join('、')}","elements":["照片中确实可见的中文物体或细节，最多12项"]}。不要猜测看不清的内容。`;
+  const prompt = `你是英语口语陪练的看图教练。请观察图片并设计专属口语提示。返回严格 JSON，不要 markdown。scene 是简洁中文场景和动作；category 从${categories.join('、')}中选一个；likelyIntent 推测学习者最可能表达的意图，只能依据画面，不确定写描述画面；elements 列出5-10个确实可见的中文要点，禁止臆造身份、地点、关系或情绪；words 返回6-10个贴合画面的英文词及中文释义；phrases 返回3-5个自然英文短语及中文释义；sentences 返回3句可直接描述此图的英文句子及中文翻译。难度按${String(body.education || '大学及以上').slice(0, 30)}控制。格式：{"scene":"...","category":"...","likelyIntent":"...","elements":["..."],"words":[{"en":"...","zh":"..."}],"phrases":[{"en":"...","zh":"..."}],"sentences":[{"en":"...","zh":"..."}]}`;
   const upstream = await fetch(apiUrl, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -83,7 +83,7 @@ async function analyze(req, res) {
         { type: 'text', text: prompt },
         { type: 'image_url', image_url: { url: body.image } }
       ] }],
-      temperature: 0.2,
+      temperature: 0.25,
     }),
     signal: AbortSignal.timeout(45_000)
   });
@@ -108,10 +108,17 @@ async function analyze(req, res) {
   try {
     const cleaned = String(content || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     const parsed = JSON.parse(cleaned);
+    const toPairs = (items, limit) => Array.isArray(items) ? items.map(item => [String(item?.en || '').trim().slice(0, 120), '', '', String(item?.zh || '').trim().slice(0, 120)]).filter(item => item[0] && item[3]).slice(0, limit) : [];
+    const words = toPairs(parsed.words, 10);
+    const phrases = toPairs(parsed.phrases, 5);
+    const sentences = toPairs(parsed.sentences, 3);
+    if (!words.length || !phrases.length || !sentences.length) throw new Error('incomplete coaching hints');
     send(res, 200, {
       scene: String(parsed.scene || '照片场景').slice(0, 60),
       category: categories.includes(parsed.category) ? parsed.category : '日常生活',
-      elements: Array.isArray(parsed.elements) ? parsed.elements.map(value => String(value).trim().slice(0, 80)).filter(Boolean).slice(0, 12) : []
+      likelyIntent: String(parsed.likelyIntent || '描述画面').slice(0, 100),
+      elements: Array.isArray(parsed.elements) ? parsed.elements.map(value => String(value).trim().slice(0, 80)).filter(Boolean).slice(0, 10) : [],
+      hints: { words, phrases, sentences }
     });
   } catch {
     send(res, 502, { error: '视觉模型返回的结果无法解析，请重试' });
