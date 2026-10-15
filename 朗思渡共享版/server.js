@@ -149,8 +149,8 @@ async function analyzeSpeech(req, res) {
   const upstream = await fetch(apiUrl, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0.15, max_tokens: 1400 }),
-    signal: AbortSignal.timeout(60_000)
+    body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0.15, max_tokens: 900 }),
+    signal: AbortSignal.timeout(100_000)
   });
   const responseText = await upstream.text();
   let result = {};

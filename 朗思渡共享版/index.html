@@ -2658,7 +2658,7 @@ window.SCENE_LIBRARY = (function(){
     showStatus('正在进行智能口语评测...','info');
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 75_000);
+      const timeout = setTimeout(() => controller.abort(), 115_000);
       const response = await fetch('/api/analyze-speech', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, scene: currentScene?.name || currentScene?.category || '一般口语练习', education: state.prefs.education, accent: state.prefs.accent }),
@@ -2671,7 +2671,7 @@ window.SCENE_LIBRARY = (function(){
       showStatus('✅ 评测完成，已生成纠错、评分和地道表达。','success');
     } catch (error) {
       const errors = detectErrors(text);
-      $('errorList').innerHTML = errors.length ? errors.map(err => `<div class="error-item">🔹 ${escapeHintText(err)}</div>`).join('') : '<div class="error-item" style="border-left-color:#e0a000;background:#fff8e1;">⚠️ 智能评测暂时不可用，已显示基础检查结果。</div>';
+      $('errorList').innerHTML = errors.length ? errors.map(err => `<div class="error-item">🔹 ${escapeHintText(err)}</div>`).join('') : `<div class="error-item" style="border-left-color:#e0a000;background:#fff8e1;">⚠️ 智能评测暂时不可用，已显示基础检查结果。<div style="margin-top:.35rem;font-size:.82rem;color:#856404;">${escapeHintText(error.message || '请稍后重试')}</div></div>`;
       $('correctedText').textContent = generateCorrectedVersion(text, errors);
       showStatus(`⚠️ ${error.name === 'AbortError' ? '智能评测等待超时' : error.message}，已使用基础检查结果。`,'error');
     }
