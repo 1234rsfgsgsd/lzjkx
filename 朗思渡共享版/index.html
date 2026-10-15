@@ -2121,7 +2121,7 @@ window.SCENE_LIBRARY = (function(){
           bitmap = await createImageBitmap(file);
           width = bitmap.width;
           height = bitmap.height;
-          draw = context => context.drawImage(bitmap, 0, 0, width, height);
+          draw = (context, targetWidth, targetHeight) => context.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
         } catch {}
       }
       if (!draw) {
@@ -2130,13 +2130,14 @@ window.SCENE_LIBRARY = (function(){
         await image.decode();
         width = image.naturalWidth;
         height = image.naturalHeight;
-        draw = context => context.drawImage(image, 0, 0, width, height);
+        draw = (context, targetWidth, targetHeight) => context.drawImage(image, 0, 0, targetWidth, targetHeight);
       }
       const scale = Math.min(1, 2400 / Math.max(width, height));
       const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(width * scale));
-      canvas.height = Math.max(1, Math.round(height * scale));
-      draw(canvas.getContext('2d'));
+      // Qwen 视觉模型拒绝宽或高不超过 28px 的小图标，统一保证最小尺寸。
+      canvas.width = Math.max(32, Math.round(width * scale));
+      canvas.height = Math.max(32, Math.round(height * scale));
+      draw(canvas.getContext('2d'), canvas.width, canvas.height);
       return canvas.toDataURL('image/jpeg', 0.9);
     } catch {
       throw new Error('浏览器无法读取这张图片，请先另存为 JPG 或 PNG 后重试');
