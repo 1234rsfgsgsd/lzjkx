@@ -340,6 +340,7 @@
           <button id="pickFileBtn" class="btn" style="margin-bottom:.8rem;">📷 选择照片</button>
           <button id="recognizeImageBtn" class="btn btn-secondary hidden" style="margin-bottom:.8rem;">🔍 识别照片内容</button>
           <p id="fileNameDisplay" style="font-size:.9rem;color:#5c7b9c;margin-bottom:.8rem;">尚未选择文件</p>
+          <div id="uploadStatus" class="status-message hidden" aria-live="polite"></div>
         </div>
       </div>
 
@@ -2030,14 +2031,24 @@ window.SCENE_LIBRARY = (function(){
   }
 
   function showStatus(msg, type='info') {
-    const el = $('statusMessage');
-    el.textContent = msg;
-    el.className = 'status-message ' + (type==='error'?'status-error':type==='success'?'status-success':'status-info');
-    el.classList.remove('hidden');
-    clearTimeout(el._timer);
-    el._timer = setTimeout(() => el.classList.add('hidden'), type==='error'?10000:6000);
+    const className = 'status-message ' + (type==='error'?'status-error':type==='success'?'status-success':'status-info');
+    const duration = type === 'error' ? 10000 : 6000;
+    ['statusMessage', 'uploadStatus'].forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      el.textContent = msg;
+      el.className = className;
+      el.classList.remove('hidden');
+      clearTimeout(el._timer);
+      el._timer = setTimeout(() => el.classList.add('hidden'), duration);
+    });
   }
-  function hideStatus() { $('statusMessage').classList.add('hidden'); clearTimeout($('statusMessage')._timer); }
+  function hideStatus() {
+    ['statusMessage', 'uploadStatus'].forEach(id => {
+      const el = $(id);
+      if (el) { el.classList.add('hidden'); clearTimeout(el._timer); }
+    });
+  }
   document.querySelectorAll('.entry-card').forEach(card => {
     card.addEventListener('click', () => {
       document.querySelectorAll('.entry-card').forEach(c => c.classList.remove('selected'));
@@ -2119,7 +2130,7 @@ window.SCENE_LIBRARY = (function(){
     try {
       const dataUrl = await normalizeVisionImage(uploadedFile);
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 65_000);
+      const timeout = setTimeout(() => controller.abort(), 75_000);
       const response = await fetch('/api/analyze-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
