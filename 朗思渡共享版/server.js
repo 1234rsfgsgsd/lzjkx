@@ -73,7 +73,7 @@ async function analyze(req, res) {
   }
 
   const categories = ['日常生活','餐饮美食','出行交通','旅游观光','工作职场','休闲娱乐','购物消费','宠物动物','运动健身','自然风景','学习校园','医疗健康'];
-  const prompt = `你是英语口语陪练的看图教练。请观察图片并设计专属口语提示。返回严格 JSON，不要 markdown。scene 是简洁中文场景和动作；category 从${categories.join('、')}中选一个；likelyIntent 推测学习者最可能表达的意图，只能依据画面，不确定写描述画面；elements 列出5-10个确实可见的中文要点，禁止臆造身份、地点、关系或情绪；words 返回6-10个贴合画面的英文词及中文释义；phrases 返回3-5个自然英文短语及中文释义；sentences 返回3句可直接描述此图的英文句子及中文翻译。难度按${String(body.education || '大学及以上').slice(0, 30)}控制。格式：{"scene":"...","category":"...","likelyIntent":"...","elements":["..."],"words":[{"en":"...","zh":"..."}],"phrases":[{"en":"...","zh":"..."}],"sentences":[{"en":"...","zh":"..."}]}`;
+  const prompt = `你是英语口语陪练的看图教练。请观察图片并设计专属口语提示。返回严格 JSON，不要 markdown。scene 是简洁中文场景和动作；category 从${categories.join('、')}中选一个；likelyIntent 推测学习者最可能表达的意图，只能依据画面，不确定写描述画面；elements 列出5-10个确实可见的中文要点，禁止臆造身份、地点、关系或情绪。words 返回6-10个贴合画面的英文词，phrases 返回3-5个自然英文短语，sentences 返回3句可直接描述此图的英文句子。words、phrases、sentences 的每项都必须包含 en（英文）、us（美式 IPA，使用 / /）、uk（英式 IPA，使用 / /）、zh（中文释义），音标要准确对应完整英文内容，不能留空或用中文代替。难度按${String(body.education || '大学及以上').slice(0, 30)}控制。格式：{"scene":"...","category":"...","likelyIntent":"...","elements":["..."],"words":[{"en":"...","us":"/.../","uk":"/.../","zh":"..."}],"phrases":[{"en":"...","us":"/.../","uk":"/.../","zh":"..."}],"sentences":[{"en":"...","us":"/.../","uk":"/.../","zh":"..."}]}`;
   const upstream = await fetch(apiUrl, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -108,7 +108,12 @@ async function analyze(req, res) {
   try {
     const cleaned = String(content || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     const parsed = JSON.parse(cleaned);
-    const toPairs = (items, limit) => Array.isArray(items) ? items.map(item => [String(item?.en || '').trim().slice(0, 120), '', '', String(item?.zh || '').trim().slice(0, 120)]).filter(item => item[0] && item[3]).slice(0, limit) : [];
+    const toPairs = (items, limit) => Array.isArray(items) ? items.map(item => [
+      String(item?.en || '').trim().slice(0, 120),
+      String(item?.us || '').trim().slice(0, 120),
+      String(item?.uk || '').trim().slice(0, 120),
+      String(item?.zh || '').trim().slice(0, 120)
+    ]).filter(item => item[0] && item[1] && item[2] && item[3]).slice(0, limit) : [];
     const words = toPairs(parsed.words, 10);
     const phrases = toPairs(parsed.phrases, 5);
     const sentences = toPairs(parsed.sentences, 3);
