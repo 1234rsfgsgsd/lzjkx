@@ -7,6 +7,7 @@ const port = Number(process.env.PORT || 3000);
 const apiKey = process.env.VISION_API_KEY;
 const apiUrl = process.env.VISION_API_URL;
 const model = process.env.VISION_MODEL;
+const speechModel = process.env.SPEECH_MODEL || model;
 const maxBytes = 10 * 1024 * 1024;
 const maxBodyBytes = 15 * 1024 * 1024;
 const trustedProxyHops = Math.max(0, Number(process.env.TRUST_PROXY_HOPS || 1));
@@ -145,12 +146,12 @@ async function analyzeSpeech(req, res) {
   const education = String(body.education || '大学及以上').slice(0, 60);
   const accent = body.accent === '英式' ? '英式英语' : '美式英语';
   const scene = String(body.scene || '一般口语练习').slice(0, 160);
-  const prompt = `你是严格、具体、友善的英语口语评测老师。请分析学习者的英文口述，不要因为能理解就判定“没有错误”。区分真正错误（grammar、word_choice、word_form、article、preposition、tense、sentence_structure）和可选的自然表达建议。结合场景“${scene}”、学习阶段“${education}”，目标发音为“${accent}”。只返回严格 JSON，不要 markdown，不要补充说明。每项分数是0到100的整数：grammar语法准确度，vocabulary词汇，fluency流利度（根据文本的重复、停顿词和句子完整度推断），coherence连贯性，taskCompletion是否完成场景表达，overall为综合分。errors 是数组，每项包含 original（原文片段）、correction（修正片段）、category（错误类别）、explanation（中文解释）、severity（high/medium/low）；只列出确实存在的问题，最多8项。polished 必须保留原意、纠正错误并改成自然地道的${accent}表达，不要凭空增加事实；sentences 是适合逐句朗读的润色句子数组，每项包含 en 和 zh。格式：{"overall":0,"grammar":0,"vocabulary":0,"fluency":0,"coherence":0,"taskCompletion":0,"errors":[{"original":"","correction":"","category":"","explanation":"","severity":"medium"}],"polished":"","sentences":[{"en":"","zh":""}],"summary":""}。待评测口述：${text}`;
+  const prompt = `你是英语口语评测老师。严格找出真实语法、用词、词形、冠词、介词、时态和句式错误，不要因为意思能理解就说“没有错误”。场景:${scene}；水平:${education}；目标口音:${accent}。只返回 JSON，不要 markdown。分数 0-100：overall、grammar、vocabulary、fluency（根据文本重复和完整度推断）、coherence、taskCompletion。errors 最多6项，每项含 original、correction、category、explanation（中文）、severity。polished 保留原意并改成自然表达。sentences 最多4项，每项含 en、zh。格式：{"overall":0,"grammar":0,"vocabulary":0,"fluency":0,"coherence":0,"taskCompletion":0,"errors":[],"polished":"","sentences":[],"summary":""}。口述:${text}`;
   const upstream = await fetch(apiUrl, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0.15, max_tokens: 900 }),
-    signal: AbortSignal.timeout(100_000)
+    body: JSON.stringify({ model: speechModel, messages: [{ role: 'user', content: prompt }], temperature: 0.1, max_tokens: 650 }),
+    signal: AbortSignal.timeout(180_000)
   });
   const responseText = await upstream.text();
   let result = {};

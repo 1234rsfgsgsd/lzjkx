@@ -2658,7 +2658,7 @@ window.SCENE_LIBRARY = (function(){
     showStatus('正在进行智能口语评测...','info');
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 115_000);
+      const timeout = setTimeout(() => controller.abort(), 190_000);
       const response = await fetch('/api/analyze-speech', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, scene: currentScene?.name || currentScene?.category || '一般口语练习', education: state.prefs.education, accent: state.prefs.accent }),
