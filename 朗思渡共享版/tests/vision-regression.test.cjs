@@ -58,7 +58,7 @@ before(async () => {
       topicSummary:'介绍一本书', polished:'I have a book.', sentences:[], summary:'测试结果'
     };
     const response = providerReply || completion(JSON.stringify(isVision ? fixture : isSpeechRepair ? { polished: speechRepairReply } : speechReply || defaultSpeech));
-    res.writeHead(providerStatus, {'Content-Type':'application/json'});
+    res.writeHead(providerStatus, {'Content-Type':'application/json', ...(providerStatus === 429 ? {'Retry-After':'2'} : {})});
     res.end(JSON.stringify(response));
   });
   await new Promise(resolve => provider.listen(0, '127.0.0.1', resolve));
@@ -68,7 +68,7 @@ before(async () => {
   await new Promise(resolve => probe.close(resolve));
   base = `http://127.0.0.1:${port}`;
   child = spawn(process.execPath, [path.join(__dirname, '../server.js')], {
-    env: {...process.env, PORT:String(port), VISION_API_KEY:'test-only', VISION_API_URL:`http://127.0.0.1:${provider.address().port}`, VISION_MODEL:'test-vision', SPEECH_MODEL:'test-text'},
+    env: {...process.env, PORT:String(port), TRUST_PROXY_HOPS:'1', VISION_API_KEY:'test-only', VISION_API_URL:`http://127.0.0.1:${provider.address().port}`, VISION_MODEL:'test-vision', SPEECH_MODEL:'test-text'},
     stdio:'ignore'
   });
   for (let n=0; n<100; n++) {
@@ -102,6 +102,33 @@ test('provider permission errors are not automatically retried; keys are redacte
     assert.match(body.error,/401/);
     assert.ok(!body.error.includes('test-only'));
   } finally {providerStatus=200; providerReply=undefined;}
+});
+test('provider rate limits return a wait hint instead of encouraging rapid retries', async () => {
+  providerStatus=429; providerReply={error:{message:'rate limit reached'}};
+  try {
+    const response=await post('/api/analyze-image',{image:'data:image/jpeg;base64,/9j/2Q=='});
+    const body=await response.json();
+    assert.equal(response.status,429);
+    assert.equal(body.retryable,false);
+    assert.equal(body.retryAfterMs,2000);
+    assert.match(body.error,/等待约 2 秒后再试/);
+  } finally {providerStatus=200; providerReply=undefined;}
+});
+test('image rate limits are isolated by forwarded client IP and do not block speech evaluations', async () => {
+  const headers={'Content-Type':'application/json','X-Forwarded-For':'203.0.113.10'};
+  for(let n=0;n<24;n++) {
+    const response=await fetch(base+'/api/analyze-image',{method:'POST',headers,body:JSON.stringify({image:'data:image/jpeg;base64,/9j/2Q=='})});
+    assert.equal(response.status,200);
+  }
+  const limited=await fetch(base+'/api/analyze-image',{method:'POST',headers,body:JSON.stringify({image:'data:image/jpeg;base64,/9j/2Q=='})});
+  const limitedBody=await limited.json();
+  assert.equal(limited.status,429);
+  assert.equal(limitedBody.code,'LOCAL_RATE_LIMIT');
+  assert.equal(limitedBody.retryable,false);
+  const speech=await fetch(base+'/api/analyze-speech',{method:'POST',headers,body:JSON.stringify({text:'I have a book.'})});
+  assert.equal(speech.status,200);
+  const otherClient=await fetch(base+'/api/analyze-image',{method:'POST',headers:{...headers,'X-Forwarded-For':'203.0.113.11'},body:JSON.stringify({image:'data:image/jpeg;base64,/9j/2Q=='})});
+  assert.equal(otherClient.status,200);
 });
 test('truncated model output gets an explicit retriable error', async () => {
   providerReply=completion('{"scene":', 'length');

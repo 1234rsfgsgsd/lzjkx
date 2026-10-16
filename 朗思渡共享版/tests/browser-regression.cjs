@@ -13,7 +13,7 @@ const success = {
 (async () => {
   const browser = await chromium.launch({channel:process.env.BROWSER_CHANNEL || 'msedge',headless:true});
   try {
-    for (const scenario of ['success', 'retry-network', 'permission']) {
+    for (const scenario of ['success', 'retry-network', 'permission', 'rate-limit']) {
       const page = await browser.newPage();
       const errors=[];
       page.on('pageerror',error=>errors.push(error.message));
@@ -31,6 +31,7 @@ const success = {
         const body=route.request().postDataJSON();
         assert.match(body.image,/^data:image\/jpeg;base64,/);
         if(scenario==='permission') return route.fulfill({status:502,json:{error:'视觉服务拒绝了请求（401）',retryable:false}});
+        if(scenario==='rate-limit') return route.fulfill({status:429,json:{error:'视觉服务当前请求较多，请等待约 2 秒后再试。',retryable:false,retryAfterMs:2000}});
         if(scenario==='retry-network' && calls===1) return route.fulfill({status:502,json:{error:'服务繁忙',retryable:true}});
         if(scenario==='retry-network' && calls===2) return route.abort('connectionfailed');
         await route.fulfill({json:success});
@@ -43,10 +44,10 @@ const success = {
       await page.locator('#photoInput').setInputFiles({name:'small.png',mimeType:'image/png',buffer:Buffer.from(data,'base64')});
       await page.locator('#recognizeImageBtn').click();
       await page.waitForFunction(()=>!document.getElementById('recognizeImageBtn').disabled,null,{timeout:20000});
-      if(scenario==='permission') {
+      if(scenario==='permission' || scenario==='rate-limit') {
         assert.equal(calls,1);
         assert.equal(await page.locator('#uploadStatus').isVisible(),true);
-        assert.match(await page.locator('#uploadStatus').innerText(),/401/);
+        assert.match(await page.locator('#uploadStatus').innerText(),scenario==='permission'?/401/:/等待约 2 秒/);
         await page.clock.install(); await page.clock.fastForward(11000);
         assert.equal(await page.locator('#uploadStatus').isVisible(),true,'error must stay visible');
         assert.equal(await page.locator('#pickFileBtn').isVisible(),true,'another upload must remain possible');

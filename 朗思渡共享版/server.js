@@ -49,21 +49,39 @@ function readBody(req) {
 function allowedRequest(req, res) {
   const now = Date.now();
   const forwarded = req.headers['x-forwarded-for']?.split(',').map(value => value.trim()).filter(Boolean) || [];
-  const hopIndex = forwarded.length - trustedProxyHops;
-  const ip = trustedProxyHops > 0 && hopIndex > 0 ? forwarded[hopIndex - 1] : req.socket.remoteAddress;
+  // The rightmost X-Forwarded-For entries are supplied by trusted proxies.
+  // With one trusted Render hop and one forwarded entry, index 0 is the client.
+  const clientIndex = forwarded.length - trustedProxyHops;
+  const ip = trustedProxyHops > 0 && forwarded.length ? forwarded[clientIndex] : req.socket.remoteAddress;
   for (const [key, value] of windows) if (now - value.start > 120_000) windows.delete(key);
-  const entry = windows.get(ip);
-  if (!entry || now - entry.start > 60_000) windows.set(ip, { start: now, count: 1 });
-  else if (++entry.count > 12) {
-    send(res, 429, { error: '请求太频繁，请稍后再试' });
+  const pathname = new URL(req.url, `http://${req.headers.host || 'localhost'}`).pathname;
+  const route = pathname.startsWith('/api/analyze-speech') ? 'speech' : pathname;
+  const limit = route === '/api/analyze-image' ? 24 : 12;
+  const bucket = `${ip}:${route}`;
+  const entry = windows.get(bucket);
+  if (!entry || now - entry.start > 60_000) windows.set(bucket, { start: now, count: 1 });
+  else if (++entry.count > limit) {
+    const retryAfterMs = Math.max(0, 60_000 - (now - entry.start));
+    send(res, 429, {
+      error: `该功能的请求过于频繁，请等待约 ${Math.ceil(retryAfterMs / 1000)} 秒后再试。`,
+      code: 'LOCAL_RATE_LIMIT', retryable: false, retryAfterMs
+    });
     return false;
   }
   return true;
 }
 
+function retryAfterMilliseconds(value, fallback = 30_000) {
+  if (!value) return fallback;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, Math.min(300_000, seconds * 1000));
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? Math.max(0, Math.min(300_000, timestamp - Date.now())) : fallback;
+}
+
 async function analyze(req, res) {
   if (!apiKey || !apiUrl || !model) {
-    send(res, 503, { error: '服务器还没有配置视觉模型服务' });
+    send(res, 503, { error: '服务器还没有配置视觉模型服务', code: 'VISION_NOT_CONFIGURED', retryable: false });
     return;
   }
   const body = await readBody(req);
@@ -105,11 +123,13 @@ async function analyze(req, res) {
     const guidance = upstream.status === 401 || upstream.status === 403
       ? `视觉服务拒绝了请求（${upstream.status}）。请在 SiliconFlow 检查 API Key、账户余额和该模型的调用权限。${providerMessage}`
       : upstream.status === 429
-        ? `视觉服务暂时限流（429），请等待 30 秒后重试。${providerMessage}`
+        ? `视觉服务当前请求较多，请等待约 ${Math.ceil(retryAfterMilliseconds(upstream.headers.get('retry-after')) / 1000)} 秒后再试。${providerMessage}`
       : `视觉服务请求失败（${upstream.status}）：${providerMessage}`;
-    send(res, 502, {
+    const isRateLimited = upstream.status === 429;
+    send(res, isRateLimited ? 429 : 502, {
       error: guidance, code: 'VISION_PROVIDER_ERROR',
-      retryable: upstream.status === 429 || upstream.status >= 500
+      retryable: !isRateLimited && upstream.status >= 500,
+      ...(isRateLimited ? { retryAfterMs: retryAfterMilliseconds(upstream.headers.get('retry-after')) } : {})
     });
     return;
   }

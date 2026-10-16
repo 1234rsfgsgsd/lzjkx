@@ -2207,7 +2207,8 @@ window.SCENE_LIBRARY = (function(){
         } finally {
           clearTimeout(timeout);
         }
-        showStatus(`识图服务暂时繁忙，正在自动重试（${attempt + 2}/3）...`, 'info',true);
+        const retryReason = lastError?.name === 'AbortError' ? '识图请求超时' : (lastError?.message || '视觉服务暂时不可用');
+        showStatus(`${retryReason.slice(0, 160)}；正在自动重试（${attempt + 2}/3）...`, 'info',true);
         await new Promise(resolve => setTimeout(resolve, 1800 * (attempt + 1)));
       }
       if (!response?.ok) throw lastError || new Error('识图服务暂时不可用');
