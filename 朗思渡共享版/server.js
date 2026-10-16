@@ -12,6 +12,8 @@ const maxBytes = 10 * 1024 * 1024;
 const maxBodyBytes = 15 * 1024 * 1024;
 const trustedProxyHops = Math.max(0, Number(process.env.TRUST_PROXY_HOPS || 1));
 const windows = new Map();
+const speechJobs = new Map();
+const crypto = require('node:crypto');
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {
   res.writeHead(status, { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff' });
@@ -132,26 +134,27 @@ async function analyze(req, res) {
   }
 }
 
-async function analyzeSpeech(req, res) {
+async function evaluateSpeech(body) {
   if (!apiKey || !apiUrl || !model) {
-    send(res, 503, { error: '服务器还没有配置语言模型服务' });
-    return;
+    throw Object.assign(new Error('服务器还没有配置语言模型服务'), { status: 503 });
   }
-  const body = await readBody(req);
   const text = typeof body.text === 'string' ? body.text.trim().slice(0, 6000) : '';
   if (!text) {
-    send(res, 400, { error: '口述内容为空' });
-    return;
+    throw Object.assign(new Error('口述内容为空'), { status: 400 });
   }
   const education = String(body.education || '大学及以上').slice(0, 60);
   const accent = body.accent === '英式' ? '英式英语' : '美式英语';
   const scene = String(body.scene || '一般口语练习').slice(0, 160);
-  const prompt = `你是英语口语评测老师。严格找出真实语法、用词、词形、冠词、介词、时态和句式错误，不要因为意思能理解就说“没有错误”。场景:${scene}；水平:${education}；目标口音:${accent}。只返回 JSON，不要 markdown。分数 0-100：overall、grammar、vocabulary、fluency（根据文本重复和完整度推断）、coherence、taskCompletion。errors 最多6项，每项含 original、correction、category、explanation（中文）、severity。polished 保留原意并改成自然表达。sentences 最多4项，每项含 en、zh。格式：{"overall":0,"grammar":0,"vocabulary":0,"fluency":0,"coherence":0,"taskCompletion":0,"errors":[],"polished":"","sentences":[],"summary":""}。口述:${text}`;
+  const isLongText = text.length > 2200;
+  const sentenceInstruction = isLongText
+    ? 'sentences 返回空数组[]（网页会从 polished 自动拆分朗读，避免重复输出）'
+    : 'sentences 最多6项，每项含 en、zh，按完整句子拆分，供逐句朗读';
+  const prompt = `你是英语口语评测老师。严格找出真实语法、用词、词形、冠词、介词、时态和句式错误，不要因为意思能理解就说“没有错误”。场景:${scene}；水平:${education}；目标口音:${accent}。只返回严格 JSON，不要 markdown。分数 0-100：overall、grammar、vocabulary、fluency（根据文本重复和完整度推断）、coherence、taskCompletion。errors 最多${isLongText ? 10 : 6}项，每项含 original、correction、category、explanation（中文）、severity。polished 必须覆盖原文的全部主要内容，保留原意并改成自然表达。${sentenceInstruction}。格式：{"overall":0,"grammar":0,"vocabulary":0,"fluency":0,"coherence":0,"taskCompletion":0,"errors":[],"polished":"","sentences":[],"summary":""}。口述:${text}`;
   const upstream = await fetch(apiUrl, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: speechModel, messages: [{ role: 'user', content: prompt }], temperature: 0.1, max_tokens: 650 }),
-    signal: AbortSignal.timeout(180_000)
+    body: JSON.stringify({ model: speechModel, messages: [{ role: 'user', content: prompt }], temperature: 0.1, max_tokens: isLongText ? 2200 : 700 }),
+    signal: AbortSignal.timeout(120_000)
   });
   const responseText = await upstream.text();
   let result = {};
@@ -160,8 +163,7 @@ async function analyzeSpeech(req, res) {
     const providerMessage = String(result.error?.message || result.message || responseText || 'no response details')
       .replaceAll(apiKey, '[redacted]').replace(/Bearer\s+\S+/gi, 'Bearer [redacted]').replace(/[\r\n\t]+/g, ' ').slice(0, 500);
     console.error('Speech provider returned', upstream.status, providerMessage);
-    send(res, 502, { error: `语言模型请求失败（${upstream.status}）：${providerMessage}` });
-    return;
+    throw Object.assign(new Error(`语言模型请求失败（${upstream.status}）：${providerMessage}`), { status: 502 });
   }
   let content = result.choices?.[0]?.message?.content;
   if (Array.isArray(content)) content = content.map(part => part?.text || '').join('');
@@ -178,16 +180,58 @@ async function analyzeSpeech(req, res) {
     const sentences = Array.isArray(parsed.sentences) ? parsed.sentences.map(item => ({
       en: String(item?.en || '').trim().slice(0, 300), zh: String(item?.zh || '').trim().slice(0, 240)
     })).filter(item => item.en).slice(0, 8) : [];
-    const polished = String(parsed.polished || '').trim().slice(0, 2500);
+    const polished = String(parsed.polished || '').trim().slice(0, 7000);
     if (!polished) throw new Error('incomplete speech evaluation');
-    send(res, 200, {
+    return {
       overall: score(parsed.overall), grammar: score(parsed.grammar), vocabulary: score(parsed.vocabulary),
       fluency: score(parsed.fluency), coherence: score(parsed.coherence), taskCompletion: score(parsed.taskCompletion),
       errors, polished, sentences, summary: String(parsed.summary || '').slice(0, 400)
-    });
+    };
   } catch {
-    send(res, 502, { error: '语言模型返回的评测结果无法解析，请重试' });
+    throw Object.assign(new Error('语言模型返回的评测结果无法解析，请重试'), { status: 502 });
   }
+}
+
+async function analyzeSpeech(req, res) {
+  const body = await readBody(req);
+  const result = await evaluateSpeech(body);
+  send(res, 200, result);
+}
+
+function cleanSpeechJobs() {
+  const cutoff = Date.now() - 10 * 60_000;
+  for (const [id, job] of speechJobs) if (job.createdAt < cutoff) speechJobs.delete(id);
+}
+
+async function startSpeechJob(req, res) {
+  const body = await readBody(req);
+  const text = typeof body.text === 'string' ? body.text.trim() : '';
+  if (!text) return send(res, 400, { error: '口述内容为空' });
+  if (text.length > 6000) return send(res, 413, { error: '口述内容过长，请控制在 6000 个字符以内' });
+  cleanSpeechJobs();
+  if (speechJobs.size >= 50) return send(res, 503, { error: '评测任务较多，请稍后再试' });
+  const jobId = crypto.randomUUID();
+  speechJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
+  evaluateSpeech(body).then(result => {
+    speechJobs.set(jobId, { status: 'complete', result, createdAt: Date.now() });
+  }).catch(error => {
+    console.error('Speech job failed', error.name || 'Error', String(error.message || error).slice(0, 300));
+    speechJobs.set(jobId, {
+      status: 'failed',
+      error: error.status ? error.message : (error.name === 'TimeoutError' || error.name === 'AbortError' ? '语言模型响应超时，请稍后重试' : '语言评测服务暂时不可用，请稍后重试'),
+      createdAt: Date.now()
+    });
+  });
+  send(res, 202, { jobId });
+}
+
+function getSpeechJob(res, jobId) {
+  cleanSpeechJobs();
+  const job = speechJobs.get(jobId);
+  if (!job) return send(res, 404, { error: '评测任务已过期，请重新提交' });
+  if (job.status === 'pending') return send(res, 200, { status: 'pending' });
+  if (job.status === 'failed') return send(res, 200, { status: 'failed', error: job.error });
+  return send(res, 200, { status: 'complete', result: job.result });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -212,6 +256,19 @@ const server = http.createServer(async (req, res) => {
       if (!res.headersSent) send(res, error.status || 502, { error: error.status ? error.message : (error.name === 'TimeoutError' || error.name === 'AbortError' ? '语言模型响应超时，请稍后重试' : '语言评测服务暂时不可用，请稍后重试') });
     }
     return;
+  }
+  if (req.method === 'POST' && url.pathname === '/api/analyze-speech/jobs') {
+    if (!allowedRequest(req, res)) return;
+    try { await startSpeechJob(req, res); }
+    catch (error) {
+      console.error('Speech job start failed', error.name || 'Error', String(error.message || error).slice(0, 300));
+      if (!res.headersSent) send(res, error.status || 502, { error: error.status ? error.message : '无法启动评测，请稍后重试' });
+    }
+    return;
+  }
+  const speechJobMatch = url.pathname.match(/^\/api\/analyze-speech\/jobs\/([0-9a-f-]{36})$/i);
+  if (req.method === 'GET' && speechJobMatch) {
+    return getSpeechJob(res, speechJobMatch[1]);
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, { error: 'Method not allowed' });
   const pathname = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname);

@@ -20,7 +20,8 @@ node server.js
 1. 把 `朗思渡共享版` 目录上传到你自己的 GitHub 仓库。不要提交真实 `.env` 文件或 API 密钥。
 2. 在 Render 选择 **New + → Blueprint**，连接该 GitHub 仓库，并选择其中的 `render.yaml`。
 3. Render 要求填写 `VISION_API_URL`、`VISION_API_KEY`、`VISION_MODEL`。在 Render 控制台的环境变量中填入所选视觉模型服务给出的值。
-4. 等待部署完成，打开 Render 提供的 `https://...onrender.com` 网址测试，再把网址发给同学和老师。
+4. 为了让长文本评测更快，可在同一个 Environment 页面增加 `SPEECH_MODEL`。如果使用 SiliconFlow，常用值是 `deepseek-ai/DeepSeek-V3`；它只负责文字评测，`VISION_MODEL` 仍然保留图片识别模型。模型名称必须是你的账号有权限调用的模型。
+5. 等待部署完成，打开 Render 提供的 `https://...onrender.com` 网址测试，再把网址发给同学和老师。
 
 免费实例可能在一段时间无访问后休眠，首次打开会稍慢。公开网址意味着任何访问者都能调用照片识别；接口当前按 IP 每分钟限制 12 次、单图限制 10 MB。上线前请在托管平台设置使用量提醒，并按服务商规则选择可承受的用量/计费方案。
 

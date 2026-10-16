@@ -429,7 +429,7 @@
           <div id="transcriptText" class="transcript"></div>
           <div id="scorePanel" class="score-panel hidden">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;">
-              <strong style="color:#0f2b4b;">📊 多维度口语评分</strong><span id="scoreSummary" style="color:#5c7b9c;font-size:.85rem;"></span>
+              <strong id="scoreTitle" style="color:#0f2b4b;">📊 多维度口语评分</strong><span id="scoreSummary" style="color:#5c7b9c;font-size:.85rem;"></span>
             </div>
             <div class="score-grid">
               <div class="score-card"><span id="scoreOverall" class="score-value">—</span><span class="score-label">综合</span></div>
@@ -1626,6 +1626,7 @@ window.SCENE_LIBRARY = (function(){
   let uploadedFile = null;
   let recognizedImageResult = null;
   let currentEditedTranscript = '';
+  let speechEvaluationRequestId = 0;
 
   let mediaRecorder = null;
   let audioChunks = [];
@@ -2648,6 +2649,7 @@ window.SCENE_LIBRARY = (function(){
   });
 
   async function displayTranscriptAndCorrections(text) {
+    const requestId = ++speechEvaluationRequestId;
     $('transcriptText').textContent = text;
     $('transcriptArea').classList.remove('hidden');
     $('scorePanel').classList.add('hidden');
@@ -2656,44 +2658,119 @@ window.SCENE_LIBRARY = (function(){
     $('correctedText').textContent = '';
     $('transcriptArea').scrollIntoView({ behavior:'smooth', block:'nearest' });
     showStatus('正在进行智能口语评测...','info');
+    let settled = false;
+    let fallbackRendered = false;
+    const fallbackDelay = text.length > 1800 ? 12_000 : 20_000;
+    const fallbackTimer = setTimeout(() => {
+      if (settled || requestId !== speechEvaluationRequestId) return;
+      fallbackRendered = true;
+      renderSpeechEvaluation(createFallbackSpeechEvaluation(text, detectErrors(text), { name: 'Pending' }));
+      showStatus('⏳ 长文本智能评测仍在处理中，已先显示基础评分和逐段发音；智能结果返回后会自动更新。','info');
+    }, fallbackDelay);
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 190_000);
-      const response = await fetch('/api/analyze-speech', {
+      const timeout = setTimeout(() => controller.abort(), 20_000);
+      const response = await fetch('/api/analyze-speech/jobs', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, scene: currentScene?.name || currentScene?.category || '一般口语练习', education: state.prefs.education, accent: state.prefs.accent }),
         signal: controller.signal
       });
       clearTimeout(timeout);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || '智能评测失败');
+      const job = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(job.error || '智能评测失败');
+      if (!job.jobId) throw new Error('服务器没有返回评测任务编号');
+      const deadline = Date.now() + 130_000;
+      let data;
+      while (Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 1800));
+        if (requestId !== speechEvaluationRequestId) return;
+        const resultResponse = await fetch(`/api/analyze-speech/jobs/${encodeURIComponent(job.jobId)}`, { cache: 'no-store' });
+        const result = await resultResponse.json().catch(() => ({}));
+        if (!resultResponse.ok) throw new Error(result.error || '无法读取评测结果');
+        if (result.status === 'failed') throw new Error(result.error || '智能评测失败');
+        if (result.status === 'complete') { data = result.result; break; }
+      }
+      if (!data) throw new Error('智能评测等待超时');
+      settled = true;
+      clearTimeout(fallbackTimer);
+      if (requestId !== speechEvaluationRequestId) return;
       renderSpeechEvaluation(data);
       showStatus('✅ 评测完成，已生成纠错、评分和地道表达。','success');
     } catch (error) {
-      const errors = detectErrors(text);
-      $('errorList').innerHTML = errors.length ? errors.map(err => `<div class="error-item">🔹 ${escapeHintText(err)}</div>`).join('') : `<div class="error-item" style="border-left-color:#e0a000;background:#fff8e1;">⚠️ 智能评测暂时不可用，已显示基础检查结果。<div style="margin-top:.35rem;font-size:.82rem;color:#856404;">${escapeHintText(error.message || '请稍后重试')}</div></div>`;
-      $('correctedText').textContent = generateCorrectedVersion(text, errors);
-      showStatus(`⚠️ ${error.name === 'AbortError' ? '智能评测等待超时' : error.message}，已使用基础检查结果。`,'error');
+      settled = true;
+      clearTimeout(fallbackTimer);
+      if (requestId !== speechEvaluationRequestId) return;
+      if (!fallbackRendered) {
+        const errors = detectErrors(text);
+        renderSpeechEvaluation(createFallbackSpeechEvaluation(text, errors, error));
+      }
+      showStatus(`⚠️ ${error.name === 'AbortError' ? '智能评测等待超时' : error.message}，已显示基础评分和发音。`,'error');
     }
+  }
+
+  function splitForPronunciation(text, maxChars = 220) {
+    const source = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!source) return [];
+    const sentences = source.split(/(?<=[.!?。！？])\s+/).filter(Boolean);
+    const output = [];
+    sentences.forEach(sentence => {
+      if (sentence.length <= maxChars) { output.push(sentence); return; }
+      const words = sentence.split(/\s+/);
+      let part = '';
+      words.forEach(word => {
+        const next = part ? `${part} ${word}` : word;
+        if (part && next.length > maxChars) { output.push(part); part = word; } else part = next;
+      });
+      if (part) output.push(part);
+    });
+    return output.slice(0, 30);
+  }
+
+  function createFallbackSpeechEvaluation(text, errors, error) {
+    const polished = generateCorrectedVersion(text, errors);
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    const sentences = splitForPronunciation(polished).map(en => ({ en, zh: '' }));
+    const penalty = Math.min(35, errors.length * 6);
+    const uniqueRatio = words.length ? new Set(words.map(word => word.toLowerCase())).size / words.length : .8;
+    const base = Math.round(Math.max(45, Math.min(96, 72 + uniqueRatio * 20 - penalty)));
+    return {
+      overall: base,
+      grammar: Math.max(40, base - penalty),
+      vocabulary: Math.max(45, Math.round(base + (uniqueRatio - .6) * 15)),
+      fluency: Math.max(45, Math.min(95, base + (sentences.length >= 2 ? 3 : -4))),
+      coherence: Math.max(45, Math.min(95, base - (sentences.length > 12 ? 5 : 0))),
+      taskCompletion: Math.max(50, Math.min(95, base + 3)),
+      errors: errors.map(message => ({ original: '', correction: '', category: '基础检查', explanation: message, severity: 'low' })),
+      polished,
+      sentences,
+      provisional: true,
+      summary: `当前为本地基础估算，不能代替智能评测；语言模型${error?.name === 'Pending' ? '仍在处理中' : '暂未返回结果'}。`
+    };
   }
 
   function renderSpeechEvaluation(data) {
     const labels = { overall:'scoreOverall', grammar:'scoreGrammar', vocabulary:'scoreVocabulary', fluency:'scoreFluency', coherence:'scoreCoherence', taskCompletion:'scoreTask' };
     Object.entries(labels).forEach(([key, id]) => { $(id).textContent = `${Number(data[key] || 0)}分`; });
+    $('scoreTitle').textContent = data.provisional ? '📊 本地基础估算（非智能评分）' : '📊 多维度口语评分';
     $('scoreSummary').textContent = data.summary || '';
     $('scorePanel').classList.remove('hidden');
     const escape = value => escapeHintText(value);
     const errors = Array.isArray(data.errors) ? data.errors : [];
-    $('errorList').innerHTML = errors.length ? errors.map(item => `<div class="error-item"><strong>${escape(item.category || '表达问题')}</strong>：${escape(item.original)} → <span style="color:#176b36;">${escape(item.correction)}</span><div style="margin-top:.35rem;color:#5c6570;">${escape(item.explanation)}</div></div>`).join('') : '<div class="error-item" style="border-left-color:#27ae60;background:#f1f8e9;">✅ 本次没有发现明确的语法或用词错误。</div>';
+    $('errorList').innerHTML = errors.length ? errors.map(item => {
+      const hasCorrection = item.original && item.correction;
+      return `<div class="error-item"><strong>${escape(item.category || '表达问题')}</strong>${hasCorrection ? `：${escape(item.original)} → <span style="color:#176b36;">${escape(item.correction)}</span>` : ''}<div style="margin-top:.35rem;color:#5c6570;">${escape(item.explanation || '')}</div></div>`;
+    }).join('') : '<div class="error-item" style="border-left-color:#27ae60;background:#f1f8e9;">✅ 本次没有发现明确的语法或用词错误。</div>';
     $('correctedText').textContent = data.polished || '（模型没有生成润色稿）';
-    const sentences = Array.isArray(data.sentences) && data.sentences.length ? data.sentences : [{ en: data.polished || '', zh: '' }];
+    const sentences = splitForPronunciation(data.polished || (Array.isArray(data.sentences) ? data.sentences.map(item => item.en).join(' ') : '')).map(en => ({ en, zh: '' }));
     const lang = state.prefs.accent === '英式' ? 'en-GB' : 'en-US';
-    $('polishedSentences').innerHTML = `<div style="font-weight:600;color:#0f4b2b;margin:.8rem 0 .25rem;">🔊 点击听取${state.prefs.accent === '英式' ? '英式' : '美式'}发音</div>` + sentences.map((item, index) => `<div class="polished-line"><span style="color:#154f2b;">${escape(item.en)}</span>${item.zh ? `<div style="font-size:.82rem;color:#6a7a8d;margin-top:.2rem;">${escape(item.zh)}</div>` : ''}<button class="speak-btn" data-speak="${escape(item.en)}" data-lang="${lang}">🔊 播放第${index + 1}句</button></div>`).join('');
-    $('polishedSentences').querySelectorAll('[data-speak]').forEach(button => button.addEventListener('click', () => {
+    $('polishedSentences').innerHTML = `<div style="font-weight:600;color:#0f4b2b;margin:.8rem 0 .25rem;">🔊 点击听取${state.prefs.accent === '英式' ? '英式' : '美式'}发音</div>` + sentences.map((item, index) => `<div class="polished-line"><span style="color:#154f2b;">${escape(item.en)}</span>${item.zh ? `<div style="font-size:.82rem;color:#6a7a8d;margin-top:.2rem;">${escape(item.zh)}</div>` : ''}<button class="speak-btn" data-sentence-index="${index}">🔊 播放第${index + 1}句</button></div>`).join('');
+    $('polishedSentences').querySelectorAll('[data-sentence-index]').forEach(button => button.addEventListener('click', () => {
       if (!('speechSynthesis' in window)) { showStatus('当前浏览器不支持发音播放。','error'); return; }
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(button.dataset.speak);
-      utterance.lang = button.dataset.lang; utterance.rate = .88; window.speechSynthesis.speak(utterance);
+      const sentence = sentences[Number(button.dataset.sentenceIndex)];
+      if (!sentence?.en) return;
+      const parts = splitForPronunciation(sentence.en, 180);
+      parts.forEach(part => { const utterance = new SpeechSynthesisUtterance(part); utterance.lang = lang; utterance.rate = .88; window.speechSynthesis.speak(utterance); });
     }));
   }
 

@@ -13,3 +13,5 @@ services:
         sync: false
       - key: VISION_MODEL
         sync: false
+      - key: SPEECH_MODEL
+        sync: false
