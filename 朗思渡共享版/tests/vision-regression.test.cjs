@@ -33,6 +33,8 @@ let provider, child, base;
 let providerStatus = 200;
 let providerReply;
 let lastRequest;
+let speechReply;
+let speechRepairReply;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 before(async () => {
   provider = http.createServer(async (req, res) => {
@@ -40,11 +42,22 @@ before(async () => {
     for await (const chunk of req) chunks.push(chunk);
     lastRequest = JSON.parse(Buffer.concat(chunks));
     const isVision = Array.isArray(lastRequest.messages[0].content);
-    const response = providerReply || completion(JSON.stringify(isVision ? fixture : {
-      overall:80, grammar:75, vocabulary:80, fluency:80, coherence:85, taskCompletion:80,
+    const isSpeechRepair = !isVision && lastRequest.messages.some(message => String(message.content || '').includes('润色稿实际为'));
+    const speechUser = !isVision && lastRequest.messages.map(message => {
+      try { return JSON.parse(message.content); } catch { return null; }
+    }).find(value => value?.speech);
+    const defaultSpeech = speechUser?.speech?.length > 1000
+      ? { overall:80, grammar:80, vocabulary:80, fluency:70, coherence:90, topicRelevance:75,
+          errors:[{original:'I has',correction:'I have',explanation:'主谓一致'}],
+          keywords:[{en:'book',zh:'书'}],keyInformation:['说话者有一本书。'],styleSuggestions:[],
+          topicSummary:'介绍一本书',polished:'I have a book. '.repeat(180),sentences:[],summary:'测试结果' }
+      : {
+      overall:80, grammar:80, vocabulary:80, fluency:70, coherence:90, topicRelevance:75,
       errors:[{original:'I has', correction:'I have', explanation:'主谓一致'}],
-      polished:'I have a book.', sentences:[], summary:'测试结果'
-    }));
+      keywords:[{en:'book',zh:'书'}], keyInformation:['说话者有一本书。'], styleSuggestions:[],
+      topicSummary:'介绍一本书', polished:'I have a book.', sentences:[], summary:'测试结果'
+    };
+    const response = providerReply || completion(JSON.stringify(isVision ? fixture : isSpeechRepair ? { polished: speechRepairReply } : speechReply || defaultSpeech));
     res.writeHead(providerStatus, {'Content-Type':'application/json'});
     res.end(JSON.stringify(response));
   });
@@ -100,10 +113,64 @@ test('truncated model output gets an explicit retriable error', async () => {
   } finally {providerReply=undefined;}
 });
 test('the existing speech endpoint still returns actual model corrections', async () => {
-  const response=await post('/api/analyze-speech',{text:'I has a book.'});
+  const response=await post('/api/analyze-speech',{text:'I has a book.',accent:'英式',topic:{scene:'阅读',likelyIntent:'介绍书本',elements:['书']}});
   assert.equal(response.status,200);
-  assert.equal((await response.json()).errors[0].correction,'I have');
+  const body=await response.json();
+  assert.equal(body.errors[0].correction,'I have');
+  assert.equal(body.overall,80);
+  assert.equal(body.topicRelevance,75);
+  assert.equal(body.accent,'英式');
+  assert.deepEqual(body.scoreWeights,{grammar:.35,topicRelevance:.25,coherence:.2,vocabulary:.1,fluency:.1});
+  assert.equal(body.originalWordCount,4);
+  assert.equal(body.targetMinWords,1);
+  assert.equal(body.targetMaxWords,104);
+  assert.equal(body.wordCountWithinRange,true);
+  assert.equal(body.keywords[0].en,'book');
   assert.equal(lastRequest.model,'test-text');
+  assert.match(lastRequest.messages[0].content,/British English/);
+  assert.match(lastRequest.messages[0].content,/grammar 语法准确度35%/);
+  const userData=JSON.parse(lastRequest.messages[1].content);
+  assert.equal(userData.topic.likelyIntent,'介绍书本');
+  assert.equal(userData.speech,'I has a book.');
+});
+test('speech evaluation preserves all valid model corrections and keeps optional style advice separate', async () => {
+  const text=Array.from({length:12},(_,i)=>`Mistake${i} happened.`).join(' ');
+  speechReply={
+    grammar:60,topicRelevance:90,coherence:80,vocabulary:70,fluency:50,
+    errors:Array.from({length:12},(_,i)=>({original:`Mistake${i}`,correction:`Correction${i}`,explanation:'具体问题'})),
+    styleSuggestions:[{original:'Mistake0',suggestion:'An event',explanation:'可选表达提升'}],
+    keywords:[{en:'experience',zh:'经历'}],keyInformation:['口述介绍一次经历。'],topicSummary:'一次经历',
+    polished:'I described one meaningful experience with useful details.',summary:'测试'
+  };
+  try {
+    const response=await post('/api/analyze-speech',{text,accent:'美式'});
+    assert.equal(response.status,200);
+    const body=await response.json();
+    assert.equal(body.errors.length,12);
+    assert.equal(body.overall,72);
+    assert.equal(body.styleSuggestions.length,1);
+    assert.equal(body.polishedWordCount,8);
+    assert.equal(body.wordCountWithinRange,true);
+  } finally {speechReply=undefined;}
+});
+test('an out-of-range polished answer gets a length-only repair before it is returned', async () => {
+  const text='Dumplings are important in northern China. '.repeat(40);
+  speechReply={
+    grammar:80,topicRelevance:85,coherence:80,vocabulary:75,fluency:80,
+    errors:[],keywords:[{en:'dumplings',zh:'饺子'}],keyInformation:['饺子在北方饮食中很重要。'],
+    polished:'Dumplings matter to me.',summary:'测试字数校正'
+  };
+  speechRepairReply='My family enjoys dumplings during special occasions, and they remind me of home. '.repeat(25);
+  try {
+    const response=await post('/api/analyze-speech',{text,accent:'英式',topic:{scene:'饺子'}});
+    assert.equal(response.status,200);
+    const body=await response.json();
+    assert.equal(body.wordCountWithinRange,true);
+    assert.ok(body.polishedWordCount>=body.targetMinWords);
+    assert.ok(body.polishedWordCount<=body.targetMaxWords);
+    assert.equal(body.polished,speechRepairReply.trim());
+    assert.equal(lastRequest.messages.some(message => String(message.content || '').includes('润色稿实际为')),true);
+  } finally {speechReply=undefined;speechRepairReply=undefined;}
 });
 test('long text jobs can be submitted and polled without affecting image recognition', async () => {
   const response=await post('/api/analyze-speech/jobs',{text:'I has a book. '.repeat(180)});
@@ -116,7 +183,9 @@ test('long text jobs can be submitted and polled without affecting image recogni
     await sleep(20);
   }
   assert.equal(result.status,'complete');
-  assert.equal(result.result.polished,'I have a book.');
+  assert.ok(result.result.wordCountWithinRange);
+  assert.ok(result.result.polishedWordCount>=result.result.targetMinWords);
+  assert.ok(result.result.polishedWordCount<=result.result.targetMaxWords);
   assert.equal(lastRequest.model,'test-text');
   const image=await post('/api/analyze-image',{image:'data:image/jpeg;base64,/9j/2Q=='});
   assert.equal(image.status,200);

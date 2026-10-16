@@ -56,12 +56,23 @@ const success = {
         assert.match(await page.locator('#hintList').innerText(),/book/);
         if(scenario==='success') {
           const longText='I have a book. '.repeat(100);
-          await page.route('**/api/analyze-speech/jobs',route=>route.fulfill({status:202,json:{jobId:'test-job'}}));
-          await page.route('**/api/analyze-speech/jobs/test-job',route=>route.fulfill({json:{status:'complete',result:{overall:85,grammar:85,vocabulary:85,fluency:85,coherence:85,taskCompletion:85,polished:longText,errors:[],sentences:[]}}}));
+          let speechRequest;
+          await page.route('**/api/analyze-speech/jobs',route=>{speechRequest=route.request().postDataJSON();return route.fulfill({status:202,json:{jobId:'test-job'}});});
+          await page.route('**/api/analyze-speech/jobs/test-job',route=>route.fulfill({json:{status:'complete',result:{overall:85,grammar:85,vocabulary:85,fluency:85,coherence:85,topicRelevance:85,taskCompletion:85,polished:longText,errors:[],styleSuggestions:[],keywords:[{en:'book',zh:'书'}],keyInformation:['叙述者谈到一本书。'],topicSummary:'介绍书本',originalWordCount:500,polishedWordCount:500,targetMinWords:400,targetMaxWords:600,wordCountWithinRange:true,sentences:[]}}}));
           await page.locator('#manualTranscript').fill(longText);
           await page.locator('#submitManualBtn').click();
           await page.locator('#scorePanel').waitFor({state:'visible'});
+          assert.equal(speechRequest.accent,'英式');
+          assert.equal(speechRequest.topic.scene,success.scene);
+          assert.equal(speechRequest.topic.likelyIntent,success.likelyIntent);
+          assert.deepEqual(speechRequest.topic.elements,success.elements);
           assert.match(await page.locator('#scoreOverall').innerText(),/85/);
+          assert.match(await page.locator('.score-label').allInnerTexts().then(values=>values.join(' ')),/主题相关性 · 25%/);
+          assert.equal(await page.locator('#evaluationDetails').isVisible(),true);
+          assert.match(await page.locator('#evaluationTopic').innerText(),/介绍书本/);
+          assert.match(await page.locator('#evaluationKeywords').innerText(),/book/);
+          assert.match(await page.locator('#evaluationInformation').innerText(),/一本书/);
+          assert.match(await page.locator('#evaluationWordCount').innerText(),/500 词/);
           assert.ok(await page.locator('#polishedSentences button').count()>1);
           await page.locator('#polishedSentences button').first().click();
           assert.equal(await page.evaluate(()=>window.__spoken[0].lang),'en-GB');

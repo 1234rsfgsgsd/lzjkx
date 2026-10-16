@@ -165,6 +165,10 @@
   .score-card{background:#fff;border-radius:1rem;padding:.7rem .8rem;border:1px solid #e3edf8;text-align:center;}
   .score-card .score-value{font-size:1.35rem;font-weight:750;color:var(--primary);display:block;}
   .score-card .score-label{font-size:.78rem;color:#5c7b9c;display:block;margin-top:.15rem;}
+  .evaluation-details{margin-top:.9rem;padding:.85rem 1rem;background:#fff;border:1px solid #e3edf8;border-radius:1rem;color:#40546b;font-size:.88rem;line-height:1.65;}
+  .evaluation-details strong{color:#173b60;}
+  .evaluation-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin:.3rem 0 .65rem;}
+  .evaluation-tag{padding:.2rem .55rem;border-radius:999px;background:#edf4ff;color:#285181;}
   .speak-btn{padding:.45rem .8rem;font-size:.82rem;border:1px solid #b8d1ec;background:#fff;color:#1e4e7d;border-radius:2rem;cursor:pointer;margin-top:.55rem;}
   .speak-btn:hover{background:var(--primary-soft);border-color:var(--primary);}
   .polished-line{padding:.65rem .8rem;border-bottom:1px solid #d9e6f5;}
@@ -433,15 +437,28 @@
             </div>
             <div class="score-grid">
               <div class="score-card"><span id="scoreOverall" class="score-value">—</span><span class="score-label">综合</span></div>
-              <div class="score-card"><span id="scoreGrammar" class="score-value">—</span><span class="score-label">语法准确度</span></div>
-              <div class="score-card"><span id="scoreVocabulary" class="score-value">—</span><span class="score-label">词汇</span></div>
-              <div class="score-card"><span id="scoreFluency" class="score-value">—</span><span class="score-label">流利度</span></div>
-              <div class="score-card"><span id="scoreCoherence" class="score-value">—</span><span class="score-label">连贯性</span></div>
-              <div class="score-card"><span id="scoreTask" class="score-value">—</span><span class="score-label">任务完成度</span></div>
+              <div class="score-card"><span id="scoreGrammar" class="score-value">—</span><span class="score-label">语法准确度 · 35%</span></div>
+              <div class="score-card"><span id="scoreTask" class="score-value">—</span><span class="score-label">主题相关性 · 25%</span></div>
+              <div class="score-card"><span id="scoreCoherence" class="score-value">—</span><span class="score-label">连贯性 · 20%</span></div>
+              <div class="score-card"><span id="scoreVocabulary" class="score-value">—</span><span class="score-label">词汇 · 10%</span></div>
+              <div class="score-card"><span id="scoreFluency" class="score-value">—</span><span class="score-label">表达自然度 · 10%</span></div>
+            </div>
+            <div style="margin-top:.65rem;color:#6c7e91;font-size:.78rem;">综合分按以上权重计算；表达自然度根据转写文本评估，不代表录音发音或语速评分。</div>
+            <div id="evaluationDetails" class="evaluation-details hidden">
+              <div><strong>口述主题：</strong><span id="evaluationTopic"></span></div>
+              <div style="margin-top:.5rem;"><strong>关键词：</strong></div>
+              <div id="evaluationKeywords" class="evaluation-tags"></div>
+              <div><strong>关键信息：</strong></div>
+              <ul id="evaluationInformation" style="margin:.25rem 0 .6rem;padding-left:1.25rem;"></ul>
+              <div id="evaluationWordCount"></div>
             </div>
           </div>
           <h3 style="font-size:1rem;margin:1.4rem 0 .5rem;color:#0f2b4b;">🔎 语法与表达问题</h3>
           <div id="errorList"></div>
+          <div id="styleSuggestionPanel" class="hidden" style="margin-top:.9rem;">
+            <h3 style="font-size:.95rem;margin-bottom:.45rem;color:#315c8a;">💡 可选的表达提升（不是语法错误）</h3>
+            <div id="styleSuggestionList"></div>
+          </div>
           <div class="corrected-box">
             <h3 style="font-size:1rem;margin-bottom:.5rem;color:#0f4b2b;">✨ 修正润色后的文稿</h3>
             <div id="correctedText" style="color:#154f2b;"></div>
@@ -2033,6 +2050,9 @@ window.SCENE_LIBRARY = (function(){
     $('transcriptText').textContent = '';
     $('transcriptEdit').value = '';
     $('errorList').innerHTML = '';
+    $('styleSuggestionList').innerHTML = '';
+    $('styleSuggestionPanel').classList.add('hidden');
+    $('evaluationDetails').classList.add('hidden');
     $('correctedText').textContent = '';
     $('scorePanel').classList.add('hidden');
     $('polishedSentences').innerHTML = '';
@@ -2229,7 +2249,7 @@ window.SCENE_LIBRARY = (function(){
       $('manualInputBox').classList.add('hidden');
       $('regenerateBtn').classList.add('hidden');
 
-      currentScene = { category: result.category, name: result.name, elements: keywords, hints: result.hints ? { '大学及以上': result.hints } : null };
+      currentScene = { category: result.category, name: result.name, likelyIntent: result.likelyIntent || '', elements: keywords, hints: result.hints ? { '大学及以上': result.hints } : null };
       resetRecordingUI();
       $('hintsContainer').classList.remove('hidden');
       renderHints(result.hints || fallbackHints(currentScene), state.prefs.education);
@@ -2692,14 +2712,25 @@ window.SCENE_LIBRARY = (function(){
       const timeout = setTimeout(() => controller.abort(), 20_000);
       const response = await fetch('/api/analyze-speech/jobs', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, scene: currentScene?.name || currentScene?.category || '一般口语练习', education: state.prefs.education, accent: state.prefs.accent }),
+        body: JSON.stringify({
+          text,
+          scene: currentScene?.name || currentScene?.category || '一般口语练习',
+          education: state.prefs.education,
+          accent: state.prefs.accent,
+          topic: {
+            category: currentScene?.category || '',
+            scene: currentScene?.name || '',
+            likelyIntent: currentScene?.likelyIntent || '',
+            elements: currentScene?.elements || []
+          }
+        }),
         signal: controller.signal
       });
       clearTimeout(timeout);
       const job = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(job.error || '智能评测失败');
       if (!job.jobId) throw new Error('服务器没有返回评测任务编号');
-      const deadline = Date.now() + 130_000;
+      const deadline = Date.now() + 190_000;
       let data;
       while (Date.now() < deadline) {
         await new Promise(resolve => setTimeout(resolve, 1800));
@@ -2753,44 +2784,79 @@ window.SCENE_LIBRARY = (function(){
     const penalty = Math.min(35, errors.length * 6);
     const uniqueRatio = words.length ? new Set(words.map(word => word.toLowerCase())).size / words.length : .8;
     const base = Math.round(Math.max(45, Math.min(96, 72 + uniqueRatio * 20 - penalty)));
+    const grammar = Math.max(40, base - penalty);
+    const vocabulary = Math.max(45, Math.round(base + (uniqueRatio - .6) * 15));
+    const fluency = Math.max(45, Math.min(95, base + (sentences.length >= 2 ? 3 : -4)));
+    const coherence = Math.max(45, Math.min(95, base - (sentences.length > 12 ? 5 : 0)));
+    const topicRelevance = Math.max(50, Math.min(95, base + 3));
+    const originalWordCount = (String(text).match(/[A-Za-z]+(?:['’\-][A-Za-z]+)*|\d+(?:\.\d+)?/g) || []).length;
+    const polishedWordCount = (String(polished).match(/[A-Za-z]+(?:['’\-][A-Za-z]+)*|\d+(?:\.\d+)?/g) || []).length;
+    const targetMinWords = Math.max(1, originalWordCount - 100);
+    const targetMaxWords = originalWordCount + 100;
     return {
-      overall: base,
-      grammar: Math.max(40, base - penalty),
-      vocabulary: Math.max(45, Math.round(base + (uniqueRatio - .6) * 15)),
-      fluency: Math.max(45, Math.min(95, base + (sentences.length >= 2 ? 3 : -4))),
-      coherence: Math.max(45, Math.min(95, base - (sentences.length > 12 ? 5 : 0))),
-      taskCompletion: Math.max(50, Math.min(95, base + 3)),
+      overall: Math.round(grammar * .35 + topicRelevance * .25 + coherence * .2 + vocabulary * .1 + fluency * .1),
+      grammar, vocabulary, fluency, coherence, topicRelevance, taskCompletion: topicRelevance,
       errors: errors.map(message => ({ original: '', correction: '', category: '基础检查', explanation: message, severity: 'low' })),
       polished,
       sentences,
+      originalWordCount, polishedWordCount, targetMinWords, targetMaxWords,
+      wordCountWithinRange: polishedWordCount >= targetMinWords && polishedWordCount <= targetMaxWords,
+      keywords: [], keyInformation: [], styleSuggestions: [],
+      accent: state.prefs.accent,
       provisional: true,
       summary: `当前为本地基础估算，不能代替智能评测；语言模型${error?.name === 'Pending' ? '仍在处理中' : '暂未返回结果'}。`
     };
   }
 
   function renderSpeechEvaluation(data) {
-    const labels = { overall:'scoreOverall', grammar:'scoreGrammar', vocabulary:'scoreVocabulary', fluency:'scoreFluency', coherence:'scoreCoherence', taskCompletion:'scoreTask' };
+    const labels = { overall:'scoreOverall', grammar:'scoreGrammar', vocabulary:'scoreVocabulary', fluency:'scoreFluency', coherence:'scoreCoherence', topicRelevance:'scoreTask' };
+    if (data.topicRelevance == null) data.topicRelevance = data.taskCompletion;
     Object.entries(labels).forEach(([key, id]) => { $(id).textContent = `${Number(data[key] || 0)}分`; });
     $('scoreTitle').textContent = data.provisional ? '📊 本地基础估算（非智能评分）' : '📊 多维度口语评分';
     $('scoreSummary').textContent = data.summary || '';
     $('scorePanel').classList.remove('hidden');
     const escape = value => escapeHintText(value);
+    const keywords = Array.isArray(data.keywords) ? data.keywords : [];
+    $('evaluationTopic').textContent = data.topicSummary || currentScene?.name || '根据口述内容判断';
+    $('evaluationKeywords').innerHTML = keywords.length ? keywords.map(item => `<span class="evaluation-tag">${escape(item.en)}${item.zh ? ` · ${escape(item.zh)}` : ''}</span>`).join('') : '<span style="color:#78899b;">本次未单独提取关键词</span>';
+    const information = Array.isArray(data.keyInformation) ? data.keyInformation : [];
+    $('evaluationInformation').innerHTML = information.length ? information.map(item => `<li>${escape(item)}</li>`).join('') : '<li style="color:#78899b;">本次未单独提取关键信息</li>';
+    const originalWordCount = Number(data.originalWordCount || 0);
+    const polishedWordCount = Number(data.polishedWordCount || 0);
+    if (originalWordCount || polishedWordCount) {
+      const inRange = data.wordCountWithinRange !== false && polishedWordCount >= Number(data.targetMinWords || 0) && polishedWordCount <= Number(data.targetMaxWords || Infinity);
+      $('evaluationWordCount').innerHTML = `<strong>字数：</strong>原稿 ${originalWordCount} 词；润色稿 ${polishedWordCount} 词；目标 ${Number(data.targetMinWords || 0)}–${Number(data.targetMaxWords || 0)} 词。<span style="color:${inRange ? '#217346' : '#b05b00'};">${inRange ? '符合范围' : '超出范围，建议重新评测'}</span>`;
+    } else $('evaluationWordCount').textContent = '';
+    $('evaluationDetails').classList.remove('hidden');
     const errors = Array.isArray(data.errors) ? data.errors : [];
     $('errorList').innerHTML = errors.length ? errors.map(item => {
       const hasCorrection = item.original && item.correction;
       return `<div class="error-item"><strong>${escape(item.category || '表达问题')}</strong>${hasCorrection ? `：${escape(item.original)} → <span style="color:#176b36;">${escape(item.correction)}</span>` : ''}<div style="margin-top:.35rem;color:#5c6570;">${escape(item.explanation || '')}</div></div>`;
     }).join('') : '<div class="error-item" style="border-left-color:#27ae60;background:#f1f8e9;">✅ 本次没有发现明确的语法或用词错误。</div>';
+    const suggestions = Array.isArray(data.styleSuggestions) ? data.styleSuggestions : [];
+    $('styleSuggestionList').innerHTML = suggestions.map(item => `<div class="error-item" style="border-left-color:#6b91bd;background:#f5f8fc;"><strong>${escape(item.original)}</strong> → <span style="color:#315c8a;">${escape(item.suggestion)}</span><div style="margin-top:.35rem;color:#5c6570;">${escape(item.explanation || '')}</div></div>`).join('');
+    $('styleSuggestionPanel').classList.toggle('hidden', !suggestions.length);
     $('correctedText').textContent = data.polished || '（模型没有生成润色稿）';
     const sentences = splitForPronunciation(data.polished || (Array.isArray(data.sentences) ? data.sentences.map(item => item.en).join(' ') : '')).map(en => ({ en, zh: '' }));
-    const lang = state.prefs.accent === '英式' ? 'en-GB' : 'en-US';
-    $('polishedSentences').innerHTML = `<div style="font-weight:600;color:#0f4b2b;margin:.8rem 0 .25rem;">🔊 点击听取${state.prefs.accent === '英式' ? '英式' : '美式'}发音</div>` + sentences.map((item, index) => `<div class="polished-line"><span style="color:#154f2b;">${escape(item.en)}</span>${item.zh ? `<div style="font-size:.82rem;color:#6a7a8d;margin-top:.2rem;">${escape(item.zh)}</div>` : ''}<button class="speak-btn" data-sentence-index="${index}">🔊 播放第${index + 1}句</button></div>`).join('');
+    const accent = ['英式', '美式'].includes(data.accent) ? data.accent : state.prefs.accent;
+    const lang = accent === '英式' ? 'en-GB' : 'en-US';
+    $('polishedSentences').innerHTML = `<div style="font-weight:600;color:#0f4b2b;margin:.8rem 0 .25rem;">🔊 点击听取${accent === '英式' ? '英式' : '美式'}发音</div>` + sentences.map((item, index) => `<div class="polished-line"><span style="color:#154f2b;">${escape(item.en)}</span>${item.zh ? `<div style="font-size:.82rem;color:#6a7a8d;margin-top:.2rem;">${escape(item.zh)}</div>` : ''}<button class="speak-btn" data-sentence-index="${index}">🔊 播放第${index + 1}句</button></div>`).join('');
     $('polishedSentences').querySelectorAll('[data-sentence-index]').forEach(button => button.addEventListener('click', () => {
       if (!('speechSynthesis' in window)) { showStatus('当前浏览器不支持发音播放。','error'); return; }
       window.speechSynthesis.cancel();
       const sentence = sentences[Number(button.dataset.sentenceIndex)];
       if (!sentence?.en) return;
       const parts = splitForPronunciation(sentence.en, 180);
-      parts.forEach(part => { const utterance = new SpeechSynthesisUtterance(part); utterance.lang = lang; utterance.rate = .88; window.speechSynthesis.speak(utterance); });
+      const voices = window.speechSynthesis.getVoices?.() || [];
+      const targetVoice = voices.find(voice => voice.lang?.replace('_', '-').toLowerCase() === lang.toLowerCase())
+        || voices.find(voice => voice.lang?.toLowerCase().startsWith(accent === '英式' ? 'en-gb' : 'en-us'));
+      parts.forEach(part => {
+        const utterance = new SpeechSynthesisUtterance(part);
+        utterance.lang = lang;
+        if (targetVoice) utterance.voice = targetVoice;
+        utterance.rate = .88;
+        window.speechSynthesis.speak(utterance);
+      });
     }));
   }
 
