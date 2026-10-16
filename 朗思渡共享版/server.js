@@ -103,6 +103,8 @@ async function analyze(req, res) {
     console.error('Vision provider returned', upstream.status, providerMessage);
     const guidance = upstream.status === 401 || upstream.status === 403
       ? `视觉服务拒绝了请求（${upstream.status}）。请在 SiliconFlow 检查 API Key、账户余额和该模型的调用权限。${providerMessage}`
+      : upstream.status === 429
+        ? `视觉服务暂时限流（429），请等待 30 秒后重试。${providerMessage}`
       : `视觉服务请求失败（${upstream.status}）：${providerMessage}`;
     send(res, 502, { error: guidance });
     return;

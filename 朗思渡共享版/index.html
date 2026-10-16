@@ -2160,17 +2160,35 @@ window.SCENE_LIBRARY = (function(){
     showStatus('正在整理照片并分析内容，请稍候...','info');
     try {
       const dataUrl = await normalizeVisionImage(uploadedFile);
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 90_000);
-      const response = await fetch('/api/analyze-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: dataUrl, education: state.prefs.education, accent: state.prefs.accent }),
-        signal: controller.signal
-      });
-      clearTimeout(timeout);
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || '识图服务暂时不可用');
+      let response;
+      let result = {};
+      let lastError;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 95_000);
+        try {
+          response = await fetch('/api/analyze-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: dataUrl, education: state.prefs.education, accent: state.prefs.accent }),
+            signal: controller.signal
+          });
+          result = await response.json().catch(() => ({}));
+          if (response.ok) break;
+          const retryable = response.status === 429 || response.status >= 500;
+          if (!retryable || attempt === 2) throw new Error(result.error || `识图服务返回 ${response.status}`);
+          lastError = new Error(result.error || '视觉服务暂时繁忙');
+        } catch (error) {
+          lastError = error;
+          const retryable = error.name === 'AbortError' || !response || response.status === 429 || response.status >= 500;
+          if (!retryable || attempt === 2) throw error;
+        } finally {
+          clearTimeout(timeout);
+        }
+        showStatus(`识图服务暂时繁忙，正在自动重试（${attempt + 2}/3）...`, 'info');
+        await new Promise(resolve => setTimeout(resolve, 1800 * (attempt + 1)));
+      }
+      if (!response?.ok) throw lastError || new Error('识图服务暂时不可用');
       const allowed = CATEGORY_META.map(item => item.name);
       const category = allowed.includes(result.category) ? result.category : '日常生活';
       const elements = Array.isArray(result.elements) ? result.elements.map(v => String(v).trim()).filter(Boolean).slice(0, 12) : [];
@@ -2178,7 +2196,7 @@ window.SCENE_LIBRARY = (function(){
       recognizedImageResult = { category, name: String(result.scene || '照片场景').slice(0, 60), likelyIntent: String(result.likelyIntent || ''), elements, hints: result.hints };
       startUploadedPhotoPractice(recognizedImageResult);
     } catch (error) {
-      const message = error.name === 'AbortError' ? '识图等待超过 90 秒，请稍后重试' : (error.message || '请检查网络后重试');
+      const message = error.name === 'AbortError' ? '识图等待超过 95 秒，可能是视觉模型繁忙，请稍后重试' : (error.message || '请检查网络后重试');
       showStatus(`识图失败：${message}`,'error');
     } finally {
       button.disabled = false;
