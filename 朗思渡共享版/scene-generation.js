@@ -3,22 +3,55 @@ const { categories } = require('./vision-result');
 
 const maxImageBytes = 6 * 1024 * 1024;
 const contexts = {
-  '日常生活': '真实有人居住的家庭，日常使用的家具、织物和生活用品，随意自然的生活状态',
-  '餐饮美食': '真实街区里的餐馆或咖啡馆，符合这道食物的餐具和食材，顾客与店员自然互动',
-  '出行交通': '日常通勤或旅行途中，准确的交通工具与站点设施，人们自然候车或出行',
-  '旅游观光': '普通人旅途中真实可见的地点，当地建筑、植被和环境细节，自然的游客活动',
-  '工作职场': '真实现代工作环境，使用中的办公用品，同事间自然交流，普通日常工作状态',
-  '休闲娱乐': '平常周末或下班后的休闲活动，符合活动的场地、道具和自然动作',
-  '购物消费': '真实社区商店或市场，整齐但有生活气息的商品陈列，顾客挑选商品或与店员交谈',
-  '宠物动物': '符合动物习性的真实生活环境，准确的物种外观，自然的动物动作与日常照料细节',
-  '运动健身': '日常运动场或健身空间，符合运动的器材、服装和准确身体动作，普通运动爱好者',
-  '自然风景': '真实自然环境和符合季节天气的植被、地貌与光线，画面以自然景物为主',
-  '学习校园': '真实校园学习生活，正常使用的课本、书包或教学设施，师生自然学习与交流',
-  '医疗健康': '干净明亮的真实医疗或健康环境，自然且尊重隐私的医患沟通，非血腥的日常场景'
+  '日常生活': 'A real lived-in home, everyday furniture, fabrics and household belongings, relaxed ordinary life.',
+  '餐饮美食': 'A real neighborhood restaurant or cafe, authentic food and appropriate tableware, customers and staff interacting naturally.',
+  '出行交通': 'An ordinary commute or journey, accurate vehicles and station facilities, people naturally waiting or traveling.',
+  '旅游观光': 'An authentic travel destination with local architecture, vegetation and environmental detail, casual tourists.',
+  '工作职场': 'A real working environment with well-used office supplies and colleagues naturally communicating during an ordinary workday.',
+  '休闲娱乐': 'An ordinary weekend or after-work activity with appropriate equipment, surroundings and natural body movements.',
+  '购物消费': 'An authentic neighborhood shop or market, colorful products on shelves, a customer choosing products or talking with a shop assistant.',
+  '宠物动物': 'An authentic environment appropriate for this animal, anatomically accurate species, natural animal behavior and everyday care.',
+  '运动健身': 'An everyday sports venue with appropriate equipment and clothing, ordinary people exercising with accurate body movements.',
+  '自然风景': 'A realistic natural landscape with seasonal vegetation, authentic terrain, weather and light; nature is the main subject.',
+  '学习校园': 'Authentic everyday campus life, real books, backpacks or teaching equipment, students and teachers studying or talking naturally.',
+  '医疗健康': 'A clean bright everyday healthcare setting, respectful professional interactions, fully clothed people, non-graphic routine care.'
+};
+
+const activities = {
+  '咖啡厅': 'a customer ordering a latte from a barista at a cozy neighborhood cafe, another customer sitting at a wooden table',
+  '超市购物': 'a shopper comparing fresh produce beside a shopping cart in a neighborhood supermarket',
+  '菜市场': 'a customer buying fresh vegetables from a vendor at a lively local produce market',
+  '便利店': 'a customer paying a shop assistant at the checkout of a neighborhood convenience store',
+  '服装店': 'a customer discussing the size of a shirt with a shop assistant in a clothing store',
+  '图书馆': 'two students quietly discussing an open book at a library table with shelves of books behind them',
+  '图书馆阅览室': 'students quietly reading at wooden library tables beside large windows and bookshelves',
+  '教室上课': 'a teacher explaining a lesson to attentive students in a real classroom',
+  '英语角': 'a small group of university students chatting casually together in a leafy campus courtyard',
+  '宿舍生活': 'two students chatting and tidying their everyday belongings in a shared university dormitory',
+  '校园食堂': 'students choosing lunch at a university cafeteria counter with trays of freshly cooked food',
+  '自习室': 'students writing notes and reading books at a quiet study room table',
+  '办公室办公': 'colleagues working at computers in a bright lived-in office with notebooks and plants',
+  '会议室开会': 'three colleagues discussing a project around a meeting table with open notebooks and a laptop',
+  '远程办公': 'a person working at a laptop on a home desk beside a window, with a notebook and coffee',
+  '客厅休息': 'a person relaxing on a comfortable sofa at home with a cup of tea and a book',
+  '厨房做饭': 'a person cooking a meal at a home kitchen counter with fresh vegetables and a pan on the stove',
+  '书房阅读': 'a person reading a book at a wooden desk in a cozy home study',
+  '阳台浇花': 'a person watering leafy plants and colorful flowers on a sunny apartment balcony',
+  '打扫房间': 'a person cleaning the floor of a lived-in living room with everyday cleaning equipment',
+  '公交车站': 'commuters waiting at a neighborhood bus stop as a city bus approaches',
+  '地铁通勤': 'ordinary commuters standing and sitting inside a modern subway carriage',
+  '机场候机': 'travelers waiting with carry-on suitcases beside large windows at an airport departure gate',
+  '公园散步': 'two friends walking and talking along a tree-lined park path',
+  '遛狗': 'a person walking a happy dog on a leash along a leafy neighborhood park path',
+  '看医生': 'a doctor listening attentively to a fully clothed patient describing symptoms in a bright consultation room',
+  '打篮球': 'friends playing a casual basketball game on a neighborhood outdoor court',
+  '跑步': 'two amateur runners jogging on a leafy park path in soft morning light',
+  '中餐馆': 'friends sharing a home-style Chinese meal with rice bowls and chopsticks at a small restaurant',
+  '西餐厅': 'a waiter taking an order from two guests at a relaxed neighborhood restaurant'
 };
 
 function scenePrompt(scene) {
-  return `一张真实生活摄影风格的横向照片，用于英语看图口语练习。唯一核心场景：${scene.name}。主题：${scene.category}。${contexts[scene.category]}。场景必须准确体现“${scene.name}”这项活动，不要换成该主题的其他活动。可参考的细节：${scene.elements.join('、')}；仅在符合该活动时加入具体可见物品，抽象感受用光线和动作表达。人物出现时采用自然的表情、准确的肢体和可信的互动，不看镜头摆拍；画面中有一个清晰的主要动作。中景或环境人像构图，前景、中景和背景具有真实空间关系；真实材料纹理、柔和自然光、自然阴影，色彩丰富但真实，保留暖木色、绿色植物、衣物和物品的色彩层次。像生活纪实照片，细节清晰，适合描述人物、动作、物品和环境。不要绘制说明文字、标题、水印、拼贴或海报；不要卡通、插画、3D渲染、几何色块或过度磨皮。`;
+  return `Candid documentary photograph of ${activities[scene.name] || scene.name}. ${contexts[scene.category]} The exact activity described above is the main subject. Supporting props, only when appropriate to that activity: ${scene.elements.join(', ')}. A believable everyday moment with a clear main action, natural expressions and relaxed interactions. People are engaged in their activity rather than posing for the camera. Environmental medium-wide composition, eye-level 35mm photography, realistic foreground, middle ground and background. Soft natural daylight and realistic shadows, true-to-life rich colors with warm wood tones, greenery and varied clothing colors. Authentic skin texture, fabric and material detail. The entire horizontal frame is a single continuous photograph of the everyday scene.`;
 }
 
 function failure(message, status = 502, code = 'SCENE_GENERATION_ERROR') {
@@ -50,7 +83,10 @@ function createSceneGenerator(env = process.env) {
     const upstream = await fetch(config.apiUrl, {
       method: 'POST',
       headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: config.model, prompt: scenePrompt(scene), image_size: '1024x576' }),
+      body: JSON.stringify({
+        model: config.model, prompt: scenePrompt(scene), image_size: '1024x576',
+        negative_prompt: 'text, typography, title, subtitles, captions, letters, watermark, logo, poster, collage, cartoon, illustration, 3d render, geometric shapes, staged studio portrait, oversaturated colors, distorted anatomy'
+      }),
       signal: AbortSignal.timeout(120_000)
     });
     const raw = await upstream.text();

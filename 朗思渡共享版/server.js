@@ -244,7 +244,7 @@ function getSpeechJob(res, jobId) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   if (req.method === 'GET' && url.pathname === '/health') {
-    return send(res, 200, { ok: true });
+    return send(res, 200, { ok: true, revision: process.env.RENDER_GIT_COMMIT || 'local' });
   }
   if (req.method === 'POST' && url.pathname === '/api/generate-scene/jobs') {
     if (!allowedRequest(req, res)) return;

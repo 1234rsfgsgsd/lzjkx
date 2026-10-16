@@ -24,11 +24,11 @@ test('SiliconFlow scene configuration is separate from recognition and speech; f
 test('photography prompts keep the actual activity and category-specific details', () => {
   const cafe = scenePrompt({ name: '咖啡厅', category: '餐饮美食', elements: ['咖啡', '菜单'] });
   const supermarket = scenePrompt({ name: '超市购物', category: '购物消费', elements: ['购物车', '货架'] });
-  assert.match(cafe, /真实生活摄影/);
-  assert.match(cafe, /自然光/);
-  assert.match(cafe, /咖啡厅/);
-  assert.match(supermarket, /超市购物/);
-  assert.match(supermarket, /顾客挑选商品/);
+  assert.match(cafe, /documentary photograph/);
+  assert.match(cafe, /natural daylight/);
+  assert.match(cafe, /ordering a latte/);
+  assert.match(supermarket, /supermarket/);
+  assert.match(supermarket, /customer choosing products/);
   assert.notEqual(cafe, supermarket);
 });
 
@@ -105,7 +105,8 @@ test('scene jobs return immediately; reconnecting to the same job does not gener
     assert.equal(providerCalls - callsBefore, 1);
     assert.equal(lastRequest.model, 'photo-model');
     assert.equal(lastRequest.image_size, '1024x576');
-    assert.match(lastRequest.prompt, /咖啡厅/);
+    assert.match(lastRequest.prompt, /ordering a latte/);
+    assert.match(lastRequest.negative_prompt, /typography/);
     assert.equal(result.result.image, 'data:image/png;base64,' + png.toString('base64'));
     assert.equal(result.result.name, '咖啡厅');
     assert.ok(!JSON.stringify(result).includes('scene-secret'));
