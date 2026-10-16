@@ -2164,6 +2164,8 @@ window.SCENE_LIBRARY = (function(){
       let result = {};
       let lastError;
       for (let attempt = 0; attempt < 3; attempt += 1) {
+        response = undefined;
+        result = {};
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 95_000);
         try {
