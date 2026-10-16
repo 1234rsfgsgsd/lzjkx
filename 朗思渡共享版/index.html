@@ -136,6 +136,7 @@
 
   .photo-area{display:flex;flex-direction:column;align-items:center;gap:1rem;background:#f6faff;border-radius:1.8rem;padding:1.5rem 1rem;border:2px dashed #c7d9ee;margin:1rem 0 .5rem;}
   .photo-preview{max-width:100%;max-height:280px;border-radius:1.5rem;box-shadow:0 10px 25px -8px rgba(0,0,0,.15);object-fit:cover;border:3px solid #fff;background:#e2eaf3;}
+  .photo-preview.generated-scene{width:100%;max-height:440px;object-fit:contain;}
 
   .hint-box{background:var(--primary-soft);border-radius:1.5rem;padding:1.4rem 1.6rem;border-left:6px solid var(--primary);margin:1.2rem 0 .5rem;}
   .hint-box h3{font-size:1rem;font-weight:600;color:#0f2b4b;margin-bottom:.7rem;}
@@ -341,6 +342,7 @@
 
     <div id="mainPractice" class="step">
       <h2><i>🎯</i> 今日练习素材</h2>
+      <div id="sceneGenerationStatus" class="status-message hidden" role="status" aria-live="polite"></div>
 
       <div id="entrySection">
         <p style="color:#1d3f62;font-weight:500;margin-bottom:.6rem;">请选择素材来源：</p>
@@ -348,7 +350,7 @@
           <div class="entry-card" data-mode="generate">
             <span class="icon">🎲</span>
             <div class="title">智能生成</div>
-            <div class="desc">系统随机生成一张场景图</div>
+            <div class="desc">AI 生成真实生活摄影风格场景</div>
           </div>
           <div class="entry-card" data-mode="upload">
             <span class="icon">📁</span>
@@ -1658,6 +1660,8 @@ window.SCENE_LIBRARY = (function(){
   let recognizedImageResult = null;
   let currentEditedTranscript = '';
   let speechEvaluationRequestId = 0;
+  let sceneGenerationRequestId = 0;
+  let sceneGenerationPending = false;
 
   let mediaRecorder = null;
   let audioChunks = [];
@@ -2111,6 +2115,7 @@ window.SCENE_LIBRARY = (function(){
   }
   document.querySelectorAll('.entry-card').forEach(card => {
     card.addEventListener('click', () => {
+      cancelSceneGeneration();
       document.querySelectorAll('.entry-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
       currentMode = card.dataset.mode;
@@ -2129,6 +2134,9 @@ window.SCENE_LIBRARY = (function(){
     const file = e.target.files[0];
     if (!file) return;
     uploadedFile = file;
+    cancelSceneGeneration();
+    $('photoPreview').classList.remove('generated-scene');
+    $('photoPreview').alt = '上传的练习照片';
     recognizedImageResult = null;
     $('fileNameDisplay').textContent = `已选择：${file.name}`;
     $('recognizeImageBtn').classList.remove('hidden');
@@ -2293,62 +2301,118 @@ window.SCENE_LIBRARY = (function(){
     });
   }
 
-  function selectCategory(category) {
+  function cancelSceneGeneration() {
+    sceneGenerationRequestId += 1;
+    sceneGenerationPending = false;
+    $('sceneGenerationStatus').classList.add('hidden');
+    $('categoryGrid').style.pointerEvents = '';
+    $('categoryGrid').removeAttribute('aria-busy');
+    $('regenerateBtn').disabled = false;
+  }
+
+  async function generateSceneImage(scene, requestId) {
+    const jobId = crypto.randomUUID();
+    const body = JSON.stringify({ requestId: jobId, name: scene.name, category: scene.category, elements: scene.elements });
+    const deadline = Date.now() + 180_000;
+    const status = $('sceneGenerationStatus');
+    const active = () => requestId === sceneGenerationRequestId;
+    async function request(url, options = {}) {
+      let response;
+      try {
+        response = await fetch(url, { ...options, cache: 'no-store', signal: AbortSignal.timeout(20_000) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw Object.assign(new Error(data.error || `场景服务返回 HTTP ${response.status}`), {
+          transient: data.retryable !== false && [502, 503, 504].includes(response.status)
+        });
+        return data;
+      } catch (error) {
+        if (!response) error.transient = true;
+        throw error;
+      }
+    }
+    let job;
+    for (let attempt = 0; attempt < 3 && active(); attempt++) {
+      try {
+        job = await request('/api/generate-scene/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+        break;
+      } catch (error) {
+        if (!error.transient || attempt === 2) throw error;
+        status.textContent = '连接暂时中断，正在重新连接场景生成服务...';
+        await new Promise(resolve => setTimeout(resolve, 1800));
+      }
+    }
+    if (!active()) return null;
+    if (!job?.jobId) throw new Error('场景服务没有返回任务编号，请重试');
+    while (Date.now() < deadline && active()) {
+      await new Promise(resolve => setTimeout(resolve, 1800));
+      if (!active()) return null;
+      let result;
+      try { result = await request(`/api/generate-scene/jobs/${encodeURIComponent(job.jobId)}`); }
+      catch (error) {
+        if (!error.transient) throw error;
+        status.textContent = '网络暂时中断，正在重新连接并取回生成结果，请稍候...';
+        continue;
+      }
+      if (!active()) return null;
+      if (result.status === 'failed') throw new Error(result.error || '场景图片生成失败，请重试');
+      if (result.status === 'complete') {
+        if (!/^data:image\/(?:png|jpeg|webp);base64,/.test(result.result?.image || '')) throw new Error('场景服务未返回可显示的图片，请重试');
+        const image = new Image();
+        image.src = result.result.image;
+        await image.decode();
+        return result.result.image;
+      }
+      status.textContent = `正在生成“${scene.name}”的生活摄影风格图片，请稍候；通常需要几十秒...`;
+    }
+    if (!active()) return null;
+    throw new Error('场景图片等待超时，请稍后再试');
+  }
+
+  async function selectCategory(category) {
+    if (sceneGenerationPending) return;
+    const requestId = ++sceneGenerationRequestId;
+    sceneGenerationPending = true;
     document.querySelectorAll('#categoryGrid .category-card').forEach(c => {
       c.classList.toggle('selected', c.dataset.category === category);
     });
-
     const grid = $('categoryGrid');
-    let loadingTip = grid.querySelector('.loading-tip');
-    if (!loadingTip) {
-      loadingTip = document.createElement('div');
-      loadingTip.className = 'loading-tip';
-      loadingTip.textContent = '🎨 正在生成场景图...';
-      grid.appendChild(loadingTip);
-    }
-
-    setTimeout(() => {
-      try {
-        let pool;
-        if (category === '__random__') pool = SCENE_LIBRARY;
-        else pool = SCENE_LIBRARY.filter(s => s.category === category);
-
-        if (!pool || pool.length === 0) {
-          showStatus('⚠️ 该主题暂无场景，请选择其他主题', 'error');
-          loadingTip.textContent = '⚠️ 该主题暂无场景';
-          setTimeout(() => loadingTip.remove(), 2000);
-          return;
-        }
-
-        const scene = pool[Math.floor(Math.random() * pool.length)];
-        showScene(scene);
-      } catch(e) {
-        console.error('生成场景失败:', e);
-        showStatus('⚠️ 生成场景失败，请重试', 'error');
-      } finally {
-        if (loadingTip && loadingTip.parentNode) loadingTip.remove();
+    grid.style.pointerEvents = 'none';
+    grid.setAttribute('aria-busy', 'true');
+    $('regenerateBtn').disabled = true;
+    const status = $('sceneGenerationStatus');
+    status.className = 'status-message status-info';
+    status.textContent = '正在准备生活摄影风格场景...';
+    try {
+      requireOnlineService();
+      const pool = SCENE_LIBRARY.filter(scene => (category === '__random__' || scene.category === category)
+        && (scene.category !== currentScene?.category || scene.name !== currentScene?.name));
+      if (!pool.length) throw new Error('该主题暂无其他场景，请选择其他主题');
+      const scene = pool[Math.floor(Math.random() * pool.length)];
+      const image = await generateSceneImage(scene, requestId);
+      if (!image || requestId !== sceneGenerationRequestId) return;
+      showScene(scene, image);
+      status.textContent = '场景已生成，可以开始看图练口语。';
+      status.className = 'status-message status-success';
+    } catch (error) {
+      if (requestId !== sceneGenerationRequestId) return;
+      status.textContent = `场景生成失败：${error.message || '请检查网络后重试'}。可重新选择主题或点击“换一个”。`;
+      status.className = 'status-message status-error';
+    } finally {
+      if (requestId === sceneGenerationRequestId) {
+        sceneGenerationPending = false;
+        grid.style.pointerEvents = '';
+        grid.removeAttribute('aria-busy');
+        $('regenerateBtn').disabled = false;
       }
-    }, 50);
+    }
   }
 
-  function showScene(scene) {
+  function showScene(scene, dataUrl) {
     currentScene = scene;
-
-    let dataUrl;
-    try {
-      dataUrl = drawScene(scene);
-    } catch(e) {
-      console.error('绘制场景失败:', e);
-      dataUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360">' +
-        '<rect width="480" height="360" fill="#eef5ff"/>' +
-        '<text x="240" y="180" font-size="20" text-anchor="middle" fill="#2d7aff">🎨 ' + (scene.name || '场景') + '</text>' +
-        '</svg>'
-      );
-    }
-
     $('photoPreview').src = dataUrl;
-    $('photoCaption').textContent = `【${scene.category || ''} · ${scene.name || ''}】`;
+    $('photoPreview').classList.add('generated-scene');
+    $('photoPreview').alt = `${scene.name}，AI 生成的生活摄影风格场景`;
+    $('photoCaption').textContent = `【${scene.category || ''} · ${scene.name || ''}】· AI 生成`;
 
     $('entrySection').classList.add('hidden');
     $('themeSelectionSection').classList.add('hidden');
@@ -3175,82 +3239,11 @@ window.SCENE_LIBRARY = (function(){
     renderHistory();
   };
 
-  function drawScene(scene) {
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = 480; canvas.height = 360;
-      const ctx = canvas.getContext('2d');
-      const bgHue = Math.floor(Math.random()*360);
-      const grad = ctx.createLinearGradient(0,0,0,360);
-      grad.addColorStop(0, `hsl(${bgHue}, 55%, 92%)`);
-      grad.addColorStop(1, `hsl(${(bgHue+30)%360}, 45%, 80%)`);
-      ctx.fillStyle = grad; ctx.fillRect(0,0,480,360);
-      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(0,0,480,200);
-      ctx.fillStyle = 'rgba(180,150,120,0.4)'; ctx.fillRect(0,260,480,100);
-      const cat = scene.category;
-      if (cat === '日常生活') {
-        ctx.fillStyle = '#8d6e63'; ctx.fillRect(140,220,220,80);
-        ctx.fillStyle = '#f5f5f5'; ctx.fillRect(150,200,200,30);
-        ctx.fillStyle = '#90caf9'; ctx.fillRect(160,240,180,60);
-      } else if (cat === '餐饮美食') {
-        ctx.fillStyle = '#d7ccc8'; ctx.beginPath(); ctx.ellipse(240,260,140,40,0,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.arc(240,230,25,0,Math.PI*2); ctx.fill();
-      } else if (cat === '出行交通') {
-        ctx.fillStyle = '#1e88e5'; ctx.fillRect(60,180,360,100);
-        ctx.fillStyle = '#212121'; ctx.beginPath(); ctx.arc(140,290,30,0,Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(340,290,30,0,Math.PI*2); ctx.fill();
-      } else if (cat === '旅游观光') {
-        ctx.fillStyle = '#81d4fa'; ctx.fillRect(0,0,480,180);
-        ctx.fillStyle = '#ffe082'; ctx.beginPath(); ctx.arc(380,60,40,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#29b6f6'; ctx.fillRect(0,180,480,60);
-        ctx.fillStyle = '#ffe0b2'; ctx.fillRect(0,240,480,120);
-      } else if (cat === '工作职场') {
-        ctx.fillStyle = '#37474f'; ctx.fillRect(140,120,200,140);
-        ctx.fillStyle = '#4fc3f7'; ctx.fillRect(150,130,180,110);
-      } else if (cat === '休闲娱乐') {
-        ctx.fillStyle = '#1a1a2e'; ctx.fillRect(60,60,360,180);
-        ctx.fillStyle = '#e0e0e0'; ctx.fillRect(80,80,320,140);
-      } else if (cat === '购物消费') {
-        ctx.fillStyle = '#8d6e63'; ctx.fillRect(40,80,400,20); ctx.fillRect(40,180,400,20);
-        ctx.fillStyle = '#e53935'; ctx.fillRect(60,100,50,70);
-      } else if (cat === '宠物动物') {
-        ctx.fillStyle = '#ffb74d'; ctx.beginPath(); ctx.ellipse(240,220,90,60,0,0,Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(240,150,55,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#212121'; ctx.beginPath(); ctx.arc(220,145,8,0,Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(260,145,8,0,Math.PI*2); ctx.fill();
-      } else if (cat === '运动健身') {
-        ctx.fillStyle = '#ef6c00'; ctx.beginPath(); ctx.arc(240,240,70,0,Math.PI*2); ctx.fill();
-      } else if (cat === '自然风景') {
-        ctx.fillStyle = '#ff5722'; ctx.beginPath(); ctx.arc(240,180,70,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#5d4037'; ctx.fillRect(0,250,480,110);
-      } else if (cat === '学习校园') {
-        ctx.fillStyle = '#2e7d32'; ctx.fillRect(60,60,360,140);
-        ctx.fillStyle = '#fff'; ctx.font='bold 28px sans-serif'; ctx.fillText('ABC', 200, 130);
-      } else if (cat === '医疗健康') {
-        ctx.fillStyle = '#e53935'; ctx.fillRect(160,140,160,140);
-        ctx.fillStyle = '#fff'; ctx.fillRect(220,180,40,60); ctx.fillRect(200,200,80,20);
-      } else {
-        ctx.fillStyle = '#2d7aff'; ctx.fillRect(140,140,200,80);
-        ctx.fillStyle = '#fff'; ctx.font='bold 20px sans-serif'; ctx.fillText(scene.name||'场景', 170, 190);
-      }
-      return canvas.toDataURL('image/jpeg', 0.92);
-    } catch(e) {
-      console.error('drawScene 内部错误:', e);
-      const canvas2 = document.createElement('canvas');
-      canvas2.width = 480; canvas2.height = 360;
-      const ctx2 = canvas2.getContext('2d');
-      ctx2.fillStyle = '#eef5ff'; ctx2.fillRect(0,0,480,360);
-      ctx2.fillStyle = '#2d7aff'; ctx2.font = 'bold 22px sans-serif';
-      ctx2.textAlign = 'center';
-      ctx2.fillText('🎨 ' + (scene.name || '场景'), 240, 180);
-      return canvas2.toDataURL('image/jpeg', 0.9);
-    }
-  }
-
   $('regenerateBtn').addEventListener('click', () => {
     if (currentScene && currentScene.category && currentMode === 'generate') selectCategory(currentScene.category);
   });
   $('backToEntryBtn').addEventListener('click', () => {
+    cancelSceneGeneration();
     $('photoSection').classList.add('hidden');
     $('hintSection').classList.add('hidden');
     $('recordingSection').classList.add('hidden');

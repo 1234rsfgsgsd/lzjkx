@@ -29,4 +29,18 @@ node server.js
 
 当前接入层要求视觉服务兼容 OpenAI Chat Completions 的图片输入与 JSON 输出格式。DeepSeek 可用于文本生成，但若所选 DeepSeek 模型/API 不接受图片，就不能单独识图；需配置支持图片输入的视觉模型服务。网页识图后返回场景和物体，之后仍可使用本地练习历史。
 
+## 生活摄影风格场景图
+
+“智能生成”会按所选主题和具体活动调用图片生成模型，生成 1024×576 的生活摄影风格图片。画面标注为 AI 生成。生成任务使用独立接口，在后台运行，网页显示进度并查询结果。生成失败会显示实际错误，已有图片仍可继续练习。
+
+如果 `VISION_API_URL` 使用 SiliconFlow 官方 `api.siliconflow.cn` 或 `api.siliconflow.com`，默认复用该账户的 API Key，调用 `Tongyi-MAI/Z-Image-Turbo`。这属于图片生成调用，按 SiliconFlow 的价格计费，需要账户余额和对应模型权限；不会自动充值或购买套餐。图片生成模型与 `VISION_MODEL`、`SPEECH_MODEL` 分开配置。
+
+可在 Render → Environment 覆盖以下配置：
+
+- `SCENE_IMAGE_API_URL`：图片生成接口完整地址，例如 `https://api.siliconflow.cn/v1/images/generations`。
+- `SCENE_IMAGE_API_KEY`：图片生成服务的密钥；同一服务商可省略并复用视觉服务密钥。
+- `SCENE_IMAGE_MODEL`：图片生成模型名称，默认 `Tongyi-MAI/Z-Image-Turbo`。
+
+使用其他服务商时必须设置这三个变量。接口需接受 `model`、`prompt`、`image_size`，并返回 `images[0].url`、`data[0].url` 或 `data[0].b64_json`。生成图片会转为图片数据交给浏览器，保存练习时不会保存一小时后失效的图片链接。临时生成任务仅保留十分钟，不保存用户的练习历史。
+
 如果网站面向中国大陆公众提供服务，部署前需核实托管平台和网站备案要求。

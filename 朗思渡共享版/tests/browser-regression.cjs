@@ -79,12 +79,81 @@ const success = {
           assert.equal(await page.evaluate(()=>window.__spoken[0].lang),'en-GB');
           assert.deepEqual(await page.evaluate(()=>window.__spoken.map(s=>s.text)),['I have a book.']);
           await page.locator('#backToEntryBtn').click();
+          await page.route('**/api/generate-scene/jobs',route=>route.fulfill({status:202,json:{jobId:'test-scene'}}));
+          await page.route('**/api/generate-scene/jobs/test-scene',route=>route.fulfill({json:{status:'complete',result:{image:'data:image/png;base64,'+data}}}));
           await page.locator('[data-mode="generate"]').click();
           await page.locator('#categoryGrid [data-category="学习校园"]').click();
           await page.locator('#photoSection').waitFor({state:'visible'});
           assert.equal(await page.locator('#recordingSection').isVisible(),true,'generated scenes must still work');
+          assert.match(await page.locator('#photoCaption').innerText(),/AI 生成/);
+          assert.equal(await page.locator('#photoPreview').getAttribute('src'),'data:image/png;base64,'+data);
         }
       }
+      assert.deepEqual(errors,[]);
+      console.log('PASS browser',scenario);
+      await page.close();
+    }
+    for (const scenario of ['scene-reconnect', 'scene-error', 'scene-cancel', 'scene-regenerate-error']) {
+      const page = await browser.newPage();
+      const errors=[];
+      page.on('pageerror',error=>errors.push(error.message));
+      await page.addInitScript(()=>{
+        localStorage.setItem('langsidu_state_v5',JSON.stringify({skipWelcome:true}));
+        window.SpeechRecognition=undefined;window.webkitSpeechRecognition=undefined;
+      });
+      await page.route('**/*',route=>route.abort());
+      await page.route(origin+'/',route=>route.fulfill({contentType:'text/html',body:html}));
+      await page.goto(origin+'/',{waitUntil:'domcontentloaded'});
+      const image=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=640;c.height=360;return c.toDataURL('image/png');});
+      let creates=0,polls=0,scene,release;
+      const gate=new Promise(resolve=>{release=resolve;});
+      await page.route('**/api/generate-scene/jobs',route=>{
+        creates++;
+        scene=route.request().postDataJSON();
+        assert.ok(scene.name);
+        assert.ok(scene.elements.length);
+        return route.fulfill({status:202,json:{jobId:'scene-job'}});
+      });
+      await page.route('**/api/generate-scene/jobs/scene-job',async route=>{
+        polls++;
+        if(scenario==='scene-cancel') await gate;
+        if(scenario==='scene-reconnect' && polls===1) return route.abort('connectionfailed');
+        if(scenario==='scene-reconnect' && polls===2) return route.fulfill({json:{status:'pending'}});
+        if(scenario==='scene-error' || (scenario==='scene-regenerate-error' && creates>1)) return route.fulfill({json:{status:'failed',error:'图片生成服务拒绝请求（401），请检查权限'}});
+        return route.fulfill({json:{status:'complete',result:{image}}});
+      });
+      await page.locator('[data-nav="now"]').click();
+      await page.locator('[data-mode="generate"]').click();
+      await page.locator('#categoryGrid [data-category="餐饮美食"]').click();
+      await page.locator('#sceneGenerationStatus').waitFor({state:'visible'});
+      if(scenario==='scene-cancel') {
+        await page.waitForTimeout(2000);
+        await page.locator('[data-mode="upload"]').click();
+        release();
+        await page.waitForTimeout(300);
+        assert.equal(await page.locator('#uploadPanel').isVisible(),true);
+        assert.equal(await page.locator('#photoSection').isVisible(),false,'late generation must not overwrite another material source');
+        assert.equal(await page.locator('#sceneGenerationStatus').isVisible(),false);
+      } else if(scenario==='scene-error') {
+        await page.waitForFunction(()=>document.getElementById('sceneGenerationStatus').textContent.includes('401'));
+        assert.equal(await page.locator('#themeSelectionSection').isVisible(),true);
+        assert.equal(await page.locator('#photoSection').isVisible(),false,'generation errors must not display simple placeholder images');
+        assert.equal(await page.locator('#categoryGrid').getAttribute('aria-busy'),null);
+      } else {
+        await page.locator('#photoSection').waitFor({state:'visible',timeout:15000});
+        assert.equal(creates,1,'connection recovery must query the same job');
+        assert.equal(await page.locator('#photoPreview').getAttribute('src'),image);
+        assert.match(await page.locator('#photoCaption').innerText(),new RegExp(scene.name));
+        assert.equal(await page.locator('#recordingSection').isVisible(),true);
+        if(scenario==='scene-regenerate-error') {
+          await page.locator('#regenerateBtn').click();
+          await page.waitForFunction(()=>document.getElementById('sceneGenerationStatus').textContent.includes('401'));
+          assert.equal(await page.locator('#photoPreview').getAttribute('src'),image,'a failed replacement must preserve the existing practice image');
+          assert.equal(await page.locator('#recordingSection').isVisible(),true);
+          assert.equal(await page.locator('#regenerateBtn').isEnabled(),true);
+        }
+      }
+      release();
       assert.deepEqual(errors,[]);
       console.log('PASS browser',scenario);
       await page.close();

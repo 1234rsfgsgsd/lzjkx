@@ -3,6 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { categories, parseVisionResult } = require('./vision-result');
 const { evaluationContext, evaluationPrompt, parseCompletion, normalizeEvaluation } = require('./speech-evaluation');
+const { createSceneGenerator } = require('./scene-generation');
+const sceneGenerator = createSceneGenerator();
 
 const root = __dirname;
 const port = Number(process.env.PORT || 3000);
@@ -243,6 +245,20 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   if (req.method === 'GET' && url.pathname === '/health') {
     return send(res, 200, { ok: true });
+  }
+  if (req.method === 'POST' && url.pathname === '/api/generate-scene/jobs') {
+    if (!allowedRequest(req, res)) return;
+    try {
+      const body = await readBody(req);
+      return send(res, 202, { jobId: sceneGenerator.start(body) });
+    } catch (error) {
+      return send(res, error.status || 502, { error: error.status ? error.message : '无法启动场景图片生成，请稍后重试', code: error.code || 'SCENE_GENERATION_ERROR', retryable: false });
+    }
+  }
+  const sceneJobMatch = url.pathname.match(/^\/api\/generate-scene\/jobs\/([0-9a-f-]{36})$/i);
+  if (req.method === 'GET' && sceneJobMatch) {
+    try { return send(res, 200, sceneGenerator.get(sceneJobMatch[1])); }
+    catch (error) { return send(res, error.status || 502, { error: error.message }); }
   }
   if (req.method === 'POST' && url.pathname === '/api/analyze-image') {
     if (!allowedRequest(req, res)) return;
