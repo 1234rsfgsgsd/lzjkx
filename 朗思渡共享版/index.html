@@ -305,6 +305,15 @@
 </head>
 <body data-theme="blue">
 
+<aside id="localFileNotice" role="alert" hidden style="position:fixed;top:1rem;left:50%;transform:translateX(-50%);width:min(840px,calc(100% - 2rem));z-index:10001;padding:1rem 1.2rem;border:1px solid #e7b45a;border-radius:1rem;background:#fff7e6;color:#664500;box-shadow:0 4px 18px #0002;">
+  当前打开的是本地文件。照片识别和智能评测需要使用在线版。
+  <a href="https://langsidu-sharing.onrender.com/" style="display:inline-block;margin:.4rem 0;color:#174fa3;font-weight:600;">点击打开朗思渡在线版 →</a>
+  <small style="display:block;">本地练习记录仍保留在当前浏览器中，不会自动同步到在线版。</small>
+</aside>
+<script>
+  document.getElementById('localFileNotice').hidden = location.protocol !== 'file:';
+</script>
+
 <div id="welcomeOverlay" class="welcome-overlay">
   <div class="welcome-stage">
     <div id="welcomeLine1" class="welcome-line">朗思渡，你的智能英语口语陪练！</div>
@@ -1627,6 +1636,11 @@ window.SCENE_LIBRARY = (function(){
 <script>
 (function(){
   // ========== 应用状态 ==========
+  function requireOnlineService() {
+    if (location.protocol === 'file:') {
+      throw new Error('当前打开的是本地文件，无法调用识图或智能评测服务。请点击页面顶部的“打开朗思渡在线版”，再提交图片或口述稿');
+    }
+  }
   const STORAGE_KEY = 'langsidu_state_v5';
   const defaultState = {
     profile: { nick: '', avatarType: 'emoji', avatarValue: '🦊', avatarImage: '' },
@@ -2179,6 +2193,7 @@ window.SCENE_LIBRARY = (function(){
     button.textContent = '正在识别照片...';
     showStatus('正在整理照片并分析内容，请稍候...','info',true);
     try {
+      requireOnlineService();
       const dataUrl = await normalizeVisionImage(uploadedFile);
       let response;
       let result = {};
@@ -2709,6 +2724,7 @@ window.SCENE_LIBRARY = (function(){
       showStatus('⏳ 长文本智能评测仍在处理中，已先显示基础评分和逐段发音；智能结果返回后会自动更新。','info');
     }, fallbackDelay);
     try {
+      requireOnlineService();
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 20_000);
       const response = await fetch('/api/analyze-speech/jobs', {
