@@ -1,0 +1,19 @@
+name: Regression checks
+on: [push, pull_request]
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Backend regression checks
+        run: npm test --prefix './朗思渡共享版'
+      - name: Install browser test tools
+        run: npm install --no-save playwright && npx playwright install --with-deps chromium
+      - name: Browser regression checks
+        env:
+          PLAYWRIGHT_MODULE: ${{ github.workspace }}/node_modules/playwright
+          BROWSER_CHANNEL: chromium
+        run: node './朗思渡共享版/tests/browser-regression.cjs'

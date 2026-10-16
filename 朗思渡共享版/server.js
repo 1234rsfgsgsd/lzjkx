@@ -1,6 +1,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const { categories, parseVisionResult } = require('./vision-result');
 
 const root = __dirname;
 const port = Number(process.env.PORT || 3000);
@@ -75,7 +76,6 @@ async function analyze(req, res) {
     return;
   }
 
-  const categories = ['日常生活','餐饮美食','出行交通','旅游观光','工作职场','休闲娱乐','购物消费','宠物动物','运动健身','自然风景','学习校园','医疗健康'];
   const prompt = `你是英语口语陪练的看图教练。快速观察图片，只返回严格 JSON，不要 markdown。scene 是简洁中文场景；category 从${categories.join('、')}中选一个；likelyIntent 是学习者最可能表达的意图；elements 返回4-6个确实可见的中文要点，禁止臆造。words 返回5-6个贴合画面的英文词，每项有 en、us（美式 IPA）、uk（英式 IPA）、zh；phrases 最多2个，每项有 en、zh；sentences 最多1句，每项有 en、zh。难度按${String(body.education || '大学及以上').slice(0, 30)}控制。格式：{"scene":"...","category":"...","likelyIntent":"...","elements":["..."],"words":[{"en":"...","us":"/.../","uk":"/.../","zh":"..."}],"phrases":[{"en":"...","zh":"..."}],"sentences":[{"en":"...","zh":"..."}]}`;
   const upstream = await fetch(apiUrl, {
     method: 'POST',
@@ -87,7 +87,7 @@ async function analyze(req, res) {
         { type: 'image_url', image_url: { url: body.image } }
       ] }],
       temperature: 0.25,
-      max_tokens: 600,
+      max_tokens: 1400,
     }),
     signal: AbortSignal.timeout(90_000)
   });
@@ -106,33 +106,17 @@ async function analyze(req, res) {
       : upstream.status === 429
         ? `视觉服务暂时限流（429），请等待 30 秒后重试。${providerMessage}`
       : `视觉服务请求失败（${upstream.status}）：${providerMessage}`;
-    send(res, 502, { error: guidance });
+    send(res, 502, {
+      error: guidance, code: 'VISION_PROVIDER_ERROR',
+      retryable: upstream.status === 429 || upstream.status >= 500
+    });
     return;
   }
-  let content = result.choices?.[0]?.message?.content;
-  if (Array.isArray(content)) content = content.map(part => part?.text || '').join('');
   try {
-    const cleaned = String(content || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-    const parsed = JSON.parse(cleaned);
-    const toPairs = (items, limit) => Array.isArray(items) ? items.map(item => [
-      String(item?.en || '').trim().slice(0, 120),
-      String(item?.us || '').trim().slice(0, 120),
-      String(item?.uk || '').trim().slice(0, 120),
-      String(item?.zh || '').trim().slice(0, 120)
-    ]).filter(item => item[0] && item[3]).slice(0, limit) : [];
-    const words = toPairs(parsed.words, 10);
-    const phrases = toPairs(parsed.phrases, 5);
-    const sentences = toPairs(parsed.sentences, 3);
-    if (!words.length) throw new Error('incomplete coaching hints');
-    send(res, 200, {
-      scene: String(parsed.scene || '照片场景').slice(0, 60),
-      category: categories.includes(parsed.category) ? parsed.category : '日常生活',
-      likelyIntent: String(parsed.likelyIntent || '描述画面').slice(0, 100),
-      elements: Array.isArray(parsed.elements) ? parsed.elements.map(value => String(value).trim().slice(0, 80)).filter(Boolean).slice(0, 10) : [],
-      hints: { words, phrases, sentences }
-    });
-  } catch {
-    send(res, 502, { error: '视觉模型返回的结果无法解析，请重试' });
+    send(res, 200, parseVisionResult(result));
+  } catch (error) {
+    console.error('Vision result rejected', error.code || 'VISION_INVALID_RESULT', 'finish_reason:', result.choices?.[0]?.finish_reason || 'unknown');
+    send(res, 502, { error: error.message, code: error.code || 'VISION_INVALID_RESULT', retryable: true });
   }
 }
 

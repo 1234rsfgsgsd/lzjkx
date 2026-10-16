@@ -2056,7 +2056,7 @@ window.SCENE_LIBRARY = (function(){
     $('playbackAudio').load();
   }
 
-  function showStatus(msg, type='info') {
+  function showStatus(msg, type='info', persistent=false) {
     const className = 'status-message ' + (type==='error'?'status-error':type==='success'?'status-success':'status-info');
     const duration = type === 'error' ? 10000 : 6000;
     ['statusMessage', 'uploadStatus'].forEach(id => {
@@ -2066,7 +2066,7 @@ window.SCENE_LIBRARY = (function(){
       el.className = className;
       el.classList.remove('hidden');
       clearTimeout(el._timer);
-      el._timer = setTimeout(() => el.classList.add('hidden'), duration);
+      if (!persistent && type !== 'error') el._timer = setTimeout(() => el.classList.add('hidden'), duration);
     });
   }
   function hideStatus() {
@@ -2157,7 +2157,7 @@ window.SCENE_LIBRARY = (function(){
     const button = $('recognizeImageBtn');
     button.disabled = true;
     button.textContent = '正在识别照片...';
-    showStatus('正在整理照片并分析内容，请稍候...','info');
+    showStatus('正在整理照片并分析内容，请稍候...','info',true);
     try {
       const dataUrl = await normalizeVisionImage(uploadedFile);
       let response;
@@ -2175,19 +2175,19 @@ window.SCENE_LIBRARY = (function(){
             body: JSON.stringify({ image: dataUrl, education: state.prefs.education, accent: state.prefs.accent }),
             signal: controller.signal
           });
-          result = await response.json().catch(() => ({}));
+          result = await response.json().catch(() => ({ error: `识图服务返回非 JSON 内容（HTTP ${response.status}），可能是服务重启或网关超时` }));
           if (response.ok) break;
-          const retryable = response.status === 429 || response.status >= 500;
+          const retryable = result.retryable !== false && (response.status === 429 || response.status >= 500);
           if (!retryable || attempt === 2) throw new Error(result.error || `识图服务返回 ${response.status}`);
           lastError = new Error(result.error || '视觉服务暂时繁忙');
         } catch (error) {
           lastError = error;
-          const retryable = error.name === 'AbortError' || !response || response.status === 429 || response.status >= 500;
+          const retryable = result.retryable !== false && (error.name === 'AbortError' || !response || response.status === 429 || response.status >= 500);
           if (!retryable || attempt === 2) throw error;
         } finally {
           clearTimeout(timeout);
         }
-        showStatus(`识图服务暂时繁忙，正在自动重试（${attempt + 2}/3）...`, 'info');
+        showStatus(`识图服务暂时繁忙，正在自动重试（${attempt + 2}/3）...`, 'info',true);
         await new Promise(resolve => setTimeout(resolve, 1800 * (attempt + 1)));
       }
       if (!response?.ok) throw lastError || new Error('识图服务暂时不可用');
@@ -2196,7 +2196,12 @@ window.SCENE_LIBRARY = (function(){
       const elements = Array.isArray(result.elements) ? result.elements.map(v => String(v).trim()).filter(Boolean).slice(0, 12) : [];
       if (!elements.length) throw new Error('模型没有返回可用的照片内容，请重试');
       recognizedImageResult = { category, name: String(result.scene || '照片场景').slice(0, 60), likelyIntent: String(result.likelyIntent || ''), elements, hints: result.hints };
-      startUploadedPhotoPractice(recognizedImageResult);
+      try {
+        startUploadedPhotoPractice(recognizedImageResult);
+      } catch (error) {
+        console.error('照片练习页面显示失败', error);
+        showStatus(`照片已识别，但练习页面显示失败：${error.message || '未知页面错误'}。请点击“重选素材”再试。`, 'error');
+      }
     } catch (error) {
       const message = error.name === 'AbortError' ? '识图等待超过 95 秒，可能是视觉模型繁忙，请稍后重试' : (error.message || '请检查网络后重试');
       showStatus(`识图失败：${message}`,'error');
@@ -2207,7 +2212,6 @@ window.SCENE_LIBRARY = (function(){
   });
 
   function startUploadedPhotoPractice(result) {
-    try {
       const keywords = result.elements;
       $('photoCaption').textContent = `【${result.category} · ${result.name}】`;
       $('recognizedElements').textContent = `${result.likelyIntent ? `可能表达：${result.likelyIntent}；` : ''}画面要点：${keywords.join('、')}`;
@@ -2231,10 +2235,6 @@ window.SCENE_LIBRARY = (function(){
       renderHints(result.hints || fallbackHints(currentScene), state.prefs.education);
       showStatus('识图完成，已根据照片生成场景分析、可能表达和专属词句。','success');
       checkEnvironment();
-    } catch(e) {
-      console.error('生成照片练习内容失败:', e);
-      showStatus('⚠️ 已识别照片，但生成练习提示失败，请重试', 'error');
-    }
   }
 
   function renderCategoryGrid() {
