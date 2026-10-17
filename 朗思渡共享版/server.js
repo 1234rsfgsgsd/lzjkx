@@ -151,7 +151,7 @@ async function evaluateSpeech(body) {
   const deadline = Date.now() + 180_000;
   const messages = [
     { role: 'system', content: evaluationPrompt(context) },
-    { role: 'user', content: JSON.stringify({ topic: context.topic, speech: context.text }) }
+    { role: 'user', content: JSON.stringify({ topic: context.topic, speech: context.text, ...(context.phase === 'final' ? { reference: context.reference } : {}) }) }
   ];
   async function complete(messages, maxTokens) {
     const upstream = await fetch(apiUrl, {
@@ -180,7 +180,7 @@ async function evaluateSpeech(body) {
   try {
     const parsed = await complete(messages, Math.min(8000, Math.max(3500, context.originalWordCount * 8)));
     let evaluation = normalizeEvaluation(parsed, context);
-    if (!evaluation.wordCountWithinRange) {
+    if (context.phase !== 'final' && !evaluation.wordCountWithinRange) {
       // Repair only the paragraph so a length correction does not redo scoring or lose errors.
       const repaired = await complete([
         ...messages,

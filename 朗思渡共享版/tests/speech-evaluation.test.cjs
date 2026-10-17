@@ -63,3 +63,22 @@ test('evaluation preserves evidence for every score and removes duplicate correc
   assert.equal(result.errors.length,1);
   assert.match(evaluationPrompt(context),/scoreReasons/);
 });
+
+test('first-round polishing accepts no scores and discards provider scoring fields', () => {
+  const context = evaluationContext({text:'I has a book.',phase:'polish'});
+  const result = normalizeEvaluation({polished:'I have a book.',grammar:100,overall:100,scoreReasons:{grammar:'ignore'},errors:[{original:'I has',correction:'I have'}]},context);
+  assert.equal(result.phase,'polish');
+  for(const field of ['overall','grammar','fluency','scoreWeights','scoreReasons','taskCompletion']) assert.equal(field in result,false,field);
+  assert.equal(result.errors[0].correction,'I have');
+  assert.match(evaluationPrompt(context),/不进行任何评分/);
+  assert.doesNotMatch(evaluationPrompt(context),/"grammar":0/);
+});
+
+test('final round requires a reference but evaluates the actual second transcript', () => {
+  assert.throws(()=>evaluationContext({text:'I has a book.',phase:'final'}),{status:400});
+  const context=evaluationContext({text:'I has a book.',phase:'final',reference:'I have a book.'});
+  assert.equal(context.text,'I has a book.');
+  assert.equal(context.reference,'I have a book.');
+  assert.match(evaluationPrompt(context),/只能根据 speech 评分/);
+  assert.match(evaluationPrompt(context),/不声称听过音频/);
+});

@@ -94,6 +94,25 @@ test('health and image recognition remain independent of the speech model', asyn
   assert.ok(lastRequest.max_tokens >= 1200);
 });
 
+test('two-round jobs separate polishing from final scoring and preserve the reference', async () => {
+  const initial=await post('/api/analyze-speech',{phase:'polish',text:'I has a book.'});
+  assert.equal(initial.status,200);
+  const polished=await initial.json();
+  assert.equal(polished.phase,'polish');
+  assert.equal('overall' in polished,false);
+  assert.equal(polished.polished,'I have a book.');
+  assert.match(lastRequest.messages[0].content,/不进行任何评分/);
+  const final=await post('/api/analyze-speech',{phase:'final',text:'I has a book.',reference:polished.polished});
+  assert.equal(final.status,200);
+  const scored=await final.json();
+  assert.equal(scored.phase,'final');
+  assert.equal(typeof scored.overall,'number');
+  assert.equal(scored.errors[0].original,'I has');
+  const user=JSON.parse(lastRequest.messages[1].content);
+  assert.equal(user.speech,'I has a book.');
+  assert.equal(user.reference,'I have a book.');
+});
+
 test('reconnecting to the same speech submission preserves the job and rejects changed content', async () => {
   const body={requestId:require('node:crypto').randomUUID(),text:'I has a book.',accent:'英式'};
   const first=await post('/api/analyze-speech/jobs',body);

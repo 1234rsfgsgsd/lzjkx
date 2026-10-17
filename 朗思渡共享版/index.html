@@ -408,6 +408,7 @@
       </div>
 
       <div id="recordingSection" class="hidden" style="margin-top:1.6rem;">
+        <p style="color:#41658b;">① 自由口述 → ② 查看纠错与润色 → ③ 照稿再读并对比 → ④ 最后评分</p>
         <div class="flex-between">
           <h2 style="font-size:1.15rem;margin-bottom:0;"><i>🎤</i> 开始口语练习</h2>
           <div id="recordingStatus" class="hidden recording-indicator"><span class="dot"></span> 录音中...</div>
@@ -436,7 +437,7 @@
           <h3 style="font-size:1rem;margin-bottom:.5rem;color:#0f2b4b;">📝 你的口述文稿（可修改）</h3>
           <textarea id="transcriptEdit" class="transcript-edit" placeholder="识别结果将显示在这里，你可以直接修改..."></textarea>
           <div class="btn-group" style="justify-content:flex-end;">
-            <button id="confirmTranscriptBtn" class="btn">✅ 确定</button>
+            <button id="confirmTranscriptBtn" class="btn">✅ 生成纠错与润色（不评分）</button>
             <button id="retryRecordBtn" class="btn btn-secondary">🔄 再试一次</button>
           </div>
         </div>
@@ -470,7 +471,7 @@
           <h3 style="font-size:1rem;margin:1.4rem 0 .5rem;color:#0f2b4b;">🔎 语法与表达问题</h3>
           <div id="errorList"></div>
           <div id="evaluationProgress" role="status" aria-live="polite"></div>
-          <button id="retryEvaluationBtn" class="btn btn-secondary btn-sm hidden">🔄 重试智能评测（保留当前录音）</button>
+          <button id="retryEvaluationBtn" class="btn btn-secondary btn-sm hidden">🔄 重新纠错与润色</button>
           <div id="styleSuggestionPanel" class="hidden" style="margin-top:.9rem;">
             <h3 style="font-size:.95rem;margin-bottom:.45rem;color:#315c8a;">💡 可选的表达提升（不是语法错误）</h3>
             <div id="styleSuggestionList"></div>
@@ -486,6 +487,31 @@
             <p id="pronunciationStatus" role="status" style="font-size:.82rem;"></p>
             <div id="polishedSentences" style="margin-top:.8rem;"></div>
           </div>
+          <section id="rereadSection" class="hidden" style="margin-top:1.4rem;">
+            <h3 style="font-size:1.05rem;">🎤 照着润色稿再读一次</h3>
+            <p style="color:#5c7b9c;line-height:1.7;">先听示范或自行练习，再录下第二次朗读。两次录音分别保留供你对比；确认第二次转写后才评分。</p>
+            <div id="rereadReference" style="max-height:45vh;overflow:auto;padding:1rem;background:#f1f8e9;border-radius:1rem;line-height:1.9;white-space:pre-wrap;margin:.8rem 0;" aria-label="本次朗读参考稿"></div>
+            <div class="btn-group">
+              <button id="startRereadBtn" class="btn">● 开始第二次录音</button>
+              <button id="stopRereadBtn" class="btn btn-secondary" disabled>■ 停止第二次录音</button>
+            </div>
+            <p id="rereadStatus" role="status" aria-live="polite"></p>
+            <div id="comparisonPanel" class="hidden" style="margin-top:.8rem;">
+              <strong>改前：第一次自由口述</strong>
+              <p id="firstRecordingNotice"></p>
+              <audio id="firstComparisonAudio" controls preload="metadata" style="width:100%;"></audio>
+              <p id="firstComparisonText" class="transcript"></p>
+              <strong>改后：第二次照稿朗读</strong>
+              <audio id="secondComparisonAudio" controls preload="metadata" style="width:100%;"></audio>
+              <label for="rereadTranscript">第二次朗读的转写（请核对实际读出的内容，可修改识别错误）</label>
+              <textarea id="rereadTranscript" class="transcript-edit" placeholder="第二次录音转写；请勿直接粘贴润色稿代替实际朗读内容"></textarea>
+              <p style="font-size:.82rem;color:#5c7b9c;">本次分数根据第二次转写文本计算，不代表录音的发音准确度、口音、语速或停顿评分。</p>
+              <button id="scoreRereadBtn" class="btn">✅ 为这次朗读评分</button>
+            </div>
+            <p id="finalEvaluationProgress" role="status" aria-live="polite"></p>
+            <button id="retryFinalBtn" class="btn btn-secondary btn-sm hidden">🔄 重试最后评分</button>
+            <div id="finalFeedback"></div>
+          </section>
           <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
             <button id="saveSessionBtn" class="btn">💾 保存到 PAST</button>
           </div>
@@ -1691,6 +1717,13 @@ window.SCENE_LIBRARY = (function(){
   let imageHintsPending = false;
   let uploadRequestId = 0;
   let recordingRequestId = 0;
+  let firstPolish = null;
+  let finalEvaluation = null;
+  let rereadBlob = null, rereadURL = null;
+  let rereadRecorder = null, rereadStream = null, rereadRecognition = null;
+  let rereadRequestId = 0, finalScoreRequestId = 0;
+  let rereadActive = false, rereadFinalText = '', rereadInterim = '';
+  let rereadAccent = null;
 
   let mediaRecorder = null;
   let audioChunks = [];
@@ -2127,6 +2160,8 @@ window.SCENE_LIBRARY = (function(){
   }
 
   function invalidatePractice() {
+    clearReread();
+    firstPolish = null;
     uploadRequestId++;
     speechEvaluationRequestId++;
     imageHintRequestId++;
@@ -2752,6 +2787,7 @@ window.SCENE_LIBRARY = (function(){
       showStatus('❌ 当前浏览器不支持麦克风访问。','error');
       return;
     }
+    clearReread(); firstPolish = null;
     speechEvaluationRequestId++; latestEvaluation = null; stopPronunciation();
     const recordingId = ++recordingRequestId;
     finalTranscript = ''; interimTranscript = ''; manualStop = false;
@@ -2892,6 +2928,7 @@ window.SCENE_LIBRARY = (function(){
   });
 
   $('retryRecordBtn').addEventListener('click', () => {
+    clearReread(); firstPolish = null; speechEvaluationRequestId++;
     $('transcriptEditArea').classList.add('hidden');
     $('transcriptEdit').value = '';
     $('transcriptArea').classList.add('hidden');
@@ -2903,6 +2940,7 @@ window.SCENE_LIBRARY = (function(){
     if (!text.trim()) return;
     const requestId = ++speechEvaluationRequestId;
     currentEditedTranscript = text;
+    clearReread(); firstPolish = null;
     latestEvaluation = null;
     stopPronunciation();
     $('transcriptText').textContent = text;
@@ -2916,7 +2954,7 @@ window.SCENE_LIBRARY = (function(){
     $('saveSessionBtn').disabled = true;
     const started = Date.now();
     const progress = $('evaluationProgress');
-    const update = () => { if (requestId === speechEvaluationRequestId) progress.textContent = '智能评测进行中，已等待 ' + Math.floor((Date.now()-started)/1000) + ' 秒；正在检查错误、整理信息并生成完整润色稿，最长约 3 分钟。'; };
+    const update = () => { if (requestId === speechEvaluationRequestId) progress.textContent = '纠错与润色进行中，已等待 ' + Math.floor((Date.now()-started)/1000) + ' 秒；正在检查错误、整理信息并生成完整润色稿，最长约 3 分钟。'; };
     update();
     const ticker = setInterval(update, 1000);
     const active = () => requestId === speechEvaluationRequestId;
@@ -2931,7 +2969,7 @@ window.SCENE_LIBRARY = (function(){
     }
     try {
       requireOnlineService();
-      const body = JSON.stringify({ requestId: crypto.randomUUID(), text, education: state.prefs.education, accent: state.prefs.accent,
+      const body = JSON.stringify({ requestId: crypto.randomUUID(), text, phase: 'polish', education: state.prefs.education, accent: state.prefs.accent,
         topic: { scene: currentScene?.name || '', category: currentScene?.category || '', likelyIntent: currentScene?.likelyIntent || '', elements: currentScene?.elements || [] } });
       let job;
       for (let attempt = 0; attempt < 3 && active(); attempt++) {
@@ -2954,19 +2992,22 @@ window.SCENE_LIBRARY = (function(){
       if (!active()) return;
       if (!data) throw new Error('智能评测等待超时');
       renderSpeechEvaluation(data);
-      progress.textContent = '评测完成。评分、纠错和完整润色稿已更新。';
+      progress.textContent = '纠错与润色完成。本轮不评分，请照着润色稿录下第二次朗读。';
       $('retryEvaluationBtn').classList.remove('hidden');
     } catch(error) {
       if (!active()) return;
       renderSpeechEvaluation(createFallbackSpeechEvaluation(text, detectErrors(text), error));
-      progress.textContent = '智能评测未完成：' + (error.name === 'TimeoutError' ? '连接超时' : error.message) + '。原稿和录音已保留，可重试。';
+      progress.textContent = '纠错与润色未完成：' + (error.name === 'TimeoutError' ? '连接超时' : error.message) + '。原稿和录音已保留，可重试。';
       $('retryEvaluationBtn').classList.remove('hidden');
     } finally {
       clearInterval(ticker);
       if(active()) $('saveSessionBtn').disabled = false;
     }
   }
-  $('retryEvaluationBtn').addEventListener('click', () => displayTranscriptAndCorrections(currentEditedTranscript || $('transcriptText').textContent));
+  $('retryEvaluationBtn').addEventListener('click', () => {
+    if ((rereadBlob || finalEvaluation) && !confirm('重新润色会清除第二次练习和最后评分，第一次录音会保留。继续吗？')) return;
+    displayTranscriptAndCorrections(currentEditedTranscript || $('transcriptText').textContent);
+  });
 
   function splitForPronunciation(text, maxChars = 220) {
     const source = String(text || '').replace(/\s+/g, ' ').trim();
@@ -2996,16 +3037,14 @@ window.SCENE_LIBRARY = (function(){
 
   function renderSpeechEvaluation(data) {
     latestEvaluation = data;
+    firstPolish = data.provisional ? null : data;
+    $('rereadReference').textContent = firstPolish?.polished || '';
+    $('rereadSection').classList.toggle('hidden', !firstPolish);
+    $('startRecordBtn').textContent = '● 重新录制第一次口述';
+    $('retryEvaluationBtn').textContent = '🔄 重新纠错与润色（将清除第二次练习）';
     $('polishedTitle').textContent = data.provisional ? '原稿（智能润色尚未完成）' : `✨ 完整润色稿 · ${data.accent || state.prefs.accent}英语`;
     $('pronunciationStatus').textContent = '';
-    const reasonLabels = {grammar:'语法',topicRelevance:'主题',coherence:'连贯性',vocabulary:'词汇',fluency:'表达自然度'};
-    $('scoreReasons').innerHTML = data.provisional ? '' : Object.entries(reasonLabels).map(([key,label]) => '<div><strong>' + label + '：</strong>' + escapeHintText(data.scoreReasons?.[key] || '请结合具体纠错与评测总结查看。') + '</div>').join('');
-    const labels = { overall:'scoreOverall', grammar:'scoreGrammar', vocabulary:'scoreVocabulary', fluency:'scoreFluency', coherence:'scoreCoherence', topicRelevance:'scoreTask' };
-    if (data.topicRelevance == null) data.topicRelevance = data.taskCompletion;
-    Object.entries(labels).forEach(([key, id]) => { $(id).textContent = data.provisional ? '未评分' : `${Number(data[key] || 0)}分`; });
-    $('scoreTitle').textContent = data.provisional ? '📊 智能评测未完成' : '📊 多维度口语评分';
-    $('scoreSummary').textContent = data.summary || '';
-    $('scorePanel').classList.remove('hidden');
+    $('scorePanel').classList.toggle('hidden', !finalEvaluation);
     const escape = value => escapeHintText(value);
     const keywords = Array.isArray(data.keywords) ? data.keywords : [];
     $('evaluationTopic').textContent = data.topicSummary || currentScene?.name || '根据口述内容判断';
@@ -3036,6 +3075,205 @@ window.SCENE_LIBRARY = (function(){
       if (sentence?.en) speakText(sentence.en);
     }));
   }
+
+  // Keep the first-round topic and correction details above the polished paragraph.
+  $('scorePanel').before($('evaluationDetails'));
+  $('rereadSection').appendChild($('scorePanel'));
+
+  function releaseRereadCapture() {
+    rereadRequestId++;
+    rereadActive = false;
+    if (rereadRecorder?.state !== 'inactive') { try { rereadRecorder?.stop(); } catch {} }
+    try { rereadRecognition?.abort(); } catch {}
+    rereadStream?.getTracks().forEach(track => track.stop());
+    rereadRecorder = null; rereadStream = null; rereadRecognition = null;
+    $('startRereadBtn').disabled = false; $('stopRereadBtn').disabled = true;
+    $('startRecordBtn').disabled = false;
+  }
+  function clearFinalScore() {
+    finalScoreRequestId++;
+    finalEvaluation = null;
+    $('scorePanel').classList.add('hidden');
+    $('finalFeedback').textContent = '';
+    $('finalEvaluationProgress').textContent = '';
+    $('retryFinalBtn').classList.add('hidden');
+    $('scoreRereadBtn').disabled = false;
+    $('saveSessionBtn').disabled = false;
+  }
+  function clearReread() {
+    releaseRereadCapture();
+    clearFinalScore();
+    if (rereadURL) URL.revokeObjectURL(rereadURL);
+    rereadURL = null; rereadBlob = null; rereadAccent = null;
+    rereadFinalText = ''; rereadInterim = '';
+    ['firstComparisonAudio','secondComparisonAudio'].forEach(id => { $(id).pause(); $(id).removeAttribute('src'); $(id).load(); });
+    $('rereadTranscript').value = ''; $('rereadTranscript').readOnly = false;
+    $('rereadStatus').textContent = '';
+    $('comparisonPanel').classList.add('hidden');
+    $('rereadSection').classList.add('hidden');
+  }
+  function updateComparison() {
+    $('comparisonPanel').classList.remove('hidden');
+    $('firstComparisonText').textContent = currentEditedTranscript;
+    $('firstRecordingNotice').textContent = audioURL ? '可播放第一次录音，与下面的第二次朗读对比。' : '第一次为手动输入或未保存到录音，可对比两次文字。';
+    $('firstComparisonAudio').classList.toggle('hidden', !audioURL);
+    if (audioURL) $('firstComparisonAudio').src = audioURL;
+    if (rereadURL) $('secondComparisonAudio').src = rereadURL;
+  }
+  $('startRereadBtn').addEventListener('click', async () => {
+    if (!firstPolish || rereadActive || rereadStream) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      $('rereadStatus').textContent = '当前浏览器不支持录音，请在支持麦克风录音的 Safari、Chrome 或 Edge 中打开在线网页。'; return;
+    }
+    if (isRecording) { $('rereadStatus').textContent = '请先停止第一次录音。'; return; }
+    stopPronunciation(); $('playbackAudio').pause(); $('firstComparisonAudio').pause(); $('secondComparisonAudio').pause();
+    const id = ++rereadRequestId;
+    $('startRereadBtn').disabled = true; $('startRecordBtn').disabled = true;
+    $('rereadStatus').textContent = '正在请求麦克风权限...';
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+      if (id !== rereadRequestId) { stream.getTracks().forEach(track=>track.stop()); return; }
+      const type = ['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(value => MediaRecorder.isTypeSupported?.(value));
+      const recorder = type ? new MediaRecorder(stream,{mimeType:type}) : new MediaRecorder(stream);
+      const chunks = [];
+      recorder.ondataavailable = event => { if(event.data.size) chunks.push(event.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(track=>track.stop());
+        if(id !== rereadRequestId) return;
+        rereadActive = false; rereadStream = null; rereadRecorder = null;
+        $('startRecordBtn').disabled = false;
+        $('startRereadBtn').disabled = false; $('stopRereadBtn').disabled = true;
+        if(!chunks.length) { $('rereadStatus').textContent='没有录到有效音频，请重新录制。'; return; }
+        rereadBlob = new Blob(chunks,{type:recorder.mimeType || 'audio/webm'});
+        rereadURL = URL.createObjectURL(rereadBlob);
+        updateComparison();
+        $('scoreRereadBtn').disabled = true;
+        $('rereadTranscript').readOnly = true;
+        setTimeout(()=>{
+          if(id !== rereadRequestId) return;
+          rereadRecognition = null;
+          $('rereadTranscript').value = (rereadFinalText + ' ' + rereadInterim).trim();
+          $('rereadTranscript').readOnly = false;
+          $('scoreRereadBtn').disabled = false;
+          $('rereadStatus').textContent = $('rereadTranscript').value ? '第二次录音已保留，请核对转写，再点击“为这次朗读评分”。' : '第二次录音已保存，但未获得转写。请回听并填写实际读出的英文，或换支持语音识别的浏览器重录；不会自动拿润色稿代替录音内容。';
+        },650);
+      };
+      recorder.onerror = () => {
+        if(id !== rereadRequestId) return;
+        try { rereadRecognition?.stop(); } catch {}
+        if(recorder.state!=='inactive') recorder.stop();
+        $('rereadStatus').textContent = '录音发生错误，请检查麦克风后重录。';
+      };
+      recorder.start(250);
+      rereadRecorder = recorder; rereadStream = stream; rereadActive = true;
+      clearFinalScore();
+      if(rereadURL) URL.revokeObjectURL(rereadURL);
+      rereadURL=null;rereadBlob=null;rereadFinalText='';rereadInterim='';
+      rereadAccent = state.prefs.accent;
+      $('rereadTranscript').value='';$('comparisonPanel').classList.add('hidden');
+      $('startRecordBtn').disabled=true;$('stopRereadBtn').disabled=false;
+      $('rereadStatus').textContent='第二次录音中：请照着上方润色稿朗读，说完点击停止。';
+      if(SpeechRecognitionAPI) {
+        try {
+          const sr = new SpeechRecognitionAPI();rereadRecognition=sr;
+          sr.lang=rereadAccent==='英式'?'en-GB':'en-US';sr.continuous=true;sr.interimResults=true;
+          sr.onresult=event=>{
+            if(id!==rereadRequestId)return;
+            rereadInterim='';
+            for(let i=event.resultIndex;i<event.results.length;i++){
+              const text=event.results[i][0].transcript;
+              if(event.results[i].isFinal)rereadFinalText+=text+' ';else rereadInterim+=text;
+            }
+            $('rereadTranscript').value=(rereadFinalText+' '+rereadInterim).trim();
+          };
+          sr.onerror=event=>{if(id===rereadRequestId&&event.error!=='aborted')$('rereadStatus').textContent='录音仍在继续，但语音转写暂不可用。停止后可回听并手动填写实际朗读内容。';};
+          sr.onend=()=>{if(id===rereadRequestId&&rereadActive){try{sr.start();}catch{}}};
+          sr.start();
+        } catch { $('rereadStatus').textContent='第二次录音中，自动转写无法启动；停止后请回听并填写实际读出的文字。'; }
+      }
+    } catch(error) {
+      stream?.getTracks().forEach(track=>track.stop());
+      if(id!==rereadRequestId)return;
+      $('startRereadBtn').disabled=false; $('startRecordBtn').disabled=false;
+      $('rereadStatus').textContent='无法开始第二次录音：'+(error.name==='NotAllowedError'?'请允许麦克风权限':error.message)+'。已有录音保留。';
+    }
+  });
+  $('stopRereadBtn').addEventListener('click',()=>{
+    if(!rereadActive)return;
+    rereadActive=false;
+    try{rereadRecognition?.stop();}catch{}
+    $('stopRereadBtn').disabled=true;
+    $('rereadStatus').textContent='正在保存第二次录音与转写...';
+    if(rereadRecorder?.state!=='inactive')rereadRecorder?.stop();
+  });
+  $('rereadTranscript').addEventListener('input', clearFinalScore);
+
+  async function scoreFinalReread() {
+    if(!rereadBlob || rereadActive || !firstPolish){$('rereadStatus').textContent='请先完成第二次录音，再提交评分。';return;}
+    const text=$('rereadTranscript').value.trim();
+    if(!text){$('rereadStatus').textContent='第二次转写为空，请核对录音并填写实际读出的内容。';return;}
+    if(text.length>6000){$('rereadStatus').textContent='第二次转写超过6000字符，请缩短练习。';return;}
+    clearFinalScore();
+    const id=finalScoreRequestId;
+    const active=()=>id===finalScoreRequestId;
+    const progress=$('finalEvaluationProgress');
+    const started=Date.now();
+    $('scoreRereadBtn').disabled=true;$('saveSessionBtn').disabled=true;
+    $('retryFinalBtn').classList.add('hidden');
+    const tick=()=>{if(active())progress.textContent='正在为第二次朗读评分，已等待 '+Math.floor((Date.now()-started)/1000)+' 秒（基于第二次转写文本）。';};
+    tick();const timer=setInterval(tick,1000);
+    async function request(url,options={}) {
+      let response;
+      try{
+        response=await fetch(url,{...options,cache:'no-store',signal:AbortSignal.timeout(20000)});
+        const data=await response.json();
+        if(!response.ok)throw Object.assign(new Error(data.error||'评分请求失败'),{terminal:true});
+        return data;
+      }catch(error){if(response)error.terminal=true;throw error;}
+    }
+    try{
+      requireOnlineService();
+      const body=JSON.stringify({requestId:crypto.randomUUID(),phase:'final',text,reference:firstPolish.polished,accent:rereadAccent||state.prefs.accent,education:state.prefs.education,topic:{scene:currentScene?.name,category:currentScene?.category,elements:currentScene?.elements}});
+      let job;
+      for(let attempt=0;attempt<3&&active();attempt++){
+        try{job=await request('/api/analyze-speech/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body});break;}
+        catch(error){if(error.terminal||attempt===2)throw error;await sleep(1800);}
+      }
+      if(!active())return;
+      if(!job?.jobId)throw new Error('服务器没有返回任务编号');
+      let result;
+      while(Date.now()-started<210000&&active()){
+        await sleep(1800);if(!active())return;
+        let data;
+        try{data=await request('/api/analyze-speech/jobs/'+encodeURIComponent(job.jobId));}
+        catch(error){if(error.terminal)throw error;continue;}
+        if(data.status==='failed')throw new Error(data.error||'最后评分失败');
+        if(data.status==='complete'){result=data.result;break;}
+      }
+      if(!active())return;
+      if(!result)throw new Error('最后评分等待超时');
+      const labels={overall:'scoreOverall',grammar:'scoreGrammar',topicRelevance:'scoreTask',coherence:'scoreCoherence',vocabulary:'scoreVocabulary',fluency:'scoreFluency'};
+      if(Object.keys(labels).some(key=>!Number.isFinite(result[key])))throw new Error('返回的评分不完整，请重试');
+      finalEvaluation={...result,transcript:text,phase:'final'};
+      Object.entries(labels).forEach(([key,element])=>{$(element).textContent=result[key]+'分';});
+      $('scoreTitle').textContent='📊 第二次朗读 · 最后评分（文本）';
+      $('scoreSummary').textContent=result.summary||'';
+      const reasons={grammar:'语法',topicRelevance:'主题与内容',coherence:'连贯性',vocabulary:'词汇',fluency:'表达自然度'};
+      $('scoreReasons').innerHTML=Object.entries(reasons).map(([key,label])=>'<div><strong>'+label+'：</strong>'+escapeHintText(result.scoreReasons?.[key]||'请结合评测总结查看。')+'</div>').join('');
+      $('finalFeedback').innerHTML=(result.errors||[]).map(item=>'<div class="error-item"><strong>'+escapeHintText(item.category||'第二次表达问题')+'</strong>：'+escapeHintText(item.original)+' → '+escapeHintText(item.correction)+'<div>'+escapeHintText(item.explanation)+'</div></div>').join('');
+      $('scorePanel').classList.remove('hidden');
+      progress.textContent='最后评分完成，仅针对第二次朗读的转写。两次录音、原稿和润色稿可一起保存到 PAST。';
+    }catch(error){if(active()){progress.textContent='最后评分失败：'+error.message+'。两次录音与润色稿已保留，可重试。';$('retryFinalBtn').classList.remove('hidden');}}
+    finally{clearInterval(timer);if(active()){$('scoreRereadBtn').disabled=false;$('saveSessionBtn').disabled=false;}}
+  }
+  $('scoreRereadBtn').addEventListener('click',scoreFinalReread);
+  $('retryFinalBtn').addEventListener('click',scoreFinalReread);
+  document.addEventListener('play', event => {
+    if (!(event.target instanceof HTMLAudioElement)) return;
+    stopPronunciation();
+    document.querySelectorAll('audio').forEach(audio => { if(audio !== event.target) audio.pause(); });
+  }, true);
 
   function stopPronunciation() {
     speechPlaybackId++;
@@ -3361,17 +3599,22 @@ window.SCENE_LIBRARY = (function(){
     if (!currentScene) return;
     const button = $('saveSessionBtn'); button.disabled = true;
     try {
+      if (rereadActive || rereadStream) throw new Error('请先停止第二次录音');
+      const firstBlob = audioBlob, secondBlob = rereadBlob;
       const item = {
         id: Date.now(), time: new Date().toLocaleString('zh-CN',{hour12:false}),
         sceneName: currentScene.name, sceneCategory: currentScene.category,
         image: $('photoPreview').src, keywords: $('recognizedElements').textContent,
         transcript: currentEditedTranscript || $('transcriptText').textContent,
-        corrected: $('correctedText').textContent, evaluation: latestEvaluation,
-        accent: state.prefs.accent, audio: ''
+        corrected: $('correctedText').textContent, evaluation: finalEvaluation,
+        polishEvaluation: latestEvaluation, finalEvaluation,
+        rereadTranscript: $('rereadTranscript').value.trim(), rereadAudio: '',
+        accent: state.prefs.accent, rereadAccent, audio: ''
       };
       // Save actual recording bytes; blob URLs stop working after refresh.
-      if(audioBlob) item.audio = await blobDataUrl(audioBlob);
-      if(audioBlob && !item.audio) throw new Error('录音转换失败，请重试');
+      if(firstBlob) item.audio = await blobDataUrl(firstBlob);
+      if(secondBlob) item.rereadAudio = await blobDataUrl(secondBlob);
+      if((firstBlob && !item.audio) || (secondBlob && !item.rereadAudio)) throw new Error('录音转换失败，请重试');
       await updateHistory(items => [item, ...items]);
       showToast('已保存到当前浏览器的 PAST（含录音）');
     } catch(error) { showStatus('保存失败：' + error.message + '。原稿和录音仍在当前页面，请释放空间后重试。','error'); }
@@ -3400,9 +3643,12 @@ window.SCENE_LIBRARY = (function(){
           ${safeHistoryImage(item.image) ? `<img class="history-thumb" src="${escapeHtml(item.image)}" alt="scene">` : ''}
           <div class="history-detail">
             <div class="row"><strong>偏好：</strong>${escapeHtml(item.accent || '未记录')} · ${item.evaluation?.provisional ? '未完成智能评测' : item.evaluation?.overall != null ? escapeHtml(item.evaluation.overall) + '分' : '历史练习'}</div><div class="row"><strong>关键词：</strong>${escapeHtml(item.keywords)}</div>
-            <div class="row"><strong>口述：</strong>${escapeHtml(item.transcript)}</div>
+            <div class="row"><strong>第一次口述：</strong>${escapeHtml(item.transcript)}</div>
             <div class="row"><strong>修正稿：</strong>${escapeHtml(item.corrected)}</div>
-            ${safeHistoryAudio(item.audio) ? `<audio controls src="${escapeHtml(item.audio)}" style="width:100%;margin-top:.5rem;"></audio>` : ''}
+            ${safeHistoryAudio(item.audio) ? `<div class="row"><strong>改前录音：</strong><audio controls src="${escapeHtml(item.audio)}" style="width:100%;margin-top:.5rem;"></audio></div>` : ''}
+            ${safeHistoryAudio(item.rereadAudio) ? `<div class="row"><strong>改后录音（第二次朗读）：</strong><audio controls src="${escapeHtml(item.rereadAudio)}" style="width:100%;margin-top:.5rem;"></audio></div>` : ''}
+            ${item.rereadTranscript ? `<div class="row"><strong>第二次转写：</strong>${escapeHtml(item.rereadTranscript)}</div>` : ''}
+            ${item.finalEvaluation ? `<div class="row"><strong>最后评分依据：</strong>第二次转写文本。${escapeHtml(item.finalEvaluation.summary || '')}</div>` : ''}
           </div>
         </div>
         <div class="history-actions">
@@ -3424,7 +3670,7 @@ window.SCENE_LIBRARY = (function(){
   function safeHistoryAudio(value) { return typeof value === 'string' && /^data:(?:audio\/(?:webm|ogg|mp4|mpeg|wav)(?:;codecs=[a-zA-Z0-9.,-]+)?|video\/webm);base64,[A-Za-z0-9+/=]+$/.test(value); }
   $('exportHistoryBtn').addEventListener('click', async () => {
     await historyWrite;
-    const backup={format:'langsidu-history',version:1,exportedAt:new Date().toISOString(),records:state.history.map(item => ({...item,audio:safeHistoryAudio(item.audio)?item.audio:'',image:safeHistoryImage(item.image)?item.image:''}))};
+    const backup={format:'langsidu-history',version:1,exportedAt:new Date().toISOString(),records:state.history.map(item => ({...item,audio:safeHistoryAudio(item.audio)?item.audio:'',image:safeHistoryImage(item.image)?item.image:'',rereadAudio:safeHistoryAudio(item.rereadAudio)?item.rereadAudio:''}))};
     const url=URL.createObjectURL(new Blob([JSON.stringify(backup)],{type:'application/json'}));
     const link=document.createElement('a'); link.href=url;link.download='朗思渡练习备份-'+new Date().toISOString().slice(0,10)+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
     $('historyStatus').textContent = '已导出 ' + backup.records.length + ' 条记录；备份包含文稿和有效录音，请自行保管。旧记录中已失效的临时录音无法恢复。';
@@ -3440,12 +3686,14 @@ window.SCENE_LIBRARY = (function(){
         if(!item || typeof item!=='object' || typeof item.transcript!=='string' || typeof item.corrected!=='string' || item.transcript.length>100000 || item.corrected.length>100000) throw new Error('备份中的文稿数据无效');
         if(item.image&&!safeHistoryImage(item.image)) throw new Error('备份包含无效图片地址');
         if(item.audio&&!safeHistoryAudio(item.audio)) throw new Error('备份包含无效录音地址');
-        return {id:Date.now()+index,time:String(item.time||'导入记录').slice(0,100),sceneName:String(item.sceneName||'练习').slice(0,160),sceneCategory:String(item.sceneCategory||'').slice(0,80),keywords:String(item.keywords||'').slice(0,5000),transcript:item.transcript,corrected:item.corrected,image:item.image||'',audio:item.audio||'',accent:item.accent==='英式'?'英式':'美式',evaluation:item.evaluation&&typeof item.evaluation==='object'?item.evaluation:null};
+        if(item.rereadAudio&&!safeHistoryAudio(item.rereadAudio)) throw new Error('备份包含无效的第二次录音地址');
+        if(item.rereadTranscript != null && (typeof item.rereadTranscript !== 'string' || item.rereadTranscript.length > 100000)) throw new Error('备份中的第二次转写无效');
+        return {id:Date.now()+index,time:String(item.time||'导入记录').slice(0,100),sceneName:String(item.sceneName||'练习').slice(0,160),sceneCategory:String(item.sceneCategory||'').slice(0,80),keywords:String(item.keywords||'').slice(0,5000),transcript:item.transcript,corrected:item.corrected,image:item.image||'',audio:item.audio||'',rereadAudio:item.rereadAudio||'',rereadTranscript:item.rereadTranscript||'',rereadAccent:item.rereadAccent==='英式'?'英式':'美式',polishEvaluation:item.polishEvaluation&&typeof item.polishEvaluation==='object'?item.polishEvaluation:null,finalEvaluation:item.finalEvaluation&&typeof item.finalEvaluation==='object'?item.finalEvaluation:null,accent:item.accent==='英式'?'英式':'美式',evaluation:item.evaluation&&typeof item.evaluation==='object'?item.evaluation:null};
       });
       let added=0;
       await updateHistory(items=>{
-        const keys=new Set(items.map(item=>JSON.stringify([item.time,item.transcript,item.corrected])));
-        const unique=records.filter(item=>{const key=JSON.stringify([item.time,item.transcript,item.corrected]);if(keys.has(key))return false;keys.add(key);return true;});
+        const keys=new Set(items.map(item=>JSON.stringify([item.time,item.transcript,item.corrected,item.rereadTranscript||'',item.rereadAudio||''])));
+        const unique=records.filter(item=>{const key=JSON.stringify([item.time,item.transcript,item.corrected,item.rereadTranscript||'',item.rereadAudio||'']);if(keys.has(key))return false;keys.add(key);return true;});
         added=unique.length;
         const ids=new Set(items.map(item=>item.id));for(const item of unique){while(ids.has(item.id))item.id++;ids.add(item.id);}
         return [...unique,...items];
@@ -3513,7 +3761,7 @@ window.SCENE_LIBRARY = (function(){
     initApp();
   }
 
-  window.addEventListener('beforeunload', () => { cleanupRecording(); clearAudioPlayback(); });
+  window.addEventListener('beforeunload', () => { releaseRereadCapture(); cleanupRecording(); clearAudioPlayback(); if(rereadURL) URL.revokeObjectURL(rereadURL); });
 
 })();
 </script>
