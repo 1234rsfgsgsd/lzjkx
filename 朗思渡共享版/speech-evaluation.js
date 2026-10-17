@@ -31,8 +31,8 @@ function evaluationPrompt(context) {
 polished 是一整段完整英文，涵盖全部主要信息，修正错误，理顺逻辑和衔接，表达准确、自然、适合口述。保留说话者立场、情感、时间和数量；不编造细节，不为凑字数添加事实。目标约 ${context.originalWordCount} 词，硬性范围 ${context.targetMinWords}–${context.targetMaxWords} 词（按英文单词计数，缩写和连字符词算一个词）。返回前复核词数和语法，禁止用省略号、列表或片段替代完整稿。
 目标变体：${context.accent}英语。${context.accent === '英式' ? '统一使用 British English 拼写和自然词汇，如 favourite、flavour、takeaway（适用时）。' : '统一使用 American English 拼写和自然词汇，如 favorite、flavor、takeout（适用时）。'} 水平参考：${context.education}，优先保证清楚、自然、忠于原意。
 对原稿而非润色稿评分，各项0-100：grammar 语法准确度35%，topicRelevance 主题相关性/任务完成度25%，coherence 连贯性20%，vocabulary 词汇准确性和丰富性10%，fluency 表达自然度10%。主题评分主要依据用户实际主题的展开、信息完整度，图片仅辅助。fluency 仅评价文本的自然度、重复和完整性，不能推断真实语速、停顿、音素或口音，也不能假装听过录音。按错误影响和分布实事求是评分，无确切错误时不要强行找错。
-styleSuggestions 最多5项，每项 original、suggestion、explanation（中文），明确属于可选提升。summary 用中文说明主要优缺点和改进方向。
-JSON格式：{"grammar":0,"topicRelevance":0,"coherence":0,"vocabulary":0,"fluency":0,"topicSummary":"","keywords":[{"en":"","zh":""}],"keyInformation":[""],"errors":[{"original":"","correction":"","category":"","explanation":"","severity":"medium"}],"styleSuggestions":[{"original":"","suggestion":"","explanation":""}],"polished":"","summary":""}`;
+styleSuggestions 最多5项，每项 original、suggestion、explanation（中文），明确属于可选提升。scoreReasons 对 grammar、topicRelevance、coherence、vocabulary、fluency 分别给出中文评分依据，结合原文具体例子说明扣分或得分理由，不得捏造不存在的问题。summary 用中文说明主要优缺点和改进方向。
+JSON格式：{"grammar":0,"topicRelevance":0,"coherence":0,"vocabulary":0,"fluency":0,"topicSummary":"","keywords":[{"en":"","zh":""}],"keyInformation":[""],"errors":[{"original":"","correction":"","category":"","explanation":"","severity":"medium"}],"styleSuggestions":[{"original":"","suggestion":"","explanation":""}],"polished":"","scoreReasons":{"grammar":"","topicRelevance":"","coherence":"","vocabulary":"","fluency":""},"summary":""}`;
 }
 
 function parseCompletion(result) {
@@ -70,7 +70,8 @@ function normalizeEvaluation(parsed, context) {
     originalWordCount: context.originalWordCount, polishedWordCount,
     targetMinWords: context.targetMinWords, targetMaxWords: context.targetMaxWords,
     wordCountWithinRange: polishedWordCount >= context.targetMinWords && polishedWordCount <= context.targetMaxWords,
-    errors, polished, sentences: [], summary: String(parsed.summary || '').slice(0, 600),
+    scoreReasons: Object.fromEntries(Object.keys(scoreWeights).map(key => [key, String(parsed.scoreReasons?.[key] || '模型未提供该维度的具体依据，请结合纠错和建议查看。').slice(0, 600)])),
+    errors: errors.filter((item, index, list) => list.findIndex(other => other.original === item.original && other.correction === item.correction) === index), polished, sentences: [], summary: String(parsed.summary || '').slice(0, 600),
     assessmentBasis: '基于转写文本评估；表达自然度不代表录音发音或语速评分。'
   };
 }

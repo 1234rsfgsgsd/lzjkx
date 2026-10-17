@@ -29,7 +29,7 @@ const success = {
       await page.route('**/api/analyze-image',async route=>{
         calls++;
         const body=route.request().postDataJSON();
-        assert.match(body.image,/^data:image\/jpeg;base64,/);
+        assert.match(body.image,/^data:image\/(?:jpeg|png);base64,/);
         if(scenario==='permission') return route.fulfill({status:502,json:{error:'视觉服务拒绝了请求（401）',retryable:false}});
         if(scenario==='rate-limit') return route.fulfill({status:429,json:{error:'视觉服务当前请求较多，请等待约 2 秒后再试。',retryable:false,retryAfterMs:2000}});
         if(scenario==='retry-network' && calls===1) return route.fulfill({status:502,json:{error:'服务繁忙',retryable:true}});
@@ -87,6 +87,8 @@ const success = {
           assert.equal(await page.locator('#recordingSection').isVisible(),true,'generated scenes must still work');
           assert.match(await page.locator('#photoCaption').innerText(),/AI 生成/);
           assert.equal(await page.locator('#photoPreview').getAttribute('src'),'data:image/png;base64,'+data);
+          await page.waitForFunction(()=>document.getElementById('imageHintsStatus').textContent.includes('实际图片'));
+          assert.match(await page.locator('#hintList').innerText(), /book/);
         }
       }
       assert.deepEqual(errors,[]);

@@ -17,3 +17,8 @@ jobs:
           PLAYWRIGHT_MODULE: ${{ github.workspace }}/node_modules/playwright
           BROWSER_CHANNEL: chromium
         run: node './朗思渡共享版/tests/browser-regression.cjs'
+      - name: Full practice and backup workflow
+        env:
+          PLAYWRIGHT_MODULE: ${{ github.workspace }}/node_modules/playwright
+          BROWSER_CHANNEL: chromium
+        run: node './朗思渡共享版/tests/workflow-regression.cjs'

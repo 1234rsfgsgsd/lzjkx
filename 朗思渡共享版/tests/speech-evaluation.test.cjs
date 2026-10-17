@@ -53,3 +53,13 @@ test('normalization ignores corrections that do not quote the source and reports
   assert.equal(result.wordCountWithinRange, false);
   assert.equal(result.overall, 80);
 });
+
+test('evaluation preserves evidence for every score and removes duplicate corrections', () => {
+  const context = evaluationContext({text:'I has a book.'});
+  const correction = {original:'I has',correction:'I have',explanation:'主语 I 使用 have。'};
+  const scoreReasons = {grammar:'I has 存在主谓一致错误。', topicRelevance:'主题清晰但细节少。',coherence:'只有一句话。',vocabulary:'词汇基础。',fluency:'表达简短。'};
+  const result = normalizeEvaluation({grammar:70,topicRelevance:80,coherence:75,vocabulary:70,fluency:80,polished:'I have a book.',errors:[correction,correction],scoreReasons},context);
+  assert.deepEqual(result.scoreReasons,scoreReasons);
+  assert.equal(result.errors.length,1);
+  assert.match(evaluationPrompt(context),/scoreReasons/);
+});

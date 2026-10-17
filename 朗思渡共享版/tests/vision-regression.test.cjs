@@ -93,6 +93,16 @@ test('health and image recognition remain independent of the speech model', asyn
   assert.equal(lastRequest.model,'test-vision');
   assert.ok(lastRequest.max_tokens >= 1200);
 });
+
+test('reconnecting to the same speech submission preserves the job and rejects changed content', async () => {
+  const body={requestId:require('node:crypto').randomUUID(),text:'I has a book.',accent:'英式'};
+  const first=await post('/api/analyze-speech/jobs',body);
+  const second=await post('/api/analyze-speech/jobs',body);
+  assert.equal(first.status,202);
+  assert.deepEqual(await first.json(),await second.json());
+  const conflict=await post('/api/analyze-speech/jobs',{...body,text:'A different speech.'});
+  assert.equal(conflict.status,409);
+});
 test('provider permission errors are not automatically retried; keys are redacted', async () => {
   providerStatus=401; providerReply={error:{message:'invalid test-only'}};
   try {

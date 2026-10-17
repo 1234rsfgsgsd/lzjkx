@@ -399,6 +399,8 @@
             </div>
           </div>
           <div id="hintsContainer" class="hidden">
+            <button id="retryHintsBtn" class="btn btn-secondary btn-sm hidden">🔄 重新分析当前图片</button>
+            <p id="imageHintsStatus" role="status" aria-live="polite"></p>
             <div id="hintsLevelInfo" style="font-size:.82rem;color:#5c7b9c;margin-bottom:.6rem;"></div>
             <ul class="hint-tags" id="hintList"></ul>
           </div>
@@ -454,6 +456,7 @@
               <div class="score-card"><span id="scoreVocabulary" class="score-value">—</span><span class="score-label">词汇 · 10%</span></div>
               <div class="score-card"><span id="scoreFluency" class="score-value">—</span><span class="score-label">表达自然度 · 10%</span></div>
             </div>
+            <div id="scoreReasons" style="font-size:.85rem;line-height:1.8;margin-top:.8rem;"></div>
             <div style="margin-top:.65rem;color:#6c7e91;font-size:.78rem;">综合分按以上权重计算；表达自然度根据转写文本评估，不代表录音发音或语速评分。</div>
             <div id="evaluationDetails" class="evaluation-details hidden">
               <div><strong>口述主题：</strong><span id="evaluationTopic"></span></div>
@@ -466,13 +469,21 @@
           </div>
           <h3 style="font-size:1rem;margin:1.4rem 0 .5rem;color:#0f2b4b;">🔎 语法与表达问题</h3>
           <div id="errorList"></div>
+          <div id="evaluationProgress" role="status" aria-live="polite"></div>
+          <button id="retryEvaluationBtn" class="btn btn-secondary btn-sm hidden">🔄 重试智能评测（保留当前录音）</button>
           <div id="styleSuggestionPanel" class="hidden" style="margin-top:.9rem;">
             <h3 style="font-size:.95rem;margin-bottom:.45rem;color:#315c8a;">💡 可选的表达提升（不是语法错误）</h3>
             <div id="styleSuggestionList"></div>
           </div>
           <div class="corrected-box">
-            <h3 style="font-size:1rem;margin-bottom:.5rem;color:#0f4b2b;">✨ 修正润色后的文稿</h3>
+            <h3 id="polishedTitle" style="font-size:1rem;margin-bottom:.5rem;color:#0f4b2b;">✨ 修正润色后的文稿</h3>
             <div id="correctedText" style="color:#154f2b;"></div>
+            <div class="btn-group">
+              <label>播放速度 <select id="speechRate"><option value="0.7">0.7 倍</option><option value="0.88" selected>0.88 倍</option><option value="1">正常</option><option value="1.15">1.15 倍</option></select></label>
+              <button id="speakAllBtn" class="btn btn-secondary btn-sm">🔊 播放整段</button>
+              <button id="stopSpeechBtn" class="btn btn-secondary btn-sm">停止播放</button>
+            </div>
+            <p id="pronunciationStatus" role="status" style="font-size:.82rem;"></p>
             <div id="polishedSentences" style="margin-top:.8rem;"></div>
           </div>
           <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
@@ -487,6 +498,14 @@
   <div id="pastModule" class="hidden">
     <h1>PAST <span>历史练习</span></h1>
     <div class="subhead">回顾你练过的场景、录音和修正文稿</div>
+    <p style="color:#5c7b9c;">记录仅保存在当前浏览器，不会分享给其他访客；同一浏览器的其他使用者也可查看。清理浏览器会删除记录，请定期导出备份。识图和评测会将所提交的内容发送给模型服务处理。</p>
+    <div class="btn-group">
+      <button id="exportHistoryBtn" class="btn btn-sm">导出记录与录音</button>
+      <button id="importHistoryBtn" class="btn btn-secondary btn-sm">导入备份</button>
+      <button id="clearHistoryBtn" class="btn btn-secondary btn-sm">清除全部记录</button>
+      <input id="historyFileInput" type="file" accept="application/json,.json" class="hidden">
+    </div>
+    <p id="historyStatus" role="status" aria-live="polite"></p>
 
     <div id="historyEmpty" class="empty-state">
       <span class="emoji">📭</span>
@@ -1653,6 +1672,9 @@ window.SCENE_LIBRARY = (function(){
     skipWelcome: false
   };
   let state = loadState();
+  let historyReady = false;
+  let historyDb;
+  let historyWrite = Promise.resolve();
 
   let currentScene = null;
   let currentMode = null;
@@ -1662,6 +1684,13 @@ window.SCENE_LIBRARY = (function(){
   let speechEvaluationRequestId = 0;
   let sceneGenerationRequestId = 0;
   let sceneGenerationPending = false;
+  let latestEvaluation = null;
+  let currentHintSet = null;
+  let imageHintRequestId = 0;
+  let speechPlaybackId = 0;
+  let imageHintsPending = false;
+  let uploadRequestId = 0;
+  let recordingRequestId = 0;
 
   let mediaRecorder = null;
   let audioChunks = [];
@@ -1685,6 +1714,8 @@ window.SCENE_LIBRARY = (function(){
       const merged = Object.assign(JSON.parse(JSON.stringify(defaultState)), parsed);
       merged.profile = Object.assign({}, defaultState.profile, parsed.profile || {});
       merged.prefs = Object.assign({}, defaultState.prefs, parsed.prefs || {});
+      merged.prefs.accent = merged.prefs.accent === '英式' ? '英式' : '美式';
+      if (!Array.isArray(merged.history)) merged.history = [];
       delete merged.welcomeDone;
       return merged;
     } catch(e) { return JSON.parse(JSON.stringify(defaultState)); }
@@ -1693,8 +1724,10 @@ window.SCENE_LIBRARY = (function(){
     try {
       const toSave = JSON.parse(JSON.stringify(state));
       delete toSave.welcomeDone;
+      toSave.history = historyReady ? [] : state.history;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-    } catch(e) {}
+      return true;
+    } catch(e) { showToast('设置保存失败，请检查浏览器存储空间或权限'); return false; }
   }
 
   function hasExistingAccount() {
@@ -1861,7 +1894,21 @@ window.SCENE_LIBRARY = (function(){
 
   function renderMePrefs() {
     renderBubbleOptions('mePurposeBubbles', PURPOSE_OPTIONS, state.prefs.purpose, (v) => { state.prefs.purpose = v; saveState(); });
-    renderBubbleOptions('meAccentBubbles', ACCENT_OPTIONS, state.prefs.accent, (v) => { state.prefs.accent = v; saveState(); renderProfile(); });
+    renderBubbleOptions('meAccentBubbles', ACCENT_OPTIONS, state.prefs.accent, (v) => {
+      state.prefs.accent = v; saveState(); renderProfile(); stopPronunciation();
+      if (currentHintSet) renderHints(currentHintSet, state.prefs.education);
+      if (latestEvaluation) {
+        renderSpeechEvaluation(latestEvaluation);
+        $('pronunciationStatus').textContent = `播放已切换为${v}；已有润色稿的拼写和词汇保持原评测版本，点击重新评测可生成${v}版本。`;
+        $('retryEvaluationBtn').classList.remove('hidden');
+      } else if (currentEditedTranscript) {
+        speechEvaluationRequestId++;
+        $('evaluationProgress').textContent = `偏好已切换为${v}，请重新评测以生成对应版本。`;
+        $('retryEvaluationBtn').classList.remove('hidden');
+        $('saveSessionBtn').disabled = false;
+      }
+      if (currentScene?.photoAnalyzed) { imageHintRequestId++; imageHintsPending = false; analyzeCurrentScenePhoto(); }
+    });
     renderBubbleOptions('meEducationBubbles', EDUCATION_OPTIONS, state.prefs.education, (v) => { state.prefs.education = v; saveState(); renderProfile(); });
     applyTheme(state.theme);
     renderProfile();
@@ -2040,6 +2087,7 @@ window.SCENE_LIBRARY = (function(){
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   function resetMainPracticeState() {
+    invalidatePractice();
     cleanupRecording(); clearAudioPlayback();
     $('entrySection').classList.remove('hidden');
     $('uploadPanel').classList.add('hidden');
@@ -2078,7 +2126,52 @@ window.SCENE_LIBRARY = (function(){
     finalTranscript = ''; interimTranscript = '';
   }
 
+  function invalidatePractice() {
+    uploadRequestId++;
+    speechEvaluationRequestId++;
+    imageHintRequestId++;
+    imageHintsPending = false;
+    latestEvaluation = null; currentHintSet = null; currentEditedTranscript = '';
+    $('evaluationProgress').textContent = '';
+    $('retryEvaluationBtn').classList.add('hidden');
+    $('retryHintsBtn').classList.add('hidden');
+    $('imageHintsStatus').textContent = '';
+    stopPronunciation();
+  }
+
+  async function analyzeCurrentScenePhoto() {
+    if (!currentScene || imageHintsPending) return;
+    const scene = currentScene;
+    const requestId = ++imageHintRequestId;
+    imageHintsPending = true;
+    const retry = $('retryHintsBtn'); retry.classList.add('hidden');
+    $('imageHintsStatus').textContent = '正在识别实际画面并分析可能的交流意图...';
+    try {
+      requireOnlineService();
+      const response = await fetch('/api/analyze-image', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: $('photoPreview').src, education: state.prefs.education, accent: state.prefs.accent }), signal: AbortSignal.timeout(95_000) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `识图服务返回 ${response.status}`);
+      if (!data.hints?.words?.length || !data.elements?.length) throw new Error('未返回完整的画面词句，请重试');
+      if (requestId !== imageHintRequestId || currentScene !== scene) return;
+      Object.assign(scene, { elements: data.elements, likelyIntent: data.likelyIntent, hints: { '大学及以上': data.hints }, photoAnalyzed: true });
+      $('recognizedElements').textContent = `画面要点：${data.elements.join('、')}。可能表达：${data.likelyIntent || '描述画面'}（可自由选择自己的话题）`;
+      renderHints(data.hints, state.prefs.education);
+      $('imageHintsStatus').textContent = '已根据实际图片生成词句；交流意图仅供参考。';
+      if (currentMode === 'generate') {
+        $('sceneGenerationStatus').textContent = '图片与专属词句已就绪，可以开始练习。';
+        $('sceneGenerationStatus').className = 'status-message status-success';
+      }
+    } catch (error) {
+      if (requestId !== imageHintRequestId) return;
+      $('imageHintsStatus').textContent = `提示词分析失败：${error.name === 'TimeoutError' ? '识图等待超时' : error.message}。图片已保留，你也可以直接练习。`;
+      retry.classList.remove('hidden');
+    } finally { if (requestId === imageHintRequestId) imageHintsPending = false; }
+  }
+  $('retryHintsBtn').addEventListener('click', analyzeCurrentScenePhoto);
+
   function cleanupRecording() {
+    recordingRequestId++;
     manualStop = true;
     if (mediaRecorder && mediaRecorder.state !== 'inactive') { try { mediaRecorder.stop(); } catch(e){} }
     mediaRecorder = null;
@@ -2115,6 +2208,7 @@ window.SCENE_LIBRARY = (function(){
   }
   document.querySelectorAll('.entry-card').forEach(card => {
     card.addEventListener('click', () => {
+      uploadRequestId++;
       cancelSceneGeneration();
       document.querySelectorAll('.entry-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
@@ -2133,6 +2227,8 @@ window.SCENE_LIBRARY = (function(){
   $('photoInput').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
+    invalidatePractice();
+    cleanupRecording(); clearAudioPlayback();
     uploadedFile = file;
     cancelSceneGeneration();
     $('photoPreview').classList.remove('generated-scene');
@@ -2196,17 +2292,24 @@ window.SCENE_LIBRARY = (function(){
 
   $('recognizeImageBtn').addEventListener('click', async () => {
     if (!uploadedFile) return;
+    const file = uploadedFile;
+    const requestId = ++uploadRequestId;
     const button = $('recognizeImageBtn');
     button.disabled = true;
     button.textContent = '正在识别照片...';
     showStatus('正在整理照片并分析内容，请稍候...','info',true);
+    const started = Date.now();
+    const ticker = setInterval(() => {
+      if (requestId === uploadRequestId) button.textContent = `识别与生成词句中 · ${Math.floor((Date.now() - started)/1000)} 秒`;
+    }, 1000);
     try {
       requireOnlineService();
-      const dataUrl = await normalizeVisionImage(uploadedFile);
+      const dataUrl = await normalizeVisionImage(file);
       let response;
       let result = {};
       let lastError;
       for (let attempt = 0; attempt < 3; attempt += 1) {
+        if (requestId !== uploadRequestId) return;
         response = undefined;
         result = {};
         const controller = new AbortController();
@@ -2235,6 +2338,8 @@ window.SCENE_LIBRARY = (function(){
         await new Promise(resolve => setTimeout(resolve, 1800 * (attempt + 1)));
       }
       if (!response?.ok) throw lastError || new Error('识图服务暂时不可用');
+      if (requestId !== uploadRequestId) return;
+      $('photoPreview').src = dataUrl;
       const allowed = CATEGORY_META.map(item => item.name);
       const category = allowed.includes(result.category) ? result.category : '日常生活';
       const elements = Array.isArray(result.elements) ? result.elements.map(v => String(v).trim()).filter(Boolean).slice(0, 12) : [];
@@ -2247,9 +2352,11 @@ window.SCENE_LIBRARY = (function(){
         showStatus(`照片已识别，但练习页面显示失败：${error.message || '未知页面错误'}。请点击“重选素材”再试。`, 'error');
       }
     } catch (error) {
+      if (requestId !== uploadRequestId) return;
       const message = error.name === 'AbortError' ? '识图等待超过 95 秒，可能是视觉模型繁忙，请稍后重试' : (error.message || '请检查网络后重试');
       showStatus(`识图失败：${message}`,'error');
     } finally {
+      clearInterval(ticker);
       button.disabled = false;
       button.textContent = '🔍 识别照片内容';
     }
@@ -2258,7 +2365,7 @@ window.SCENE_LIBRARY = (function(){
   function startUploadedPhotoPractice(result) {
       const keywords = result.elements;
       $('photoCaption').textContent = `【${result.category} · ${result.name}】`;
-      $('recognizedElements').textContent = `${result.likelyIntent ? `可能表达：${result.likelyIntent}；` : ''}画面要点：${keywords.join('、')}`;
+      $('recognizedElements').textContent = `画面要点：${keywords.join('、')}。${result.likelyIntent ? `可能表达：${result.likelyIntent}（可自由选择自己的话题）` : ''}`;
       $('entrySection').classList.add('hidden');
       $('themeSelectionSection').classList.add('hidden');
       $('uploadPanel').classList.add('hidden');
@@ -2273,7 +2380,7 @@ window.SCENE_LIBRARY = (function(){
       $('manualInputBox').classList.add('hidden');
       $('regenerateBtn').classList.add('hidden');
 
-      currentScene = { category: result.category, name: result.name, likelyIntent: result.likelyIntent || '', elements: keywords, hints: result.hints ? { '大学及以上': result.hints } : null };
+      currentScene = { category: result.category, name: result.name, likelyIntent: result.likelyIntent || '', elements: keywords, hints: result.hints ? { '大学及以上': result.hints } : null, photoAnalyzed: true };
       resetRecordingUI();
       $('hintsContainer').classList.remove('hidden');
       renderHints(result.hints || fallbackHints(currentScene), state.prefs.education);
@@ -2302,6 +2409,8 @@ window.SCENE_LIBRARY = (function(){
   }
 
   function cancelSceneGeneration() {
+    imageHintRequestId++;
+    imageHintsPending = false;
     sceneGenerationRequestId += 1;
     sceneGenerationPending = false;
     $('sceneGenerationStatus').classList.add('hidden');
@@ -2391,8 +2500,11 @@ window.SCENE_LIBRARY = (function(){
       const image = await generateSceneImage(scene, requestId);
       if (!image || requestId !== sceneGenerationRequestId) return;
       showScene(scene, image);
-      status.textContent = '场景已生成，可以开始看图练口语。';
+      status.textContent = '场景已生成，正在根据实际画面生成专属词句...';
       status.className = 'status-message status-success';
+      await analyzeCurrentScenePhoto();
+      if (requestId !== sceneGenerationRequestId) return;
+      status.textContent = currentScene?.photoAnalyzed ? '图片与专属词句已就绪，可以开始练习。' : '图片已保留，可点击“重新分析当前图片”重试提示词。';
     } catch (error) {
       if (requestId !== sceneGenerationRequestId) return;
       status.textContent = `场景生成失败：${error.message || '请检查网络后重试'}。可重新选择主题或点击“换一个”。`;
@@ -2408,7 +2520,7 @@ window.SCENE_LIBRARY = (function(){
   }
 
   function showScene(scene, dataUrl) {
-    currentScene = scene;
+    currentScene = { category: scene.category, name: scene.name, elements: [], hints: null };
     $('photoPreview').src = dataUrl;
     $('photoPreview').classList.add('generated-scene');
     $('photoPreview').alt = `${scene.name}，AI 生成的生活摄影风格场景`;
@@ -2427,8 +2539,11 @@ window.SCENE_LIBRARY = (function(){
     $('playbackBox').classList.add('hidden');
     $('regenerateBtn').classList.remove('hidden');
 
-    $('recognizedElements').textContent = (scene.elements || []).join('、');
+    $('recognizedElements').textContent = '正在观察实际图片，分析完成后会显示画面要点和可能的交流意图。';
     resetRecordingUI();
+    currentHintSet = null;
+    $('hintList').innerHTML = '';
+    $('hintsContainer').classList.remove('hidden');
     hideStatus();
     checkEnvironment();
   }
@@ -2498,6 +2613,7 @@ window.SCENE_LIBRARY = (function(){
   }
 
   function renderHints(set, eduLabel) {
+    currentHintSet = set;
     const displayEdu = eduLabel === '大学及以上（仅作一般口语练习）' ? '大学及以上' : eduLabel;
     const gradeLabel = {
       '小学':'小学 · 基础词汇','初中':'初中 · 进阶词汇','高中':'高中 · 高考词汇',
@@ -2510,19 +2626,19 @@ window.SCENE_LIBRARY = (function(){
 
     // 1. 提示词（场景元素英文 + 音标 + 中文）
     if (set.words && set.words.length) {
-      items.push({ label: currentMode === 'upload' ? '照片关键词' : '提示词', list: set.words, type: 'word' });
+      items.push({ label: '照片关键词', list: set.words, type: 'word' });
     }
 
     // 2. 通用词组：从全部 20 个词组中随机抽 3 个
     if (set.phrases && set.phrases.length) {
       const picked = (window.pickRandom ? window.pickRandom(set.phrases, 3) : set.phrases.slice(0, 3));
-      items.push({ label: currentMode === 'upload' ? '相关表达' : '常用词组', list: picked, type: 'word' });
+      items.push({ label: '相关表达', list: picked, type: 'word' });
     }
 
     // 3. 通用句型：从全部 10 个句型中随机抽 2 个
     if (set.sentences && set.sentences.length) {
       const picked = (window.pickRandom ? window.pickRandom(set.sentences, 2) : set.sentences.slice(0, 2));
-      items.push({ label: currentMode === 'upload' ? '你可以这样说' : '万能句型', list: picked, type: 'sentence' });
+      items.push({ label: '你可以这样说', list: picked, type: 'sentence' });
     }
 
     $('hintList').innerHTML = items.map(it => {
@@ -2538,9 +2654,16 @@ window.SCENE_LIBRARY = (function(){
         }).join('');
         return `<li><span class="cat-label">${it.label}:</span>${lines}</li>`;
       }
-      const html = it.list.map(item => formatWord(item)).join('、');
+      const html = it.list.map(item => `${formatWord(item)} <button class="speak-btn" data-hint-speech="${escapeHintText(Array.isArray(item) ? item[0] : item)}" aria-label="听发音">🔊</button>`).join('、');
       return `<li><span class="cat-label">${it.label}:</span>${html}</li>`;
     }).join('');
+    $('hintList').querySelectorAll('[data-hint-speech]').forEach(button => button.addEventListener('click', () => speakText(button.dataset.hintSpeech)));
+    const sampleSentences = items.filter(item => item.type === 'sentence').flatMap(item => item.list);
+    $('hintList').querySelectorAll('.sentence-line').forEach((line, index) => {
+      const button = document.createElement('button'); button.className = 'speak-btn'; button.textContent = '🔊';
+      const sentence = sampleSentences[index];
+      button.addEventListener('click', () => speakText(Array.isArray(sentence) ? sentence[0] : sentence)); line.appendChild(button);
+    });
   }
 
   $('needHintsBtn').addEventListener('click', () => {
@@ -2548,22 +2671,20 @@ window.SCENE_LIBRARY = (function(){
     let hints;
     if (currentMode === 'upload' && recognizedImageResult?.hints) hints = recognizedImageResult.hints;
     else if (currentMode === 'upload' && currentScene.category) hints = getHintsForUpload(currentScene.category);
-    else hints = getHintsForScene(currentScene);
+    else if (currentScene.photoAnalyzed) hints = getHintsForScene(currentScene);
+    else { $('hintsContainer').classList.remove('hidden'); analyzeCurrentScenePhoto(); return; }
     renderHints(hints, state.prefs.education);
     $('hintsContainer').classList.remove('hidden');
     $('recordingSection').classList.remove('hidden');
-    resetRecordingUI();
-    checkEnvironment();
   });
 
   $('noHintsBtn').addEventListener('click', () => {
     $('hintsContainer').classList.add('hidden');
     $('recordingSection').classList.remove('hidden');
-    resetRecordingUI();
-    checkEnvironment();
   });
 
   function resetRecordingUI() {
+    invalidatePractice();
     cleanupRecording(); clearAudioPlayback();
     $('transcriptArea').classList.add('hidden');
     $('transcriptEditArea').classList.add('hidden');
@@ -2631,6 +2752,8 @@ window.SCENE_LIBRARY = (function(){
       showStatus('❌ 当前浏览器不支持麦克风访问。','error');
       return;
     }
+    speechEvaluationRequestId++; latestEvaluation = null; stopPronunciation();
+    const recordingId = ++recordingRequestId;
     finalTranscript = ''; interimTranscript = ''; manualStop = false;
     clearAudioPlayback();
     $('transcriptArea').classList.add('hidden');
@@ -2645,17 +2768,19 @@ window.SCENE_LIBRARY = (function(){
       mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }
       });
+      if (recordingId !== recordingRequestId) { mediaStream.getTracks().forEach(track => track.stop()); mediaStream = null; return; }
       showStatus('🎤 麦克风已授权，正在启动语音识别...','info');
 
       if (typeof MediaRecorder !== 'undefined') {
         try {
           const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : '';
           mediaRecorder = mimeType ? new MediaRecorder(mediaStream, { mimeType }) : new MediaRecorder(mediaStream);
-          audioChunks = [];
-          mediaRecorder.ondataavailable = e => { if (e.data.size>0) audioChunks.push(e.data); };
-          mediaRecorder.onstop = () => {
-            if (audioChunks.length>0) {
-              audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+          const recorder = mediaRecorder;
+          const chunks = [];
+          recorder.ondataavailable = e => { if (e.data.size>0) chunks.push(e.data); };
+          recorder.onstop = () => {
+            if (recordingId === recordingRequestId && chunks.length>0) {
+              audioBlob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
               if (audioURL) URL.revokeObjectURL(audioURL);
               audioURL = URL.createObjectURL(audioBlob);
               $('playbackAudio').src = audioURL;
@@ -2674,10 +2799,12 @@ window.SCENE_LIBRARY = (function(){
       recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
+        if (recordingId !== recordingRequestId) return;
         recognitionActive = true;
         showStatus('🎤 录音已开始，请说话（说完点击"停止录音"）...','success');
       };
       recognition.onresult = (event) => {
+        if (recordingId !== recordingRequestId) return;
         interimTranscript = '';
         for (let i=event.resultIndex; i<event.results.length; i++) {
           const t = event.results[i][0].transcript;
@@ -2688,6 +2815,7 @@ window.SCENE_LIBRARY = (function(){
         $('liveTranscriptText').textContent = (finalTranscript + interimTranscript).trim() || '(等待说话...)';
       };
       recognition.onerror = (event) => {
+        if (recordingId !== recordingRequestId) return;
         const errs = {
           'not-allowed':'❌ 麦克风权限被拒绝。请点击地址栏左侧的锁图标，将麦克风权限设为"允许"，然后刷新页面重试。',
           'service-not-allowed':'❌ 语音服务不可用。请检查网络或浏览器设置。',
@@ -2700,6 +2828,7 @@ window.SCENE_LIBRARY = (function(){
         if (msg) showStatus(msg,'error');
       };
       recognition.onend = () => {
+        if (recordingId !== recordingRequestId) return;
         recognitionActive = false;
         if (isRecording && !manualStop) { try { recognition.start(); } catch(e){} }
       };
@@ -2737,7 +2866,9 @@ window.SCENE_LIBRARY = (function(){
     $('stopRecordBtn').disabled = true;
     $('recordingStatus').classList.add('hidden');
 
+    const recordingId = recordingRequestId;
     setTimeout(() => {
+      if (recordingId !== recordingRequestId) return;
       const finalText = finalTranscript.trim();
       $('liveTranscriptBox').classList.add('hidden');
       if (!finalText) {
@@ -2769,76 +2900,73 @@ window.SCENE_LIBRARY = (function(){
   });
 
   async function displayTranscriptAndCorrections(text) {
+    if (!text.trim()) return;
     const requestId = ++speechEvaluationRequestId;
+    currentEditedTranscript = text;
+    latestEvaluation = null;
+    stopPronunciation();
     $('transcriptText').textContent = text;
     $('transcriptArea').classList.remove('hidden');
     $('scorePanel').classList.add('hidden');
+    $('styleSuggestionPanel').classList.add('hidden');
     $('polishedSentences').innerHTML = '';
-    $('errorList').innerHTML = '<div class="error-item" style="border-left-color:#2d7aff;background:#eef5ff;">⏳ 正在分析语法、词汇、流利度和表达连贯性，请稍候...</div>';
+    $('errorList').textContent = '正在逐句分析真实语法错误和表达建议...';
     $('correctedText').textContent = '';
-    $('transcriptArea').scrollIntoView({ behavior:'smooth', block:'nearest' });
-    showStatus('正在进行智能口语评测...','info');
-    let settled = false;
-    let fallbackRendered = false;
-    const fallbackDelay = text.length > 1800 ? 12_000 : 20_000;
-    const fallbackTimer = setTimeout(() => {
-      if (settled || requestId !== speechEvaluationRequestId) return;
-      fallbackRendered = true;
-      renderSpeechEvaluation(createFallbackSpeechEvaluation(text, detectErrors(text), { name: 'Pending' }));
-      showStatus('⏳ 长文本智能评测仍在处理中，已先显示基础评分和逐段发音；智能结果返回后会自动更新。','info');
-    }, fallbackDelay);
+    $('retryEvaluationBtn').classList.add('hidden');
+    $('saveSessionBtn').disabled = true;
+    const started = Date.now();
+    const progress = $('evaluationProgress');
+    const update = () => { if (requestId === speechEvaluationRequestId) progress.textContent = '智能评测进行中，已等待 ' + Math.floor((Date.now()-started)/1000) + ' 秒；正在检查错误、整理信息并生成完整润色稿，最长约 3 分钟。'; };
+    update();
+    const ticker = setInterval(update, 1000);
+    const active = () => requestId === speechEvaluationRequestId;
+    async function request(url, options = {}) {
+      let response;
+      try {
+        response = await fetch(url, { ...options, cache: 'no-store', signal: AbortSignal.timeout(20_000) });
+        const data = await response.json();
+        if (!response.ok) throw Object.assign(new Error(data.error || '评测请求失败'), { terminal: true });
+        return data;
+      } catch(error) { if (response) error.terminal = true; throw error; }
+    }
     try {
       requireOnlineService();
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20_000);
-      const response = await fetch('/api/analyze-speech/jobs', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          scene: currentScene?.name || currentScene?.category || '一般口语练习',
-          education: state.prefs.education,
-          accent: state.prefs.accent,
-          topic: {
-            category: currentScene?.category || '',
-            scene: currentScene?.name || '',
-            likelyIntent: currentScene?.likelyIntent || '',
-            elements: currentScene?.elements || []
-          }
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeout);
-      const job = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(job.error || '智能评测失败');
-      if (!job.jobId) throw new Error('服务器没有返回评测任务编号');
-      const deadline = Date.now() + 190_000;
+      const body = JSON.stringify({ requestId: crypto.randomUUID(), text, education: state.prefs.education, accent: state.prefs.accent,
+        topic: { scene: currentScene?.name || '', category: currentScene?.category || '', likelyIntent: currentScene?.likelyIntent || '', elements: currentScene?.elements || [] } });
+      let job;
+      for (let attempt = 0; attempt < 3 && active(); attempt++) {
+        try { job = await request('/api/analyze-speech/jobs', { method: 'POST', headers: {'Content-Type':'application/json'}, body }); break; }
+        catch(error) { if (error.terminal || attempt === 2) throw error; await sleep(1800); }
+      }
+      if (!active()) return;
+      if (!job?.jobId) throw new Error('服务器未返回评测任务编号');
+      const deadline = started + 210_000;
       let data;
-      while (Date.now() < deadline) {
-        await new Promise(resolve => setTimeout(resolve, 1800));
-        if (requestId !== speechEvaluationRequestId) return;
-        const resultResponse = await fetch(`/api/analyze-speech/jobs/${encodeURIComponent(job.jobId)}`, { cache: 'no-store' });
-        const result = await resultResponse.json().catch(() => ({}));
-        if (!resultResponse.ok) throw new Error(result.error || '无法读取评测结果');
+      while (Date.now() < deadline && active()) {
+        await sleep(1800);
+        if (!active()) return;
+        let result;
+        try { result = await request('/api/analyze-speech/jobs/' + encodeURIComponent(job.jobId)); }
+        catch(error) { if(error.terminal) throw error; continue; }
         if (result.status === 'failed') throw new Error(result.error || '智能评测失败');
         if (result.status === 'complete') { data = result.result; break; }
       }
+      if (!active()) return;
       if (!data) throw new Error('智能评测等待超时');
-      settled = true;
-      clearTimeout(fallbackTimer);
-      if (requestId !== speechEvaluationRequestId) return;
       renderSpeechEvaluation(data);
-      showStatus('✅ 评测完成，已生成纠错、评分和地道表达。','success');
-    } catch (error) {
-      settled = true;
-      clearTimeout(fallbackTimer);
-      if (requestId !== speechEvaluationRequestId) return;
-      if (!fallbackRendered) {
-        const errors = detectErrors(text);
-        renderSpeechEvaluation(createFallbackSpeechEvaluation(text, errors, error));
-      }
-      showStatus(`⚠️ ${error.name === 'AbortError' ? '智能评测等待超时' : error.message}，已显示基础评分和发音。`,'error');
+      progress.textContent = '评测完成。评分、纠错和完整润色稿已更新。';
+      $('retryEvaluationBtn').classList.remove('hidden');
+    } catch(error) {
+      if (!active()) return;
+      renderSpeechEvaluation(createFallbackSpeechEvaluation(text, detectErrors(text), error));
+      progress.textContent = '智能评测未完成：' + (error.name === 'TimeoutError' ? '连接超时' : error.message) + '。原稿和录音已保留，可重试。';
+      $('retryEvaluationBtn').classList.remove('hidden');
+    } finally {
+      clearInterval(ticker);
+      if(active()) $('saveSessionBtn').disabled = false;
     }
   }
+  $('retryEvaluationBtn').addEventListener('click', () => displayTranscriptAndCorrections(currentEditedTranscript || $('transcriptText').textContent));
 
   function splitForPronunciation(text, maxChars = 220) {
     const source = String(text || '').replace(/\s+/g, ' ').trim();
@@ -2855,45 +2983,27 @@ window.SCENE_LIBRARY = (function(){
       });
       if (part) output.push(part);
     });
-    return output.slice(0, 30);
+    return output;
   }
 
   function createFallbackSpeechEvaluation(text, errors, error) {
-    const polished = generateCorrectedVersion(text, errors);
-    const words = text.trim().split(/\s+/).filter(Boolean);
-    const sentences = splitForPronunciation(polished).map(en => ({ en, zh: '' }));
-    const penalty = Math.min(35, errors.length * 6);
-    const uniqueRatio = words.length ? new Set(words.map(word => word.toLowerCase())).size / words.length : .8;
-    const base = Math.round(Math.max(45, Math.min(96, 72 + uniqueRatio * 20 - penalty)));
-    const grammar = Math.max(40, base - penalty);
-    const vocabulary = Math.max(45, Math.round(base + (uniqueRatio - .6) * 15));
-    const fluency = Math.max(45, Math.min(95, base + (sentences.length >= 2 ? 3 : -4)));
-    const coherence = Math.max(45, Math.min(95, base - (sentences.length > 12 ? 5 : 0)));
-    const topicRelevance = Math.max(50, Math.min(95, base + 3));
-    const originalWordCount = (String(text).match(/[A-Za-z]+(?:['’\-][A-Za-z]+)*|\d+(?:\.\d+)?/g) || []).length;
-    const polishedWordCount = (String(polished).match(/[A-Za-z]+(?:['’\-][A-Za-z]+)*|\d+(?:\.\d+)?/g) || []).length;
-    const targetMinWords = Math.max(1, originalWordCount - 100);
-    const targetMaxWords = originalWordCount + 100;
-    return {
-      overall: Math.round(grammar * .35 + topicRelevance * .25 + coherence * .2 + vocabulary * .1 + fluency * .1),
-      grammar, vocabulary, fluency, coherence, topicRelevance, taskCompletion: topicRelevance,
-      errors: errors.map(message => ({ original: '', correction: '', category: '基础检查', explanation: message, severity: 'low' })),
-      polished,
-      sentences,
-      originalWordCount, polishedWordCount, targetMinWords, targetMaxWords,
-      wordCountWithinRange: polishedWordCount >= targetMinWords && polishedWordCount <= targetMaxWords,
-      keywords: [], keyInformation: [], styleSuggestions: [],
-      accent: state.prefs.accent,
-      provisional: true,
-      summary: `当前为本地基础估算，不能代替智能评测；语言模型${error?.name === 'Pending' ? '仍在处理中' : '暂未返回结果'}。`
-    };
+    const originalWordCount = (text.match(/[A-Za-z]+(?:['’\-][A-Za-z]+)*|\d+(?:\.\d+)?/g) || []).length;
+    return { provisional: true, errors: errors.map(message => ({category:'待核实的基础规则提示', explanation:message})),
+      polished:text, originalWordCount, polishedWordCount:originalWordCount,
+      targetMinWords:Math.max(1,originalWordCount-100), targetMaxWords:originalWordCount+100,
+      summary:'智能评测未完成，暂不打分。以下为原稿和有限的规则提示，不能替代完整语法检查或润色。' };
   }
 
   function renderSpeechEvaluation(data) {
+    latestEvaluation = data;
+    $('polishedTitle').textContent = data.provisional ? '原稿（智能润色尚未完成）' : `✨ 完整润色稿 · ${data.accent || state.prefs.accent}英语`;
+    $('pronunciationStatus').textContent = '';
+    const reasonLabels = {grammar:'语法',topicRelevance:'主题',coherence:'连贯性',vocabulary:'词汇',fluency:'表达自然度'};
+    $('scoreReasons').innerHTML = data.provisional ? '' : Object.entries(reasonLabels).map(([key,label]) => '<div><strong>' + label + '：</strong>' + escapeHintText(data.scoreReasons?.[key] || '请结合具体纠错与评测总结查看。') + '</div>').join('');
     const labels = { overall:'scoreOverall', grammar:'scoreGrammar', vocabulary:'scoreVocabulary', fluency:'scoreFluency', coherence:'scoreCoherence', topicRelevance:'scoreTask' };
     if (data.topicRelevance == null) data.topicRelevance = data.taskCompletion;
-    Object.entries(labels).forEach(([key, id]) => { $(id).textContent = `${Number(data[key] || 0)}分`; });
-    $('scoreTitle').textContent = data.provisional ? '📊 本地基础估算（非智能评分）' : '📊 多维度口语评分';
+    Object.entries(labels).forEach(([key, id]) => { $(id).textContent = data.provisional ? '未评分' : `${Number(data[key] || 0)}分`; });
+    $('scoreTitle').textContent = data.provisional ? '📊 智能评测未完成' : '📊 多维度口语评分';
     $('scoreSummary').textContent = data.summary || '';
     $('scorePanel').classList.remove('hidden');
     const escape = value => escapeHintText(value);
@@ -2913,33 +3023,49 @@ window.SCENE_LIBRARY = (function(){
     $('errorList').innerHTML = errors.length ? errors.map(item => {
       const hasCorrection = item.original && item.correction;
       return `<div class="error-item"><strong>${escape(item.category || '表达问题')}</strong>${hasCorrection ? `：${escape(item.original)} → <span style="color:#176b36;">${escape(item.correction)}</span>` : ''}<div style="margin-top:.35rem;color:#5c6570;">${escape(item.explanation || '')}</div></div>`;
-    }).join('') : '<div class="error-item" style="border-left-color:#27ae60;background:#f1f8e9;">✅ 本次没有发现明确的语法或用词错误。</div>';
+    }).join('') : (data.provisional ? '<div class="error-item">基础规则未提供明确提示，无法据此判断是否存在语法错误。请重试智能评测。</div>' : '<div class="error-item" style="border-left-color:#27ae60;background:#f1f8e9;">本次模型检查未发现明确错误；可结合表达建议继续改进。</div>');
     const suggestions = Array.isArray(data.styleSuggestions) ? data.styleSuggestions : [];
     $('styleSuggestionList').innerHTML = suggestions.map(item => `<div class="error-item" style="border-left-color:#6b91bd;background:#f5f8fc;"><strong>${escape(item.original)}</strong> → <span style="color:#315c8a;">${escape(item.suggestion)}</span><div style="margin-top:.35rem;color:#5c6570;">${escape(item.explanation || '')}</div></div>`).join('');
     $('styleSuggestionPanel').classList.toggle('hidden', !suggestions.length);
     $('correctedText').textContent = data.polished || '（模型没有生成润色稿）';
     const sentences = splitForPronunciation(data.polished || (Array.isArray(data.sentences) ? data.sentences.map(item => item.en).join(' ') : '')).map(en => ({ en, zh: '' }));
-    const accent = ['英式', '美式'].includes(data.accent) ? data.accent : state.prefs.accent;
-    const lang = accent === '英式' ? 'en-GB' : 'en-US';
+    const accent = state.prefs.accent;
     $('polishedSentences').innerHTML = `<div style="font-weight:600;color:#0f4b2b;margin:.8rem 0 .25rem;">🔊 点击听取${accent === '英式' ? '英式' : '美式'}发音</div>` + sentences.map((item, index) => `<div class="polished-line"><span style="color:#154f2b;">${escape(item.en)}</span>${item.zh ? `<div style="font-size:.82rem;color:#6a7a8d;margin-top:.2rem;">${escape(item.zh)}</div>` : ''}<button class="speak-btn" data-sentence-index="${index}">🔊 播放第${index + 1}句</button></div>`).join('');
     $('polishedSentences').querySelectorAll('[data-sentence-index]').forEach(button => button.addEventListener('click', () => {
-      if (!('speechSynthesis' in window)) { showStatus('当前浏览器不支持发音播放。','error'); return; }
-      window.speechSynthesis.cancel();
       const sentence = sentences[Number(button.dataset.sentenceIndex)];
-      if (!sentence?.en) return;
-      const parts = splitForPronunciation(sentence.en, 180);
-      const voices = window.speechSynthesis.getVoices?.() || [];
-      const targetVoice = voices.find(voice => voice.lang?.replace('_', '-').toLowerCase() === lang.toLowerCase())
-        || voices.find(voice => voice.lang?.toLowerCase().startsWith(accent === '英式' ? 'en-gb' : 'en-us'));
-      parts.forEach(part => {
-        const utterance = new SpeechSynthesisUtterance(part);
-        utterance.lang = lang;
-        if (targetVoice) utterance.voice = targetVoice;
-        utterance.rate = .88;
-        window.speechSynthesis.speak(utterance);
-      });
+      if (sentence?.en) speakText(sentence.en);
     }));
   }
+
+  function stopPronunciation() {
+    speechPlaybackId++;
+    window.speechSynthesis?.cancel();
+  }
+  function speakText(text) {
+    if (!window.speechSynthesis) { showToast('当前浏览器不支持发音播放'); return; }
+    stopPronunciation();
+    const id = speechPlaybackId;
+    const lang = state.prefs.accent === '英式' ? 'en-GB' : 'en-US';
+    const voices = window.speechSynthesis.getVoices?.() || [];
+    const voice = voices.find(v => v.lang.replace('_','-').toLowerCase() === lang.toLowerCase());
+    if (!voice) {
+      $('pronunciationStatus').textContent = '设备尚未安装所选' + state.prefs.accent + '英语声音，浏览器可能使用默认声音；可在系统语音设置中添加相应声音。';
+    } else $('pronunciationStatus').textContent = '正在使用' + state.prefs.accent + '英语播放。';
+    const parts = splitForPronunciation(text,180);
+    let index = 0;
+    const next = () => {
+      if(id !== speechPlaybackId || index >= parts.length) return;
+      const utterance = new SpeechSynthesisUtterance(parts[index++]);
+      utterance.lang = lang; if(voice) utterance.voice = voice;
+      utterance.rate = Number($('speechRate').value) || .88;
+      utterance.onend = next;
+      utterance.onerror = event => { if(id === speechPlaybackId && event.error !== 'canceled' && event.error !== 'interrupted') $('pronunciationStatus').textContent = '播放失败，请检查设备声音后重试。'; };
+      window.speechSynthesis.speak(utterance);
+    };
+    next();
+  }
+  $('speakAllBtn').addEventListener('click', () => speakText($('correctedText').textContent));
+  $('stopSpeechBtn').addEventListener('click', stopPronunciation);
 
   function detectErrors(text) {
     if (!text) return [];
@@ -3177,27 +3303,79 @@ window.SCENE_LIBRARY = (function(){
     const options = ['and', 'and', 'and', 'so', 'because'];
     return options[Math.floor(Math.random() * options.length)];
   }
-  $('saveSessionBtn').addEventListener('click', () => {
+  function openHistoryDb() {
+    return new Promise((resolve,reject) => {
+      const request = indexedDB.open('langsidu_private_history',1);
+      request.onupgradeneeded = () => request.result.createObjectStore('records');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+      request.onblocked = () => reject(new Error('请关闭其他朗思渡标签页后重试'));
+    });
+  }
+  function historyTransaction(mode, value) {
+    return new Promise((resolve,reject) => {
+      const tx = historyDb.transaction('records',mode);
+      const store = tx.objectStore('records');
+      const request = mode === 'readonly' ? store.get('history') : store.put(value,'history');
+      tx.oncomplete = () => resolve(request.result);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('保存中断'));
+    });
+  }
+  async function loadHistory() {
+    try {
+      historyDb = await openHistoryDb();
+      const saved = await historyTransaction('readonly');
+      if(Array.isArray(saved)) state.history = saved;
+      else await historyTransaction('readwrite',state.history);
+      historyReady = true;
+      saveState();
+    } catch(error) {
+      $('historyStatus').textContent = '浏览器数据库暂不可用，历史记录尚未迁移。请允许网站存储后刷新；你仍可导出当前记录。';
+    }
+  }
+  function updateHistory(change) {
+    const operation = historyWrite.then(() => new Promise((resolve,reject) => {
+      if(!historyReady) { reject(new Error('浏览器数据库不可用，请允许网站存储后刷新')); return; }
+      const tx = historyDb.transaction('records','readwrite');
+      const store = tx.objectStore('records');
+      const request = store.get('history');
+      let next;
+      request.onsuccess = () => {
+        try { next = change(Array.isArray(request.result) ? request.result : []); store.put(next,'history'); }
+        catch(error) { reject(error); tx.abort(); }
+      };
+      tx.oncomplete = () => { state.history = next; renderHistory(); resolve(); };
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('保存中断'));
+    }));
+    historyWrite = operation.catch(() => {});
+    return operation;
+  }
+  function blobDataUrl(blob) {
+    return new Promise((resolve,reject) => {
+      const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(reader.error); reader.readAsDataURL(blob);
+    });
+  }
+  $('saveSessionBtn').addEventListener('click', async () => {
     if (!currentScene) return;
-    const now = new Date();
-    const pad = n => String(n).padStart(2,'0');
-    const timeStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    const item = {
-      id: Date.now(),
-      time: timeStr,
-      sceneName: currentScene.name,
-      sceneCategory: currentScene.category,
-      image: $('photoPreview').src,
-      keywords: $('recognizedElements').textContent,
-      transcript: currentEditedTranscript || $('transcriptText').textContent,
-      corrected: $('correctedText').textContent,
-      scores: ['scoreOverall','scoreGrammar','scoreVocabulary','scoreFluency','scoreCoherence','scoreTask'].reduce((out, id) => { out[id] = $(id).textContent; return out; }, {}),
-      audio: audioURL || ''
-    };
-    state.history.unshift(item);
-    if (state.history.length > 50) state.history.pop();
-    saveState();
-    showToast('✅ 已保存到 PAST');
+    const button = $('saveSessionBtn'); button.disabled = true;
+    try {
+      const item = {
+        id: Date.now(), time: new Date().toLocaleString('zh-CN',{hour12:false}),
+        sceneName: currentScene.name, sceneCategory: currentScene.category,
+        image: $('photoPreview').src, keywords: $('recognizedElements').textContent,
+        transcript: currentEditedTranscript || $('transcriptText').textContent,
+        corrected: $('correctedText').textContent, evaluation: latestEvaluation,
+        accent: state.prefs.accent, audio: ''
+      };
+      // Save actual recording bytes; blob URLs stop working after refresh.
+      if(audioBlob) item.audio = await blobDataUrl(audioBlob);
+      if(audioBlob && !item.audio) throw new Error('录音转换失败，请重试');
+      await updateHistory(items => [item, ...items]);
+      showToast('已保存到当前浏览器的 PAST（含录音）');
+    } catch(error) { showStatus('保存失败：' + error.message + '。原稿和录音仍在当前页面，请释放空间后重试。','error'); }
+    finally { button.disabled = false; }
   });
 
   function renderHistory() {
@@ -3219,30 +3397,74 @@ window.SCENE_LIBRARY = (function(){
           </div>
         </div>
         <div class="history-body">
-          ${item.image ? `<img class="history-thumb" src="${escapeHtml(item.image)}" alt="scene">` : ''}
+          ${safeHistoryImage(item.image) ? `<img class="history-thumb" src="${escapeHtml(item.image)}" alt="scene">` : ''}
           <div class="history-detail">
-            <div class="row"><strong>关键词：</strong>${escapeHtml(item.keywords)}</div>
+            <div class="row"><strong>偏好：</strong>${escapeHtml(item.accent || '未记录')} · ${item.evaluation?.provisional ? '未完成智能评测' : item.evaluation?.overall != null ? escapeHtml(item.evaluation.overall) + '分' : '历史练习'}</div><div class="row"><strong>关键词：</strong>${escapeHtml(item.keywords)}</div>
             <div class="row"><strong>口述：</strong>${escapeHtml(item.transcript)}</div>
             <div class="row"><strong>修正稿：</strong>${escapeHtml(item.corrected)}</div>
-            ${item.audio ? `<audio controls src="${escapeHtml(item.audio)}" style="width:100%;margin-top:.5rem;"></audio>` : ''}
+            ${safeHistoryAudio(item.audio) ? `<audio controls src="${escapeHtml(item.audio)}" style="width:100%;margin-top:.5rem;"></audio>` : ''}
           </div>
         </div>
         <div class="history-actions">
-          <button class="btn btn-secondary btn-sm" onclick="window.__deleteHistory(${item.id})">删除</button>
+          <button class="btn btn-secondary btn-sm" data-history-delete="${Number(item.id)}">删除</button><button class="btn btn-secondary btn-sm" data-history-speak="${Number(item.id)}">🔊 听修正稿</button>
         </div>
       </div>
     `).join('');
   }
-  window.__deleteHistory = function(id) {
-    state.history = state.history.filter(h => h.id !== id);
-    saveState();
-    renderHistory();
-  };
+  $('historyList').addEventListener('click', async event => {
+    const remove = event.target.closest('[data-history-delete]');
+    const speak = event.target.closest('[data-history-speak]');
+    if(remove) {
+      try { await updateHistory(items => items.filter(item => item.id !== Number(remove.dataset.historyDelete))); }
+      catch(error) { $('historyStatus').textContent = '删除失败：' + error.message; }
+    }
+    if(speak) { const item=state.history.find(item=>item.id===Number(speak.dataset.historySpeak)); if(item) speakText(item.corrected); }
+  });
+  function safeHistoryImage(value) { return typeof value === 'string' && /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(value); }
+  function safeHistoryAudio(value) { return typeof value === 'string' && /^data:(?:audio\/(?:webm|ogg|mp4|mpeg|wav)(?:;codecs=[a-zA-Z0-9.,-]+)?|video\/webm);base64,[A-Za-z0-9+/=]+$/.test(value); }
+  $('exportHistoryBtn').addEventListener('click', async () => {
+    await historyWrite;
+    const backup={format:'langsidu-history',version:1,exportedAt:new Date().toISOString(),records:state.history.map(item => ({...item,audio:safeHistoryAudio(item.audio)?item.audio:'',image:safeHistoryImage(item.image)?item.image:''}))};
+    const url=URL.createObjectURL(new Blob([JSON.stringify(backup)],{type:'application/json'}));
+    const link=document.createElement('a'); link.href=url;link.download='朗思渡练习备份-'+new Date().toISOString().slice(0,10)+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
+    $('historyStatus').textContent = '已导出 ' + backup.records.length + ' 条记录；备份包含文稿和有效录音，请自行保管。旧记录中已失效的临时录音无法恢复。';
+  });
+  $('importHistoryBtn').addEventListener('click', () => $('historyFileInput').click());
+  $('historyFileInput').addEventListener('change', async event => {
+    const file=event.target.files[0]; if(!file) return;
+    try {
+      if(file.size>100*1024*1024) throw new Error('备份超过 100 MB，请使用较小的备份文件');
+      const backup=JSON.parse(await file.text());
+      if(backup.format!=='langsidu-history'||backup.version!==1||!Array.isArray(backup.records)||backup.records.length>1000) throw new Error('不是支持的朗思渡备份文件');
+      const records=backup.records.map((item,index)=>{
+        if(!item || typeof item!=='object' || typeof item.transcript!=='string' || typeof item.corrected!=='string' || item.transcript.length>100000 || item.corrected.length>100000) throw new Error('备份中的文稿数据无效');
+        if(item.image&&!safeHistoryImage(item.image)) throw new Error('备份包含无效图片地址');
+        if(item.audio&&!safeHistoryAudio(item.audio)) throw new Error('备份包含无效录音地址');
+        return {id:Date.now()+index,time:String(item.time||'导入记录').slice(0,100),sceneName:String(item.sceneName||'练习').slice(0,160),sceneCategory:String(item.sceneCategory||'').slice(0,80),keywords:String(item.keywords||'').slice(0,5000),transcript:item.transcript,corrected:item.corrected,image:item.image||'',audio:item.audio||'',accent:item.accent==='英式'?'英式':'美式',evaluation:item.evaluation&&typeof item.evaluation==='object'?item.evaluation:null};
+      });
+      let added=0;
+      await updateHistory(items=>{
+        const keys=new Set(items.map(item=>JSON.stringify([item.time,item.transcript,item.corrected])));
+        const unique=records.filter(item=>{const key=JSON.stringify([item.time,item.transcript,item.corrected]);if(keys.has(key))return false;keys.add(key);return true;});
+        added=unique.length;
+        const ids=new Set(items.map(item=>item.id));for(const item of unique){while(ids.has(item.id))item.id++;ids.add(item.id);}
+        return [...unique,...items];
+      });
+      $('historyStatus').textContent='导入完成，新增 '+added+' 条；重复记录已跳过，原有记录保留。';
+    } catch(error) { $('historyStatus').textContent='导入失败：'+error.message+'。原有记录保留。'; }
+    finally { event.target.value=''; }
+  });
+  $('clearHistoryBtn').addEventListener('click', async () => {
+    if(!confirm('清除当前浏览器的全部练习记录和录音？建议先导出备份。此操作不能撤销。')) return;
+    try { await updateHistory(()=>[]); $('historyStatus').textContent='已清除当前浏览器的全部练习记录。'; }
+    catch(error) { $('historyStatus').textContent='清除失败：'+error.message; }
+  });
 
   $('regenerateBtn').addEventListener('click', () => {
     if (currentScene && currentScene.category && currentMode === 'generate') selectCategory(currentScene.category);
   });
   $('backToEntryBtn').addEventListener('click', () => {
+    invalidatePractice();
     cancelSceneGeneration();
     $('photoSection').classList.add('hidden');
     $('hintSection').classList.add('hidden');
@@ -3265,7 +3487,8 @@ window.SCENE_LIBRARY = (function(){
   renderEmojiGrid();
   renderCategoryGrid();
 
-  function initApp() {
+  async function initApp() {
+    await loadHistory();
     applyTheme(state.theme);
 
     if (state.skipWelcome) {
