@@ -40,6 +40,8 @@ test('teaching style removes abstract props and adds anatomy safeguards', () => 
   assert.match(prompt, /zero to two people/);
   assert.match(prompt, /correct human anatomy/);
   assert.match(scenePrompt({ name: '咖啡厅', category: '餐饮美食', elements: [] }, 'street-photo'), /candid street photograph/);
+  assert.match(scenePrompt({ name: '公园散步', category: '休闲娱乐', elements: [] }, 'manga-comic'), /full-colour manga-inspired illustration/);
+  assert.match(scenePrompt({ name: '公园散步', category: '休闲娱乐', elements: [] }, 'cartoon'), /polished 2D cartoon illustration/);
 });
 
 before(async () => {
@@ -83,7 +85,7 @@ after(async () => {
   if (provider) await new Promise(resolve => provider.close(resolve));
 });
 
-const sceneBody = () => ({ requestId: crypto.randomUUID(), category: '餐饮美食', name: '咖啡厅', elements: ['咖啡', '菜单'] });
+const sceneBody = () => ({ requestId: crypto.randomUUID(), category: '餐饮美食', name: '咖啡厅', elements: ['咖啡', '菜单'], style: 'manga-comic' });
 const post = body => fetch(base + '/api/generate-scene/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 async function finished(id) {
   for (let n = 0; n < 100; n++) {
@@ -116,9 +118,11 @@ test('scene jobs return immediately; reconnecting to the same job does not gener
     assert.equal(lastRequest.model, 'photo-model');
     assert.equal(lastRequest.image_size, '1024x576');
     assert.match(lastRequest.prompt, /ordering a latte/);
+    assert.match(lastRequest.prompt, /manga-inspired illustration/);
     assert.match(lastRequest.negative_prompt, /typography/);
     assert.equal(result.result.image, 'data:image/png;base64,' + png.toString('base64'));
     assert.equal(result.result.name, '咖啡厅');
+    assert.equal(result.result.style, 'manga-comic');
     assert.ok(!JSON.stringify(result).includes('scene-secret'));
   } finally { release(); providerGate = undefined; }
 });

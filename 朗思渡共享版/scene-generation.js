@@ -14,6 +14,14 @@ const sceneStyles = {
   'street-photo': {
     prompt: 'a realistic candid street photograph with authentic local details and natural ambient light, while keeping the main action easy to recognize',
     negative: 'tourist postcard, extreme wide angle, crowded frame, motion smear, confusing background'
+  },
+  'manga-comic': {
+    prompt: 'an original full-colour manga-inspired illustration for language practice, with crisp expressive ink lines, clear storytelling, carefully designed characters and a readable everyday setting',
+    negative: 'photorealism, muddy linework, excessive speed lines, extreme perspective, chibi proportions, fan art, copied character design'
+  },
+  'cartoon': {
+    prompt: 'an original polished 2D cartoon illustration for language practice, with friendly expressive characters, rounded but coherent shapes, a rich cheerful colour palette and a clearly readable everyday action',
+    negative: 'photorealism, 3d render, plastic surfaces, flat empty background, chaotic details, copied character design'
   }
 };
 const abstractElements = new Set(['氛围','感觉','体验','颜色','服务','热闹','满足','快乐','放松','安静','美丽','难忘','特别','方便','安全','效率','机会','挑战','进步','健康','温暖','清新','整洁','干净','舒适','幸福','选择','比较','满意','质量','品牌','价格','时间','方向','距离','速度','到达','出发','故事','文化','历史','心情','记忆','冒险','声音','气息','光线','空间','形状','环境','味道','香气','口感','温度']);
@@ -67,11 +75,13 @@ const activities = {
 
 function scenePrompt(scene, style = 'teaching-photo') {
   const preset = sceneStyles[style] || sceneStyles['teaching-photo'];
+  const illustration = style === 'manga-comic' || style === 'cartoon';
+  const medium = illustration ? 'a single coherent horizontal illustration' : 'a single continuous horizontal photograph';
   const elements = (Array.isArray(scene.elements) ? scene.elements : [])
     .filter(value => typeof value === 'string' && value.trim() && !abstractElements.has(value.trim()))
     .slice(0, 4);
   const props = elements.length ? `Only these supporting objects when they naturally belong to the activity: ${elements.join(', ')}.` : 'Use only a few objects that are genuinely needed for the activity.';
-  return `${preset.prompt}. A single continuous horizontal photograph of ${activities[scene.name] || scene.name}. ${contexts[scene.category] || 'A realistic everyday setting.'} The exact activity above is the only story: one clear main action, zero to two people, and no unrelated events. ${props} Keep the subject centered and easy to recognize, with a calm eye-level 35mm composition, a distinct foreground, middle ground and background, and enough empty space around hands and faces. Soft natural daylight, realistic shadows, true-to-life rich colors, and authentic skin, fabric and material detail. Natural expressions; people are engaged in the activity rather than posing. Use correct human anatomy, hands, fingers, object scale, perspective and contact with the ground. ${style === 'teaching-photo' ? 'Keep the background simple and readable for a language learner.' : ''}`;
+  return `${preset.prompt}. ${medium} showing ${activities[scene.name] || scene.name}. ${contexts[scene.category] || 'A realistic everyday setting.'} The exact activity above is the only story: one clear main action, zero to two people, and no unrelated events. ${props} Keep the subject centered and easy to recognize, with a calm eye-level composition, a distinct foreground, middle ground and background, and enough empty space around hands and faces. ${illustration ? 'Use believable lighting, clean edges, consistent character design, coherent hands and facial features, and a detailed but uncluttered background.' : 'Soft natural daylight, realistic shadows, true-to-life rich colors, and authentic skin, fabric and material detail.'} Natural expressions; people are engaged in the activity rather than posing. Use correct human anatomy, hands, fingers, object scale, perspective and contact with the ground. ${style === 'teaching-photo' ? 'Keep the background simple and readable for a language learner.' : ''}`;
 }
 
 function failure(message, status = 502, code = 'SCENE_GENERATION_ERROR') {

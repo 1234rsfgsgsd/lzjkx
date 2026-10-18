@@ -370,11 +370,13 @@
 
       <div id="themeSelectionSection" class="hidden">
         <p style="color:#1d3f62;font-weight:500;margin-bottom:.3rem;">请选择主题场景，或让系统随机生成：</p>
-        <p style="color:#1d3f62;font-weight:500;margin:.9rem 0 .45rem;">选择图片风格（影响清晰度和真实感）：</p>
+        <p style="color:#1d3f62;font-weight:500;margin:.9rem 0 .45rem;">选择图片风格（也可以使用原创漫画或卡通表现）：</p>
         <div id="sceneStyleGrid" class="btn-group" style="margin-top:0;flex-wrap:wrap;">
           <button type="button" class="btn btn-sm scene-style-btn" data-style="teaching-photo">📘 清晰教材照片</button>
           <button type="button" class="btn btn-secondary btn-sm scene-style-btn" data-style="daily-photo">🏠 真实日常实拍</button>
           <button type="button" class="btn btn-secondary btn-sm scene-style-btn" data-style="street-photo">🚶 街拍纪实</button>
+          <button type="button" class="btn btn-secondary btn-sm scene-style-btn" data-style="manga-comic">✒️ 原创漫画风</button>
+          <button type="button" class="btn btn-secondary btn-sm scene-style-btn" data-style="cartoon">🌈 明亮卡通风</button>
         </div>
         <div class="category-grid" id="categoryGrid"></div>
       </div>
@@ -1792,6 +1794,8 @@ window.SCENE_LIBRARY = (function(){
   const AVATAR_EMOJIS = ['🦊','🐱','🐶','🐼','🦁','🐯','🐨','🐸','🦄','🐲','🌟','🍀','🌙','⚡','🎧','📚','🎨','🎯','🚀','🌈','🍎'];
 
   const $ = id => document.getElementById(id);
+  const sceneStyleLabels = { 'teaching-photo':'清晰教材照片', 'daily-photo':'真实日常实拍', 'street-photo':'街拍纪实', 'manga-comic':'原创漫画风', cartoon:'明亮卡通风' };
+  const sceneStyleLabel = () => sceneStyleLabels[sceneImageStyle] || sceneStyleLabels['teaching-photo'];
   const nowModule = $('nowModule'), pastModule = $('pastModule'), meModule = $('meModule');
   const navItems = document.querySelectorAll('.nav-item');
   const bottomNav = $('bottomNav');
@@ -2537,7 +2541,7 @@ window.SCENE_LIBRARY = (function(){
         await image.decode();
         return result.result.image;
       }
-      status.textContent = `正在生成“${scene.name}”的${sceneImageStyle === 'teaching-photo' ? '清晰教材照片' : sceneImageStyle === 'street-photo' ? '街拍纪实' : '真实日常实拍'}，请稍候；通常需要几十秒...`;
+      status.textContent = `正在生成“${scene.name}”的${sceneStyleLabel()}，请稍候；通常需要几十秒...`;
     }
     if (!active()) return null;
     throw new Error('场景图片等待超时，请稍后再试');
@@ -2556,7 +2560,7 @@ window.SCENE_LIBRARY = (function(){
     $('regenerateBtn').disabled = true;
     const status = $('sceneGenerationStatus');
     status.className = 'status-message status-info';
-    status.textContent = `正在准备${sceneImageStyle === 'teaching-photo' ? '清晰教材照片' : sceneImageStyle === 'street-photo' ? '街拍纪实' : '真实日常实拍'}...`;
+    status.textContent = `正在准备${sceneStyleLabel()}...`;
     try {
       requireOnlineService();
       const pool = SCENE_LIBRARY.filter(scene => (category === '__random__' || scene.category === category)
