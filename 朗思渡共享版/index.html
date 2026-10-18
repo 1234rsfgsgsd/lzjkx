@@ -370,6 +370,12 @@
 
       <div id="themeSelectionSection" class="hidden">
         <p style="color:#1d3f62;font-weight:500;margin-bottom:.3rem;">请选择主题场景，或让系统随机生成：</p>
+        <p style="color:#1d3f62;font-weight:500;margin:.9rem 0 .45rem;">选择图片风格（影响清晰度和真实感）：</p>
+        <div id="sceneStyleGrid" class="btn-group" style="margin-top:0;flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm scene-style-btn" data-style="teaching-photo">📘 清晰教材照片</button>
+          <button type="button" class="btn btn-secondary btn-sm scene-style-btn" data-style="daily-photo">🏠 真实日常实拍</button>
+          <button type="button" class="btn btn-secondary btn-sm scene-style-btn" data-style="street-photo">🚶 街拍纪实</button>
+        </div>
         <div class="category-grid" id="categoryGrid"></div>
       </div>
 
@@ -1704,6 +1710,7 @@ window.SCENE_LIBRARY = (function(){
 
   let currentScene = null;
   let currentMode = null;
+  let sceneImageStyle = 'teaching-photo';
   let uploadedFile = null;
   let recognizedImageResult = null;
   let currentEditedTranscript = '';
@@ -1788,6 +1795,18 @@ window.SCENE_LIBRARY = (function(){
   const nowModule = $('nowModule'), pastModule = $('pastModule'), meModule = $('meModule');
   const navItems = document.querySelectorAll('.nav-item');
   const bottomNav = $('bottomNav');
+
+  document.querySelectorAll('.scene-style-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      sceneImageStyle = button.dataset.style || 'teaching-photo';
+      document.querySelectorAll('.scene-style-btn').forEach(item => {
+        const selected = item.dataset.style === sceneImageStyle;
+        item.classList.toggle('btn-secondary', !selected);
+        item.classList.toggle('btn', selected);
+        item.setAttribute('aria-pressed', String(selected));
+      });
+    });
+  });
 
   function applyTheme(color) {
     document.body.dataset.theme = color;
@@ -2175,7 +2194,7 @@ window.SCENE_LIBRARY = (function(){
   }
 
   async function analyzeCurrentScenePhoto() {
-    if (!currentScene || imageHintsPending) return;
+    if (!currentScene || imageHintsPending) return { qualityOk: null };
     const scene = currentScene;
     const requestId = ++imageHintRequestId;
     imageHintsPending = true;
@@ -2184,23 +2203,35 @@ window.SCENE_LIBRARY = (function(){
     try {
       requireOnlineService();
       const response = await fetch('/api/analyze-image', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: $('photoPreview').src, education: state.prefs.education, accent: state.prefs.accent }), signal: AbortSignal.timeout(95_000) });
+        body: JSON.stringify({ image: $('photoPreview').src, education: state.prefs.education, accent: state.prefs.accent,
+          ...(currentMode === 'generate' ? { mode: 'generated-scene', expectedScene: scene.name, expectedCategory: scene.category } : {}) }), signal: AbortSignal.timeout(95_000) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || `识图服务返回 ${response.status}`);
       if (!data.hints?.words?.length || !data.elements?.length) throw new Error('未返回完整的画面词句，请重试');
       if (requestId !== imageHintRequestId || currentScene !== scene) return;
+      if (currentMode === 'generate' && (data.qualityOk === false || data.sceneMatch === false)) {
+        const issues = Array.isArray(data.qualityIssues) && data.qualityIssues.length ? data.qualityIssues.join('；') : '画面与预期场景不够一致或存在明显结构问题';
+        scene.photoAnalyzed = false;
+        $('recognizedElements').textContent = `这张图片需要重新生成：${issues}`;
+        $('imageHintsStatus').textContent = '质量检查未通过。请点击“换一个”生成另一张图片；本次没有把异常图片用于正式提示词。';
+        $('imageHintsStatus').style.color = '#a34a00';
+        return { qualityOk: false, qualityIssues: data.qualityIssues || [] };
+      }
       Object.assign(scene, { elements: data.elements, likelyIntent: data.likelyIntent, hints: { '大学及以上': data.hints }, photoAnalyzed: true });
       $('recognizedElements').textContent = `画面要点：${data.elements.join('、')}。可能表达：${data.likelyIntent || '描述画面'}（可自由选择自己的话题）`;
       renderHints(data.hints, state.prefs.education);
       $('imageHintsStatus').textContent = '已根据实际图片生成词句；交流意图仅供参考。';
+      $('imageHintsStatus').style.color = '';
       if (currentMode === 'generate') {
         $('sceneGenerationStatus').textContent = '图片与专属词句已就绪，可以开始练习。';
         $('sceneGenerationStatus').className = 'status-message status-success';
       }
+      return { qualityOk: data.qualityOk !== false && data.sceneMatch !== false, qualityIssues: data.qualityIssues || [] };
     } catch (error) {
       if (requestId !== imageHintRequestId) return;
       $('imageHintsStatus').textContent = `提示词分析失败：${error.name === 'TimeoutError' ? '识图等待超时' : error.message}。图片已保留，你也可以直接练习。`;
       retry.classList.remove('hidden');
+      return { qualityOk: null, error: error.message };
     } finally { if (requestId === imageHintRequestId) imageHintsPending = false; }
   }
   $('retryHintsBtn').addEventListener('click', analyzeCurrentScenePhoto);
@@ -2456,7 +2487,7 @@ window.SCENE_LIBRARY = (function(){
 
   async function generateSceneImage(scene, requestId) {
     const jobId = crypto.randomUUID();
-    const body = JSON.stringify({ requestId: jobId, name: scene.name, category: scene.category, elements: scene.elements });
+    const body = JSON.stringify({ requestId: jobId, name: scene.name, category: scene.category, elements: scene.elements, style: sceneImageStyle });
     const deadline = Date.now() + 180_000;
     const status = $('sceneGenerationStatus');
     const active = () => requestId === sceneGenerationRequestId;
@@ -2506,7 +2537,7 @@ window.SCENE_LIBRARY = (function(){
         await image.decode();
         return result.result.image;
       }
-      status.textContent = `正在生成“${scene.name}”的生活摄影风格图片，请稍候；通常需要几十秒...`;
+      status.textContent = `正在生成“${scene.name}”的${sceneImageStyle === 'teaching-photo' ? '清晰教材照片' : sceneImageStyle === 'street-photo' ? '街拍纪实' : '真实日常实拍'}，请稍候；通常需要几十秒...`;
     }
     if (!active()) return null;
     throw new Error('场景图片等待超时，请稍后再试');
@@ -2525,21 +2556,32 @@ window.SCENE_LIBRARY = (function(){
     $('regenerateBtn').disabled = true;
     const status = $('sceneGenerationStatus');
     status.className = 'status-message status-info';
-    status.textContent = '正在准备生活摄影风格场景...';
+    status.textContent = `正在准备${sceneImageStyle === 'teaching-photo' ? '清晰教材照片' : sceneImageStyle === 'street-photo' ? '街拍纪实' : '真实日常实拍'}...`;
     try {
       requireOnlineService();
       const pool = SCENE_LIBRARY.filter(scene => (category === '__random__' || scene.category === category)
         && (scene.category !== currentScene?.category || scene.name !== currentScene?.name));
       if (!pool.length) throw new Error('该主题暂无其他场景，请选择其他主题');
       const scene = pool[Math.floor(Math.random() * pool.length)];
-      const image = await generateSceneImage(scene, requestId);
-      if (!image || requestId !== sceneGenerationRequestId) return;
-      showScene(scene, image);
-      status.textContent = '场景已生成，正在根据实际画面生成专属词句...';
-      status.className = 'status-message status-success';
-      await analyzeCurrentScenePhoto();
+      let quality = null;
+      for (let generationAttempt = 0; generationAttempt < 2; generationAttempt++) {
+        const image = await generateSceneImage(scene, requestId);
+        if (!image || requestId !== sceneGenerationRequestId) return;
+        showScene(scene, image);
+        status.textContent = '场景已生成，正在根据实际画面检查质量并生成专属词句...';
+        status.className = 'status-message status-success';
+        quality = await analyzeCurrentScenePhoto();
+        if (quality?.qualityOk !== false || generationAttempt === 1) break;
+        status.textContent = '第一次图片质量检查未通过，正在自动换一张更清晰的图片（最多自动重试一次）...';
+        status.className = 'status-message status-info';
+        await new Promise(resolve => setTimeout(resolve, 700));
+      }
       if (requestId !== sceneGenerationRequestId) return;
-      status.textContent = currentScene?.photoAnalyzed ? '图片与专属词句已就绪，可以开始练习。' : '图片已保留，可点击“重新分析当前图片”重试提示词。';
+      status.textContent = currentScene?.photoAnalyzed
+        ? '图片与专属词句已就绪，可以开始练习。'
+        : quality?.qualityOk === false
+          ? '连续两张图片质量检查未通过。图片已保留，请点击“换一个”再生成，避免使用异常画面。'
+          : '图片已保留，可点击“重新分析当前图片”重试提示词。';
     } catch (error) {
       if (requestId !== sceneGenerationRequestId) return;
       status.textContent = `场景生成失败：${error.message || '请检查网络后重试'}。可重新选择主题或点击“换一个”。`;

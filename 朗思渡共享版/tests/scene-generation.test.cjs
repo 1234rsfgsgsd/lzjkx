@@ -32,6 +32,16 @@ test('photography prompts keep the actual activity and category-specific details
   assert.notEqual(cafe, supermarket);
 });
 
+test('teaching style removes abstract props and adds anatomy safeguards', () => {
+  const prompt = scenePrompt({ name: '咖啡厅', category: '餐饮美食', elements: ['咖啡', '氛围', '颜色', '菜单', '放松'] });
+  assert.match(prompt, /咖啡/);
+  assert.match(prompt, /菜单/);
+  assert.doesNotMatch(prompt, /氛围/);
+  assert.match(prompt, /zero to two people/);
+  assert.match(prompt, /correct human anatomy/);
+  assert.match(scenePrompt({ name: '咖啡厅', category: '餐饮美食', elements: [] }, 'street-photo'), /candid street photograph/);
+});
+
 before(async () => {
   provider = http.createServer(async (req, res) => {
     if (req.url === '/picture.png') {

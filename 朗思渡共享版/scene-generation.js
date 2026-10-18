@@ -2,6 +2,21 @@ const crypto = require('node:crypto');
 const { categories } = require('./vision-result');
 
 const maxImageBytes = 6 * 1024 * 1024;
+const sceneStyles = {
+  'teaching-photo': {
+    prompt: 'a clear educational documentary photograph made for language practice, with one obvious subject and a simple uncluttered composition',
+    negative: 'busy composition, too many people, crowded foreground, ambiguous action'
+  },
+  'daily-photo': {
+    prompt: 'a natural everyday lifestyle photograph, like a carefully observed real moment in ordinary life, colorful but physically believable',
+    negative: 'overly cinematic drama, staged fashion pose, cluttered composition'
+  },
+  'street-photo': {
+    prompt: 'a realistic candid street photograph with authentic local details and natural ambient light, while keeping the main action easy to recognize',
+    negative: 'tourist postcard, extreme wide angle, crowded frame, motion smear, confusing background'
+  }
+};
+const abstractElements = new Set(['氛围','感觉','体验','颜色','服务','热闹','满足','快乐','放松','安静','美丽','难忘','特别','方便','安全','效率','机会','挑战','进步','健康','温暖','清新','整洁','干净','舒适','幸福','选择','比较','满意','质量','品牌','价格','时间','方向','距离','速度','到达','出发','故事','文化','历史','心情','记忆','冒险','声音','气息','光线','空间','形状','环境','味道','香气','口感','温度']);
 const contexts = {
   '日常生活': 'A real lived-in home, everyday furniture, fabrics and household belongings, relaxed ordinary life.',
   '餐饮美食': 'A real neighborhood restaurant or cafe, authentic food and appropriate tableware, customers and staff interacting naturally.',
@@ -18,7 +33,7 @@ const contexts = {
 };
 
 const activities = {
-  '咖啡厅': 'a customer ordering a latte from a barista at a cozy neighborhood cafe, another customer sitting at a wooden table',
+  '咖啡厅': 'a customer ordering a latte from a barista at a cozy neighborhood cafe',
   '超市购物': 'a shopper comparing fresh produce beside a shopping cart in a neighborhood supermarket',
   '菜市场': 'a customer buying fresh vegetables from a vendor at a lively local produce market',
   '便利店': 'a customer paying a shop assistant at the checkout of a neighborhood convenience store',
@@ -50,8 +65,13 @@ const activities = {
   '西餐厅': 'a waiter taking an order from two guests at a relaxed neighborhood restaurant'
 };
 
-function scenePrompt(scene) {
-  return `Candid documentary photograph of ${activities[scene.name] || scene.name}. ${contexts[scene.category]} The exact activity described above is the main subject. Supporting props, only when appropriate to that activity: ${scene.elements.join(', ')}. A believable everyday moment with a clear main action, natural expressions and relaxed interactions. People are engaged in their activity rather than posing for the camera. Environmental medium-wide composition, eye-level 35mm photography, realistic foreground, middle ground and background. Soft natural daylight and realistic shadows, true-to-life rich colors with warm wood tones, greenery and varied clothing colors. Authentic skin texture, fabric and material detail. The entire horizontal frame is a single continuous photograph of the everyday scene.`;
+function scenePrompt(scene, style = 'teaching-photo') {
+  const preset = sceneStyles[style] || sceneStyles['teaching-photo'];
+  const elements = (Array.isArray(scene.elements) ? scene.elements : [])
+    .filter(value => typeof value === 'string' && value.trim() && !abstractElements.has(value.trim()))
+    .slice(0, 4);
+  const props = elements.length ? `Only these supporting objects when they naturally belong to the activity: ${elements.join(', ')}.` : 'Use only a few objects that are genuinely needed for the activity.';
+  return `${preset.prompt}. A single continuous horizontal photograph of ${activities[scene.name] || scene.name}. ${contexts[scene.category] || 'A realistic everyday setting.'} The exact activity above is the only story: one clear main action, zero to two people, and no unrelated events. ${props} Keep the subject centered and easy to recognize, with a calm eye-level 35mm composition, a distinct foreground, middle ground and background, and enough empty space around hands and faces. Soft natural daylight, realistic shadows, true-to-life rich colors, and authentic skin, fabric and material detail. Natural expressions; people are engaged in the activity rather than posing. Use correct human anatomy, hands, fingers, object scale, perspective and contact with the ground. ${style === 'teaching-photo' ? 'Keep the background simple and readable for a language learner.' : ''}`;
 }
 
 function failure(message, status = 502, code = 'SCENE_GENERATION_ERROR') {
@@ -84,8 +104,8 @@ function createSceneGenerator(env = process.env) {
       method: 'POST',
       headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: config.model, prompt: scenePrompt(scene), image_size: '1024x576',
-        negative_prompt: 'text, typography, title, subtitles, captions, letters, watermark, logo, poster, collage, cartoon, illustration, 3d render, geometric shapes, staged studio portrait, oversaturated colors, distorted anatomy'
+        model: config.model, prompt: scenePrompt(scene, scene.style), image_size: '1024x576',
+        negative_prompt: `text, typography, title, subtitles, captions, letters, watermark, logo, poster, collage, cartoon, illustration, 3d render, geometric shapes, staged studio portrait, oversaturated colors, distorted anatomy, extra fingers, missing fingers, deformed hands, fused hands, melted faces, duplicate people, duplicate objects, floating objects, impossible object intersections, wrong perspective, inconsistent shadows, random unrelated props, surreal, fantasy, anatomical errors, ${sceneStyles[scene.style]?.negative || sceneStyles['teaching-photo'].negative}`
       }),
       signal: AbortSignal.timeout(120_000)
     });
@@ -141,8 +161,10 @@ function createSceneGenerator(env = process.env) {
       }
       if (typeof body.requestId !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.requestId)) throw failure('场景请求编号无效', 400);
       if (!categories.includes(body.category) || typeof body.name !== 'string' || !body.name.trim() || body.name.length > 60) throw failure('请选择有效的场景主题', 400);
+      const style = sceneStyles[body.style] ? body.style : 'teaching-photo';
       const scene = {
         category: body.category, name: body.name.trim(),
+        style,
         elements: Array.isArray(body.elements) ? body.elements.filter(v => typeof v === 'string').slice(0, 8).map(v => v.slice(0, 30)) : []
       };
       const signature = JSON.stringify(scene);
@@ -161,7 +183,7 @@ function createSceneGenerator(env = process.env) {
       jobs.set(body.requestId, job);
       generate(scene).then(image => {
         job.status = 'complete';
-        job.result = { image, name: scene.name, category: scene.category };
+        job.result = { image, name: scene.name, category: scene.category, style: scene.style };
       }).catch(error => {
         job.status = 'failed';
         job.error = error.status ? error.message : ['TimeoutError', 'AbortError'].includes(error.name)
@@ -179,4 +201,4 @@ function createSceneGenerator(env = process.env) {
   };
 }
 
-module.exports = { createSceneGenerator, sceneConfig, scenePrompt };
+module.exports = { createSceneGenerator, sceneConfig, scenePrompt, sceneStyles };

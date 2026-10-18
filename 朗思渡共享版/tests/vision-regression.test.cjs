@@ -28,6 +28,15 @@ test('invalid JSON and absent words do not invent a successful recognition', () 
   assert.throws(() => parseVisionResult(completion('not JSON')), {code:'VISION_INVALID_JSON'});
   assert.throws(() => parseVisionResult(completion(JSON.stringify({...fixture,words:[null]}))), {code:'VISION_EMPTY_WORDS'});
 });
+test('generated-scene quality fields are preserved for the frontend retry decision', () => {
+  const result = parseVisionResult(completion(JSON.stringify({ ...fixture,
+    sceneMatch: false, qualityOk: false, qualityIssues: ['手部结构异常', '场景不符合预期'], visibleElements: ['咖啡杯']
+  })));
+  assert.equal(result.sceneMatch, false);
+  assert.equal(result.qualityOk, false);
+  assert.deepEqual(result.qualityIssues, ['手部结构异常', '场景不符合预期']);
+  assert.deepEqual(result.visibleElements, ['咖啡杯']);
+});
 
 let provider, child, base;
 let providerStatus = 200;

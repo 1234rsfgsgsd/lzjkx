@@ -31,7 +31,17 @@ function parseVisionResult(result) {
     likelyIntent: String(parsed.likelyIntent || '描述画面').slice(0, 100),
     // Some providers omit elements but return genuine image-derived keywords.
     elements: elements.length ? elements : words.map(word => word[3]),
-    hints: { words, phrases: toPairs(parsed.phrases, 5), sentences: toPairs(parsed.sentences, 3) }
+    hints: { words, phrases: toPairs(parsed.phrases, 5), sentences: toPairs(parsed.sentences, 3) },
+    // These fields are advisory and are only used for AI-generated scene QA.
+    // Missing fields remain null so ordinary uploaded-photo recognition keeps working.
+    sceneMatch: typeof parsed.sceneMatch === 'boolean' ? parsed.sceneMatch : null,
+    qualityOk: typeof parsed.qualityOk === 'boolean' ? parsed.qualityOk : null,
+    qualityIssues: Array.isArray(parsed.qualityIssues)
+      ? parsed.qualityIssues.map(value => String(value || '').trim().slice(0, 120)).filter(Boolean).slice(0, 6)
+      : [],
+    visibleElements: Array.isArray(parsed.visibleElements)
+      ? parsed.visibleElements.map(value => String(value || '').trim().slice(0, 80)).filter(Boolean).slice(0, 10)
+      : []
   };
 }
 
