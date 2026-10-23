@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { categories, parseVisionResult } = require('./vision-result');
 const { createVisionJobs } = require('./vision-jobs');
+const { visionProviderOptions } = require('./vision-provider-options');
 const { evaluationContext, evaluationPrompt, parseCompletion, normalizeEvaluation } = require('./speech-evaluation');
 const { createSceneGenerator } = require('./scene-generation');
 const sceneGenerator = createSceneGenerator();
@@ -121,7 +122,7 @@ async function analyzeImage(body) {
       temperature: 0.25,
       max_tokens: 2200,
       // Keep quick visual descriptions out of Qwen3's lengthy reasoning mode.
-      ...(new URL(apiUrl).hostname === 'api.siliconflow.cn' && /(?:^|\/)Qwen3/i.test(model) ? { enable_thinking: false } : {}),
+      ...visionProviderOptions(apiUrl, model),
     }),
     signal: AbortSignal.timeout(120_000)
   });
