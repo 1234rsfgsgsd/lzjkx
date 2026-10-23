@@ -2249,6 +2249,60 @@ window.SCENE_LIBRARY = (function(){
     stopPronunciation();
   }
 
+  async function requestImageAnalysis(payload, { active = () => true, onProgress = () => {} } = {}) {
+    const requestId = crypto.randomUUID();
+    const body = JSON.stringify({ ...payload, async: true, requestId });
+    const deadline = Date.now() + 210_000;
+    const canceled = () => Object.assign(new Error('已取消识图'), { name: 'AbortError' });
+    async function request(url, options = {}) {
+      let response;
+      try {
+        response = await fetch(url, { ...options, cache: 'no-store', signal: AbortSignal.timeout(25_000) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw Object.assign(new Error(data.error || `识图服务返回 HTTP ${response.status}`), {
+          transient: data.retryable !== false && [429, 502, 503, 504].includes(response.status)
+        });
+        return data;
+      } catch (error) {
+        if (!response) error.transient = true;
+        throw error;
+      }
+    }
+    let job;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (!active()) throw canceled();
+      try {
+        job = await request('/api/analyze-image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+        break;
+      } catch (error) {
+        if (!error.transient || attempt === 2) throw error;
+        onProgress('识图连接暂时中断，正在自动重新连接，请稍候...');
+        await new Promise(resolve => setTimeout(resolve, 1800 * (attempt + 1)));
+      }
+    }
+    if (!active()) throw canceled();
+    // Also accept responses from the previous server during a rolling deployment.
+    if (job?.hints) return job;
+    if (!/^[0-9a-f-]{36}$/i.test(job?.jobId || '')) throw new Error('识图服务未返回有效任务编号，请稍后重试');
+    while (Date.now() < deadline) {
+      if (!active()) throw canceled();
+      await new Promise(resolve => setTimeout(resolve, 1800));
+      if (!active()) throw canceled();
+      let result;
+      try { result = await request(`/api/analyze-image/jobs/${encodeURIComponent(job.jobId)}`); }
+      catch (error) {
+        if (!error.transient) throw error;
+        onProgress('连接暂时中断，正在取回同一次识图结果，无需重新生成图片...');
+        continue;
+      }
+      if (!active()) throw canceled();
+      if (result.status === 'complete') return result.result;
+      if (result.status === 'failed') throw new Error(result.error || '视觉模型未能完成分析，请重新分析当前图片');
+      onProgress('正在识别画面并生成专属词句，请稍候...');
+    }
+    throw new Error('识图等待超时，请重新分析当前图片；原图片已保留');
+  }
+
   async function analyzeCurrentScenePhoto() {
     if (!currentScene || imageHintsPending) return { qualityOk: null };
     const scene = currentScene;
@@ -2259,11 +2313,17 @@ window.SCENE_LIBRARY = (function(){
     setWolfWaiting('imageHintsStatus', true);
     try {
       requireOnlineService();
-      const response = await fetch('/api/analyze-image', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: $('photoPreview').src, education: state.prefs.education, accent: state.prefs.accent,
-          ...(currentMode === 'generate' ? { mode: 'generated-scene', expectedScene: scene.name, expectedCategory: scene.category } : {}) }), signal: AbortSignal.timeout(95_000) });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || `识图服务返回 ${response.status}`);
+      const active = () => requestId === imageHintRequestId && currentScene === scene;
+      const originalImage = $('photoPreview').src;
+      if (!/^data:image\//.test(originalImage)) throw new Error('图片尚未就绪，请重新选择素材');
+      const imageBlob = await (await fetch(originalImage)).blob();
+      const image = await normalizeVisionImage(imageBlob);
+      if (!active()) return;
+      const data = await requestImageAnalysis({ image, education: state.prefs.education, accent: state.prefs.accent,
+        ...(currentMode === 'generate' ? { mode: 'generated-scene', expectedScene: scene.name, expectedCategory: scene.category } : {}) }, {
+        active,
+        onProgress: message => { if (active()) $('imageHintsStatus').textContent = message; }
+      });
       if (!data.hints?.words?.length || !data.elements?.length) throw new Error('未返回完整的画面词句，请重试');
       if (requestId !== imageHintRequestId || currentScene !== scene) return;
       if (currentMode === 'generate' && (data.qualityOk === false || data.sceneMatch === false)) {
@@ -2449,39 +2509,10 @@ window.SCENE_LIBRARY = (function(){
     try {
       requireOnlineService();
       const dataUrl = await normalizeVisionImage(file);
-      let response;
-      let result = {};
-      let lastError;
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        if (requestId !== uploadRequestId) return;
-        response = undefined;
-        result = {};
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 95_000);
-        try {
-          response = await fetch('/api/analyze-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: dataUrl, education: state.prefs.education, accent: state.prefs.accent }),
-            signal: controller.signal
-          });
-          result = await response.json().catch(() => ({ error: `识图服务返回非 JSON 内容（HTTP ${response.status}），可能是服务重启或网关超时` }));
-          if (response.ok) break;
-          const retryable = result.retryable !== false && (response.status === 429 || response.status >= 500);
-          if (!retryable || attempt === 2) throw new Error(result.error || `识图服务返回 ${response.status}`);
-          lastError = new Error(result.error || '视觉服务暂时繁忙');
-        } catch (error) {
-          lastError = error;
-          const retryable = result.retryable !== false && (error.name === 'AbortError' || !response || response.status === 429 || response.status >= 500);
-          if (!retryable || attempt === 2) throw error;
-        } finally {
-          clearTimeout(timeout);
-        }
-        const retryReason = lastError?.name === 'AbortError' ? '识图请求超时' : (lastError?.message || '视觉服务暂时不可用');
-        showStatus(`${retryReason.slice(0, 160)}；正在自动重试（${attempt + 2}/3）...`, 'info',true,true);
-        await new Promise(resolve => setTimeout(resolve, 1800 * (attempt + 1)));
-      }
-      if (!response?.ok) throw lastError || new Error('识图服务暂时不可用');
+      const result = await requestImageAnalysis({ image: dataUrl, education: state.prefs.education, accent: state.prefs.accent }, {
+        active: () => requestId === uploadRequestId,
+        onProgress: message => { if (requestId === uploadRequestId) showStatus(message, 'info', true, true); }
+      });
       if (requestId !== uploadRequestId) return;
       $('photoPreview').src = dataUrl;
       const allowed = CATEGORY_META.map(item => item.name);

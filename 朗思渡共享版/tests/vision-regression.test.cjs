@@ -103,6 +103,27 @@ test('health and image recognition remain independent of the speech model', asyn
   assert.ok(lastRequest.max_tokens >= 1200);
 });
 
+test('async recognition returns an immediate task and polls normalized keywords', async () => {
+  const body = { image:'data:image/jpeg;base64,/9j/2Q==', async:true, requestId:require('node:crypto').randomUUID() };
+  const response = await post('/api/analyze-image', body);
+  assert.equal(response.status, 202);
+  const { jobId } = await response.json();
+  assert.equal(jobId, body.requestId);
+  assert.equal((await post('/api/analyze-image', body)).status, 202);
+  let result;
+  for (let i = 0; i < 50; i++) {
+    const poll = await fetch(base + '/api/analyze-image/jobs/' + jobId);
+    assert.equal(poll.headers.get('cache-control'), 'no-store');
+    result = await poll.json();
+    if (result.status !== 'pending') break;
+    await sleep(10);
+  }
+  assert.equal(result.status, 'complete');
+  assert.equal(result.result.hints.words[0][0], 'book');
+  const conflict = await post('/api/analyze-image', { ...body, accent:'美式' });
+  assert.equal(conflict.status, 409);
+});
+
 test('two-round jobs separate polishing from final scoring and preserve the reference', async () => {
   const initial=await post('/api/analyze-speech',{phase:'polish',text:'I has a book.'});
   assert.equal(initial.status,200);

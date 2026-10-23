@@ -2,6 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { categories, parseVisionResult } = require('./vision-result');
+const { createVisionJobs } = require('./vision-jobs');
 const { evaluationContext, evaluationPrompt, parseCompletion, normalizeEvaluation } = require('./speech-evaluation');
 const { createSceneGenerator } = require('./scene-generation');
 const sceneGenerator = createSceneGenerator();
@@ -11,6 +12,7 @@ const port = Number(process.env.PORT || 3000);
 const apiKey = process.env.VISION_API_KEY;
 const apiUrl = process.env.VISION_API_URL;
 const model = process.env.VISION_MODEL;
+const visionJobs = createVisionJobs(analyzeImage);
 const speechModel = process.env.SPEECH_MODEL || model;
 const maxBytes = 10 * 1024 * 1024;
 const maxBodyBytes = 15 * 1024 * 1024;
@@ -81,22 +83,25 @@ function retryAfterMilliseconds(value, fallback = 30_000) {
   return Number.isFinite(timestamp) ? Math.max(0, Math.min(300_000, timestamp - Date.now())) : fallback;
 }
 
-async function analyze(req, res) {
+function visionFailure(status, details) {
+  return Object.assign(new Error(details.error), { status, details });
+}
+
+function validateVisionBody(body) {
   if (!apiKey || !apiUrl || !model) {
-    send(res, 503, { error: '服务器还没有配置视觉模型服务', code: 'VISION_NOT_CONFIGURED', retryable: false });
-    return;
+    throw visionFailure(503, { error: '服务器还没有配置视觉模型服务', code: 'VISION_NOT_CONFIGURED', retryable: false });
   }
-  const body = await readBody(req);
   if (typeof body.image !== 'string' || body.image.length > maxBytes * 1.4) {
-    send(res, 400, { error: '图片数据无效或超过 10 MB' });
-    return;
+    throw visionFailure(400, { error: '图片数据无效或超过 10 MB', retryable: false });
   }
   const match = body.image.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
   if (!match || Buffer.from(match[2], 'base64').length > maxBytes) {
-    send(res, 400, { error: '仅支持小于 10 MB 的 JPG、PNG 或 WebP 图片' });
-    return;
+    throw visionFailure(400, { error: '仅支持小于 10 MB 的 JPG、PNG 或 WebP 图片', retryable: false });
   }
+}
 
+async function analyzeImage(body) {
+  validateVisionBody(body);
   const generatedScene = body.mode === 'generated-scene';
   const expectedScene = typeof body.expectedScene === 'string' ? body.expectedScene.trim().slice(0, 60) : '';
   const expectedCategory = categories.includes(body.expectedCategory) ? body.expectedCategory : '';
@@ -115,8 +120,10 @@ async function analyze(req, res) {
       ] }],
       temperature: 0.25,
       max_tokens: 2200,
+      // Keep quick visual descriptions out of Qwen3's lengthy reasoning mode.
+      ...(new URL(apiUrl).hostname === 'api.siliconflow.cn' && /(?:^|\/)Qwen3/i.test(model) ? { enable_thinking: false } : {}),
     }),
-    signal: AbortSignal.timeout(90_000)
+    signal: AbortSignal.timeout(120_000)
   });
   const responseText = await upstream.text();
   let result = {};
@@ -134,18 +141,17 @@ async function analyze(req, res) {
         ? `视觉服务当前请求较多，请等待约 ${Math.ceil(retryAfterMilliseconds(upstream.headers.get('retry-after')) / 1000)} 秒后再试。${providerMessage}`
       : `视觉服务请求失败（${upstream.status}）：${providerMessage}`;
     const isRateLimited = upstream.status === 429;
-    send(res, isRateLimited ? 429 : 502, {
+    throw visionFailure(isRateLimited ? 429 : 502, {
       error: guidance, code: 'VISION_PROVIDER_ERROR',
       retryable: !isRateLimited && upstream.status >= 500,
       ...(isRateLimited ? { retryAfterMs: retryAfterMilliseconds(upstream.headers.get('retry-after')) } : {})
     });
-    return;
   }
   try {
-    send(res, 200, parseVisionResult(result));
+    return parseVisionResult(result);
   } catch (error) {
     console.error('Vision result rejected', error.code || 'VISION_INVALID_RESULT', 'finish_reason:', result.choices?.[0]?.finish_reason || 'unknown');
-    send(res, 502, { error: error.message, code: error.code || 'VISION_INVALID_RESULT', retryable: true });
+    throw visionFailure(502, { error: error.message, code: error.code || 'VISION_INVALID_RESULT', retryable: true });
   }
 }
 
@@ -275,12 +281,23 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'POST' && url.pathname === '/api/analyze-image') {
     if (!allowedRequest(req, res)) return;
-    try { await analyze(req, res); }
+    try {
+      const body = await readBody(req);
+      validateVisionBody(body);
+      if (body.async === true) send(res, 202, { jobId: visionJobs.start(body) });
+      else send(res, 200, await analyzeImage(body));
+    }
     catch (error) {
       console.error('Analyze request failed', error.name || 'Error', String(error.message || error).slice(0, 300));
-      if (!res.headersSent) send(res, error.status || 502, { error: error.status ? error.message : (error.name === 'TimeoutError' || error.name === 'AbortError' ? '视觉模型响应超时，请稍后重试' : '识图服务暂时不可用，请稍后重试') });
+      if (!res.headersSent) send(res, error.status || 502, error.details || { error: error.status ? error.message : (error.name === 'TimeoutError' || error.name === 'AbortError' ? '视觉模型响应超时，请稍后重试' : '识图服务暂时不可用，请稍后重试') });
     }
     return;
+  }
+  const visionJobMatch = url.pathname.match(/^\/api\/analyze-image\/jobs\/([0-9a-f-]{36})$/i);
+  if (req.method === 'GET' && visionJobMatch) {
+    res.setHeader('Cache-Control', 'no-store');
+    try { return send(res, 200, visionJobs.get(visionJobMatch[1])); }
+    catch (error) { return send(res, error.status || 502, { error: error.message, retryable: false }); }
   }
   if (req.method === 'POST' && url.pathname === '/api/analyze-speech') {
     if (!allowedRequest(req, res)) return;
