@@ -3297,6 +3297,7 @@ window.SCENE_LIBRARY = (function(){
       const hasCorrection = item.original && item.correction;
       return `<div class="error-item"><strong>${escape(item.category || '表达问题')}</strong>${hasCorrection ? `：${escape(item.original)} → <span style="color:#176b36;">${escape(item.correction)}</span>` : ''}<div style="margin-top:.35rem;color:#5c6570;">${escape(item.explanation || '')}</div></div>`;
     }).join('') : (data.provisional ? '<div class="error-item">基础规则未提供明确提示，无法据此判断是否存在语法错误。请重试智能评测。</div>' : '<div class="error-item" style="border-left-color:#27ae60;background:#f1f8e9;">本次模型检查未发现明确错误；可结合表达建议继续改进。</div>');
+    if(data.reviewWarning)$('errorList').insertAdjacentHTML('afterbegin','<p class="evidence-missing" role="status">'+escape(data.reviewWarning)+'</p>');
     const suggestions = Array.isArray(data.styleSuggestions) ? data.styleSuggestions : [];
     $('styleSuggestionList').innerHTML = suggestions.map(item => `<div class="error-item" style="border-left-color:#6b91bd;background:#f5f8fc;"><strong>${escape(item.original)}</strong> → <span style="color:#315c8a;">${escape(item.suggestion)}</span><div style="margin-top:.35rem;color:#5c6570;">${escape(item.explanation || '')}</div></div>`).join('');
     $('styleSuggestionPanel').classList.toggle('hidden', !suggestions.length);
@@ -3499,7 +3500,8 @@ window.SCENE_LIBRARY = (function(){
       const reasons={grammar:'语法',topicRelevance:'主题与内容',coherence:'连贯性',vocabulary:'词汇',fluency:'表达自然度'};
       const hasEvidence=key=>Array.isArray(result.scoreEvidence?.[key])&&result.scoreEvidence[key].some(item=>item?.original&&text.includes(item.original));
       const missingEvidence=Object.keys(reasons).filter(key=>!hasEvidence(key));
-      if(missingEvidence.length) $('scoreTitle').textContent+=' · 依据不完整，仅供参考';
+      if(missingEvidence.length||result.reviewWarning) $('scoreTitle').textContent+=' · 需要核实，仅供参考';
+      if(result.reviewWarning)$('scoreSummary').textContent+=' '+result.reviewWarning;
       $('scoreReasons').innerHTML=Object.entries(reasons).map(([key,label])=>{
         const evidence=(result.scoreEvidence?.[key]||[]).filter(item=>item?.original&&text.includes(item.original));
         return '<div><strong>'+label+'：</strong>'+escapeHintText(result.scoreReasons?.[key]||'模型未提供具体解释。')+(evidence.length?evidence.map(item=>'<div class="score-evidence"><blockquote>“'+escapeHintText(item.original)+'”</blockquote>'+escapeHintText(item.explanation||'')+'</div>').join(''):'<p class="evidence-missing">本项没有可核对的原文引文，分数与理由尚待核实。</p>')+'</div>';

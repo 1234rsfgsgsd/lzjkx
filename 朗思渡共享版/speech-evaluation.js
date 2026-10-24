@@ -87,4 +87,11 @@ function normalizeEvaluation(parsed, context) {
   };
 }
 
-module.exports = { countWords, scoreWeights, evaluationContext, evaluationPrompt, parseCompletion, normalizeEvaluation };
+// These changes can alter an ongoing preference or a current fact. A past event
+// elsewhere in the paragraph does not by itself justify backshifting them.
+function needsTenseReview(evaluation) {
+  const pairs=[['am','was'],['is','was'],['are','were'],['like','liked'],['likes','liked'],['love','loved'],['loves','loved'],['taste','tasted'],['tastes','tasted'],['think','thought'],['thinks','thought'],['prefer','preferred'],['prefers','preferred'],['enjoy','enjoyed'],['enjoys','enjoyed']];
+  return (evaluation.errors||[]).some(item=>pairs.some(([present,past])=>new RegExp('\\b'+present+'\\b','i').test(item.original)&&new RegExp('\\b'+past+'\\b','i').test(item.correction)));
+}
+
+module.exports = { countWords, scoreWeights, evaluationContext, evaluationPrompt, parseCompletion, normalizeEvaluation, needsTenseReview };

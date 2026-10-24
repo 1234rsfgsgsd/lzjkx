@@ -6,7 +6,7 @@ const { createVisionJobs } = require('./vision-jobs');
 const { visionProviderOptions } = require('./vision-provider-options');
 const { providerError } = require('./provider-error');
 const { createPracticeUsage } = require('./practice-usage');
-const { evaluationContext, evaluationPrompt, parseCompletion, normalizeEvaluation } = require('./speech-evaluation');
+const { evaluationContext, evaluationPrompt, parseCompletion, normalizeEvaluation, needsTenseReview } = require('./speech-evaluation');
 const { createSceneGenerator } = require('./scene-generation');
 const sceneGenerator = createSceneGenerator();
 
@@ -199,8 +199,17 @@ async function evaluateSpeech(body) {
     catch (error) { throw Object.assign(error, { status: 502 }); }
   }
   try {
-    const parsed = await complete(messages, Math.min(8000, Math.max(3500, context.originalWordCount * 8)));
+    let parsed = await complete(messages, Math.min(8000, Math.max(3500, context.originalWordCount * 8)));
     let evaluation = normalizeEvaluation(parsed, context);
+    if(needsTenseReview(evaluation)) {
+      try {
+        const reviewed=await complete([...messages,{role:'assistant',content:JSON.stringify(parsed)},{role:'user',content:'请以独立语法审校员的身份复核上一份 JSON：存在把现在仍成立的事实、口味判断或喜好强制回溯成过去时的风险。Yesterday I went to a cafe. I like it because it is quiet. The coffee tastes good. 是合理英文，不能把 like、is、tastes 当成必须改过去时的错误；reference 使用过去时也不能证明 speech 的现在时错误。仅保留上下文明确能证明的错误，有歧义时保持原文时间含义，不作确定错误、不建议一律统一过去时、不因此扣分。没有明确过去时间限定的主谓一致错误 the coffee taste good 优先最小修正为 the coffee tastes good。cafe 与 café 都是正确拼写，不建议为“语境更合适”而强制修改。重新输出完整 JSON，修正 errors、styleSuggestions、polished、summary，以及本轮若需要的各项分数、理由和精确原文引文；仍严格遵守本轮是否评分及原有词数范围。'}],Math.min(8000,Math.max(3500,context.originalWordCount*8)));
+        evaluation=normalizeEvaluation(reviewed,context);parsed=reviewed;
+      } catch {
+        evaluation.reviewWarning='本次时态复核未完成。涉及现在观点与过去经历的修改需要人工核对，结果仅供参考。';
+      }
+      if(needsTenseReview(evaluation))evaluation.reviewWarning='模型复核后仍有可能改变原意的时态修改；相关错误与分数仅供参考，请核对现在观点与过去经历。';
+    }
     if (context.phase !== 'final' && !evaluation.wordCountWithinRange) {
       // Repair only the paragraph so a length correction does not redo scoring or lose errors.
       const repaired = await complete([
@@ -208,7 +217,9 @@ async function evaluateSpeech(body) {
         { role: 'assistant', content: JSON.stringify({ polished: evaluation.polished }) },
         { role: 'user', content: `润色稿实际为${evaluation.polishedWordCount}词，超出要求。请参照原口述保留所有主要信息，重新生成一整段${context.targetMinWords}–${context.targetMaxWords}词的${context.accent}英语文本。只返回JSON：{"polished":"完整段落"}。不添加虚构信息。` }
       ], Math.min(4000, Math.max(1200, context.targetMaxWords * 3)));
+      const reviewWarning=evaluation.reviewWarning;
       evaluation = normalizeEvaluation({ ...parsed, polished: repaired.polished }, context);
+      if(reviewWarning)evaluation.reviewWarning=reviewWarning;
       if (!evaluation.wordCountWithinRange) {
         evaluation.lengthWarning = '润色稿经调整仍超出目标词数，已保留全文，请重新评测。';
       }

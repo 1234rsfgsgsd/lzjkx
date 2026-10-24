@@ -44,6 +44,7 @@ let providerReply;
 let lastRequest;
 let speechReply;
 let speechRepairReply;
+let speechReviewReply;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 before(async () => {
   provider = http.createServer(async (req, res) => {
@@ -52,6 +53,7 @@ before(async () => {
     lastRequest = JSON.parse(Buffer.concat(chunks));
     const isVision = Array.isArray(lastRequest.messages[0].content);
     const isSpeechRepair = !isVision && lastRequest.messages.some(message => String(message.content || '').includes('润色稿实际为'));
+    const isGrammarReview = !isVision && lastRequest.messages.some(message => String(message.content || '').includes('独立语法审校员'));
     const speechUser = !isVision && lastRequest.messages.map(message => {
       try { return JSON.parse(message.content); } catch { return null; }
     }).find(value => value?.speech);
@@ -66,7 +68,7 @@ before(async () => {
       keywords:[{en:'book',zh:'书'}], keyInformation:['说话者有一本书。'], styleSuggestions:[],
       topicSummary:'介绍一本书', polished:'I have a book.', sentences:[], summary:'测试结果'
     };
-    const response = providerReply || completion(JSON.stringify(isVision ? fixture : isSpeechRepair ? { polished: speechRepairReply } : speechReply || defaultSpeech));
+    const response = providerReply || completion(JSON.stringify(isVision ? fixture : isSpeechRepair ? { polished: speechRepairReply } : isGrammarReview && speechReviewReply ? speechReviewReply : speechReply || defaultSpeech));
     res.writeHead(providerStatus, {'Content-Type':'application/json', ...(providerStatus === 429 ? {'Retry-After':'2'} : {})});
     res.end(JSON.stringify(response));
   });
@@ -99,6 +101,26 @@ const post = async (url,body) => {
   const cookie=response.headers.get('set-cookie');if(cookie)browserCookie=cookie.split(';')[0];
   return response;
 };
+
+test('targeted tense review corrects an overzealous first pass without introducing a first-round score',async()=>{
+  speechReply={errors:[{original:'like',correction:'liked',category:'时态',explanation:'统一过去时'}],polished:'Yesterday I went to a cafe. I liked it because it was quiet.',summary:'统一时态'};
+  speechReviewReply={errors:[{original:'go',correction:'went',category:'时态',explanation:'Yesterday 限定过去的动作'}],polished:'Yesterday I went to a cafe. I like it because it is quiet.',summary:'保留当前喜好和事实，只改过去动作。'};
+  try{
+    const response=await post('/api/analyze-speech',{phase:'polish',text:'Yesterday I go to a cafe. I like it because it is quiet.'});
+    assert.equal(response.status,200);const result=await response.json();
+    assert.equal(result.errors.length,1);assert.equal(result.errors[0].original,'go');assert.match(result.polished,/I like it because it is quiet/);assert.equal(result.overall,undefined);assert.equal(result.reviewWarning,undefined);
+    assert.ok(lastRequest.messages.some(message=>message.content.includes('独立语法审校员')));
+  }finally{speechReply=undefined;speechReviewReply=undefined;}
+});
+
+test('an unsuccessful targeted review preserves the result with an explicit uncertainty warning',async()=>{
+  speechReply={errors:[{original:'like',correction:'liked',category:'时态',explanation:'统一过去时'}],polished:'Yesterday I went to a cafe. I liked it.',summary:'时态'};
+  speechReviewReply={polished:''};
+  try{
+    const response=await post('/api/analyze-speech',{phase:'polish',text:'Yesterday I went to a cafe. I like it.'});assert.equal(response.status,200);
+    const result=await response.json();assert.match(result.reviewWarning,/仅供参考/);assert.ok(result.polished);assert.equal(result.overall,undefined);
+  }finally{speechReply=undefined;speechReviewReply=undefined;}
+});
 test('health and image recognition remain independent of the speech model', async () => {
   assert.equal((await fetch(base+'/health')).status,200);
   const response = await post('/api/analyze-image',{image:'data:image/jpeg;base64,/9j/2Q=='});

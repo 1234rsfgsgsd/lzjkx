@@ -5,6 +5,7 @@ const {createPracticeUsage}=require('../practice-usage');
 const {providerError}=require('../provider-error');
 const {createVisionJobs}=require('../vision-jobs');
 const {normalizeEvaluation,evaluationContext}=require('../speech-evaluation');
+const {needsTenseReview}=require('../speech-evaluation');
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 
 test('balance, auth and quota failures provide terminal actionable errors',()=>{
@@ -67,4 +68,11 @@ test('scoring keeps only real second-transcript evidence, never the reference or
 test('free teaching library ships image-grounded vocabulary with UK and US IPA',()=>{
   const scenes=require('../scene-library');assert.equal(scenes.length,3);
   for(const scene of scenes){assert.match(scene.image,/^data:image\/svg\+xml;base64,/);assert.ok(scene.elements.length);assert.ok(scene.hints.words.every(w=>w.length===4&&w[1]&&w[2]));}
+});
+
+test('potential backshifts of current preferences and facts trigger a targeted grammar review',()=>{
+  assert.equal(needsTenseReview({errors:[{original:'I like this cafe',correction:'I liked this cafe'}]}),true);
+  assert.equal(needsTenseReview({errors:[{original:'it is quiet',correction:'it was quiet'}]}),true);
+  assert.equal(needsTenseReview({errors:[{original:'the coffee taste good',correction:'the coffee tastes good'}]}),false);
+  assert.equal(needsTenseReview({errors:[{original:'Yesterday I go',correction:'Yesterday I went'}]}),false);
 });
