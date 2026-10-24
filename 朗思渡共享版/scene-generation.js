@@ -1,5 +1,6 @@
 const crypto = require('node:crypto');
 const { categories } = require('./vision-result');
+const { providerError } = require('./provider-error');
 
 const maxImageBytes = 6 * 1024 * 1024;
 const sceneStyles = {
@@ -129,7 +130,10 @@ function createSceneGenerator(env = process.env) {
       const guidance = [401, 403].includes(upstream.status)
         ? '请检查图片生成模型的调用权限、账户余额和密钥。'
         : upstream.status === 429 ? '请求较多，请稍后再试。' : '';
-      throw failure(`场景图片生成失败（${upstream.status}）。${guidance}${detail}`, upstream.status === 429 ? 429 : 502);
+      const normalized = providerError(upstream.status, detail, '图片生成');
+      const error = failure(upstream.status === 402 ? normalized.error : `场景图片生成失败（${upstream.status}）。${guidance}${detail}`, upstream.status === 429 ? 429 : 502, normalized.code);
+      error.retryable = normalized.retryable;
+      throw error;
     }
     const output = data?.images?.[0] || data?.data?.[0];
     if (typeof output?.b64_json === 'string') {
@@ -164,7 +168,7 @@ function createSceneGenerator(env = process.env) {
   }
 
   return {
-    start(body) {
+    start(body, reserveUsage = () => () => {}) {
       clean();
       if (!config.apiKey || !config.apiUrl || !config.model) {
         throw failure('尚未配置场景图片生成服务。请在 Render 设置 SCENE_IMAGE_API_URL、SCENE_IMAGE_API_KEY 和 SCENE_IMAGE_MODEL。', 503, 'SCENE_NOT_CONFIGURED');
@@ -190,15 +194,18 @@ function createSceneGenerator(env = process.env) {
         if (oldest) jobs.delete(oldest[0]);
       }
       const job = { status: 'pending', createdAt: Date.now(), signature };
+      const refund = reserveUsage();
       jobs.set(body.requestId, job);
       generate(scene).then(image => {
         job.status = 'complete';
         job.result = { image, name: scene.name, category: scene.category, style: scene.style };
       }).catch(error => {
+        refund();
         job.status = 'failed';
         job.error = error.status ? error.message : ['TimeoutError', 'AbortError'].includes(error.name)
           ? '场景图片生成超时，请稍后重试' : '场景图片服务连接失败，请稍后重试';
         job.code = error.code || 'SCENE_GENERATION_ERROR';
+        job.retryable = error.retryable !== false && ![401,402,403,429].includes(error.status);
       });
       return body.requestId;
     },
@@ -206,7 +213,7 @@ function createSceneGenerator(env = process.env) {
       clean();
       const job = jobs.get(id);
       if (!job) throw failure('场景生成任务已过期或服务已重启，请重新生成', 404);
-      return { status: job.status, ...(job.result ? { result: job.result } : {}), ...(job.error ? { error: job.error, code: job.code } : {}) };
+      return { status: job.status, ...(job.result ? { result: job.result } : {}), ...(job.error ? { error: job.error, code: job.code, retryable: job.retryable } : {}) };
     }
   };
 }

@@ -12,7 +12,8 @@ function createVisionJobs(analyze, { ttlMs = 10 * 60_000, maxJobs = 50 } = {}) {
       ? body.requestId : crypto.randomUUID();
     const fingerprint = crypto.createHash('sha256').update(JSON.stringify({
       image: body.image, accent: body.accent, education: body.education,
-      mode: body.mode, expectedScene: body.expectedScene, expectedCategory: body.expectedCategory
+      mode: body.mode, expectedScene: body.expectedScene, expectedCategory: body.expectedCategory,
+      intent: body.intent, cacheScope: body.cacheScope
     })).digest('hex');
     if (jobs.has(id)) {
       if (jobs.get(id).fingerprint !== fingerprint) {
@@ -20,12 +21,18 @@ function createVisionJobs(analyze, { ttlMs = 10 * 60_000, maxJobs = 50 } = {}) {
       }
       return id;
     }
+    // Reuse completed or pending analysis for this browser, image, intent and accent.
+    for (const [existingId, job] of jobs) {
+      if (job.fingerprint === fingerprint && job.status !== 'failed') return existingId;
+    }
     if (jobs.size >= maxJobs) throw Object.assign(new Error('识图任务较多，请稍后再试'), { status: 503 });
+    const refund = body.reserveUsage ? body.reserveUsage() : () => {};
     const job = { status: 'pending', fingerprint, createdAt: Date.now() };
     jobs.set(id, job);
     Promise.resolve().then(() => analyze(body)).then(result => {
       Object.assign(job, { status: 'complete', result, createdAt: Date.now() });
     }).catch(error => {
+      refund();
       const timedOut = ['TimeoutError', 'AbortError'].includes(error.name);
       console.error('Vision job failed', error.code || error.name || 'Error');
       Object.assign(job, {

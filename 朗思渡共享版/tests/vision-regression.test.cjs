@@ -93,7 +93,12 @@ after(async () => {
   }
   if (provider) await new Promise(resolve => provider.close(resolve));
 });
-const post = (url,body) => fetch(base+url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+let browserCookie='';
+const post = async (url,body) => {
+  const response=await fetch(base+url, {method:'POST',headers:{'Content-Type':'application/json',...(browserCookie?{Cookie:browserCookie}:{})},body:JSON.stringify(body)});
+  const cookie=response.headers.get('set-cookie');if(cookie)browserCookie=cookie.split(';')[0];
+  return response;
+};
 test('health and image recognition remain independent of the speech model', async () => {
   assert.equal((await fetch(base+'/health')).status,200);
   const response = await post('/api/analyze-image',{image:'data:image/jpeg;base64,/9j/2Q=='});

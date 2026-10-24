@@ -41,6 +41,7 @@ JSON格式：{"grammar":0,"topicRelevance":0,"coherence":0,"vocabulary":0,"fluen
   } else if (context.phase === 'final') {
     prompt += `\n本次是用户照着润色稿第二次朗读后的最终评分。speech 是第二次录音的转写，只能根据 speech 评分，绝不能把 reference 当作用户实际说出的内容。reference 是朗读目标，只用于比较内容是否完整、是否出现漏读、替换或重复（转写差异不代表真实发音错误）。summary 结合参考稿指出第二次表达的具体表现。主题分参考 reference 的主要信息，允许等义表达；不能仅因原稿已润色而自动给满分。只评价转写文字，不声称听过音频；无需重新润色参考稿，polished 可返回对 speech 的最小修正版本。`;
   }
+  if (context.phase !== 'polish') prompt += '\n额外返回 scoreEvidence：对象的键为 grammar、topicRelevance、coherence、vocabulary、fluency，每个值是数组，每项 {original:"speech 中精确原句或片段", explanation:"中文说明该原句如何支持该项分数"}。每个维度至少一条真实引文；尤其是扣分时必须有可核对的原文依据。不能用 reference 代替 speech，也不能引用不存在的错误。';
   return prompt;
 }
 
@@ -80,6 +81,7 @@ function normalizeEvaluation(parsed, context) {
     targetMinWords: context.targetMinWords, targetMaxWords: context.targetMaxWords,
     wordCountWithinRange: polishedWordCount >= context.targetMinWords && polishedWordCount <= context.targetMaxWords,
     ...(context.phase === 'polish' ? {} : { scoreReasons: Object.fromEntries(Object.keys(scoreWeights).map(key => [key, String(parsed.scoreReasons?.[key] || '模型未提供该维度的具体依据，请结合纠错和建议查看。').slice(0, 600)])) }),
+    ...(context.phase === 'polish' ? {} : { scoreEvidence: Object.fromEntries(Object.keys(scoreWeights).map(key => [key, (Array.isArray(parsed.scoreEvidence?.[key]) ? parsed.scoreEvidence[key] : []).filter(item => typeof item?.original === 'string' && item.original.trim() && context.text.includes(item.original.trim()) && typeof item.explanation === 'string' && item.explanation.trim()).slice(0,3).map(item => ({ original:item.original.trim().slice(0,600), explanation:item.explanation.slice(0,600) }))])) }),
     errors: errors.filter((item, index, list) => list.findIndex(other => other.original === item.original && other.correction === item.correction) === index), polished, sentences: [], summary: String(parsed.summary || '').slice(0, 600),
     assessmentBasis: '基于转写文本评估；表达自然度不代表录音发音或语速评分。'
   };

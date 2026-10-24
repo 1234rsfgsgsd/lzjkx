@@ -160,3 +160,14 @@ test('invalid scenes fail before invoking the paid provider', async () => {
   assert.equal((await post({ ...sceneBody(), category: 'not-a-category' })).status, 400);
   assert.equal(providerCalls, count);
 });
+
+test('insufficient balance stops a scene task after one provider request with an actionable message', async () => {
+  providerStatus=402;const count=providerCalls;
+  try{
+    const body=sceneBody();assert.equal((await post(body)).status,202);
+    const result=await finished(body.requestId);
+    assert.equal(result.status,'failed');assert.equal(result.code,'AI_BALANCE_INSUFFICIENT');assert.equal(result.retryable,false);
+    assert.match(result.error,/免费场景图库/);assert.equal(providerCalls-count,1);
+    assert.equal((await post(body)).status,202);assert.equal(providerCalls-count,1);
+  }finally{providerStatus=200;}
+});
