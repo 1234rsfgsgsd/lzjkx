@@ -135,7 +135,7 @@
 
   .photo-area{display:flex;flex-direction:column;align-items:center;gap:1rem;background:#f6faff;border-radius:1.8rem;padding:1.5rem 1rem;border:2px dashed #c7d9ee;margin:1rem 0 .5rem;}
   .photo-preview{max-width:100%;max-height:280px;border-radius:1.5rem;box-shadow:0 10px 25px -8px rgba(0,0,0,.15);object-fit:cover;border:3px solid #fff;background:#e2eaf3;}
-  .photo-preview.generated-scene{width:100%;max-height:440px;object-fit:contain;}
+  .photo-preview.gallery-photo{width:100%;max-height:440px;object-fit:contain;}
 
   .hint-box{background:var(--primary-soft);border-radius:1.5rem;padding:1.4rem 1.6rem;border-left:6px solid var(--primary);margin:1.2rem 0 .5rem;}
   .hint-box h3{font-size:1rem;font-weight:600;color:#0f2b4b;margin-bottom:.7rem;}
@@ -338,7 +338,7 @@ body{display:block;padding:0 24px calc(116px + env(safe-area-inset-bottom));back
 .step h2{font-size:21px;color:var(--journal-ink)}.step h2.wolf-material-title{display:flex;align-items:baseline;gap:15px;flex-wrap:wrap;margin:0 0 22px}.wolf-material-title small{font-size:12px;font-weight:400;color:var(--journal-muted)}
 .wolf-source-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .entry-choice{gap:22px;margin-bottom:20px}.entry-card{position:relative;text-align:left;overflow:hidden;padding:25px 30px;background:var(--journal-paper);border:1px solid var(--journal-line);border-radius:22px;box-shadow:none;display:block;color:var(--journal-ink);min-width:0}
-.entry-card[data-mode="generate"]{background:var(--primary-soft);border-color:#cadaec}.entry-card:after{content:"";position:absolute;width:150px;height:150px;border:1px solid #c8daee;border-radius:50%;right:-35px;top:-30px;pointer-events:none}
+.entry-card[data-mode="gallery"]{background:var(--primary-soft);border-color:#cadaec}.entry-card:after{content:"";position:absolute;width:150px;height:150px;border:1px solid #c8daee;border-radius:50%;right:-35px;top:-30px;pointer-events:none}
 .entry-card:hover{transform:none;background:var(--primary-soft);border-color:var(--primary)}.entry-card.selected{background:var(--primary-soft);border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}
 .wolf-source-mark{display:block;font:28px/1.2 Georgia,serif;color:#4d7fb4;margin-bottom:10px}
 .entry-card .title{display:block;font-size:20px;color:var(--journal-ink);font-weight:700;margin-bottom:8px}.entry-card .desc{display:block;font-size:13px;line-height:1.85;color:var(--journal-muted);max-width:330px;min-height:48px;margin-bottom:20px}
@@ -353,15 +353,15 @@ body{display:block;padding:0 24px calc(116px + env(safe-area-inset-bottom));back
 .wolf-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;border-top:1px dashed #c8d9eb;padding:25px 0;margin-top:28px}.wolf-steps>div{display:flex;align-items:flex-start;gap:8px;font-size:13px}.wolf-steps b{font:12px/25px Georgia,serif;background:#e4effa;color:#4774aa;width:25px;text-align:center;border-radius:50%;flex-shrink:0}.wolf-steps small{display:block;font-size:11px;color:var(--journal-muted);margin-top:7px}
 .wolf-footer{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;border-top:1px solid var(--journal-line);padding-top:20px;font-size:11px;color:#726d80}
 .wolf-welcome-art{width:min(230px,50vw);height:auto;margin-bottom:15px;flex-shrink:1}.welcome-overlay{background:linear-gradient(145deg,var(--primary-dark),var(--primary));overflow:auto}.welcome-stage{min-height:90px;flex-shrink:0}.welcome-line{font-size:26px}.welcome-line.small{font-size:21px}
-/* Keep scene generation visible even when the theme picker is scrolled down. */
-#sceneGenerationFeedback[data-waiting="true"]{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1100;display:flex;flex-direction:column;align-items:center;gap:14px;width:min(440px,calc(100% - 40px));max-height:calc(100dvh - 48px);overflow:auto;margin:0;padding:26px 28px;border:1px solid #bdd5ef;border-radius:26px;background:#f7fbff;color:#1f3857;font-size:16px;line-height:1.8;text-align:center;box-shadow:0 24px 70px #1f385733,0 0 0 100vmax #17385b26;pointer-events:auto}
-#sceneGenerationStatus[data-wolf-waiting="true"]::before{width:160px;height:132px;flex-shrink:0}
-#sceneGenerationStatus[data-wolf-waiting="true"]::after{flex-shrink:0}
-#sceneGenerationFeedback[data-waiting="true"] #sceneGenerationStatus{position:static;display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;min-height:0;transform:none;margin:0;padding:0;border:0;background:transparent;box-shadow:none}
+/* Keep photo selection and analysis visible when the theme picker is scrolled down. */
+#gallerySelectionFeedback[data-waiting="true"]{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1100;display:flex;flex-direction:column;align-items:center;gap:14px;width:min(440px,calc(100% - 40px));max-height:calc(100dvh - 48px);overflow:auto;margin:0;padding:26px 28px;border:1px solid #bdd5ef;border-radius:26px;background:#f7fbff;color:#1f3857;font-size:16px;line-height:1.8;text-align:center;box-shadow:0 24px 70px #1f385733,0 0 0 100vmax #17385b26;pointer-events:auto}
+#gallerySelectionStatus[data-wolf-waiting="true"]::before{width:160px;height:132px;flex-shrink:0}
+#gallerySelectionStatus[data-wolf-waiting="true"]::after{flex-shrink:0}
+#gallerySelectionFeedback[data-waiting="true"] #gallerySelectionStatus{position:static;display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;min-height:0;transform:none;margin:0;padding:0;border:0;background:transparent;box-shadow:none}
 .scene-stages{display:flex;gap:8px;justify-content:center;padding:0;list-style:none;font-size:12px}.scene-stages li{border-bottom:3px solid #d9e6f3;padding:5px;color:#697d91}.scene-stages li[data-state="active"]{color:#195e9e;border-color:#3284ca;font-weight:700}.scene-stages li[data-state="done"]{color:#28714c;border-color:#5ba67b}#sceneWaitTools small{display:block;font-size:11px;line-height:1.6;margin-top:10px}#sceneElapsed{font-variant-numeric:tabular-nums;margin:8px 0}
-.practice-library{margin:18px 0;padding:16px;border:1px solid #cadff1;border-radius:14px;background:#f6faff}.practice-library summary{cursor:pointer;color:#255d91;font-weight:600}.practice-library p,.usage-note,.storage-note p,.intent-entry p,.comparison-key,#comparisonSummary{font-size:12px;line-height:1.8;color:#526b83}.free-scene{flex:1 1 150px;text-align:left;min-width:0}.free-scene img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px;margin-bottom:8px}.intent-entry{margin:16px 0;padding:16px;background:#f1f7fd;border-left:3px solid #6a9ecb;border-radius:10px}.intent-entry label{display:block;font-weight:600;color:#28577f}.intent-entry input{display:block;width:100%;box-sizing:border-box;padding:12px;margin:10px 0;border:1px solid #bed4e9;border-radius:8px;background:white;color:#233f59;font:inherit}.intent-entry button{max-width:100%}.practice-comparison{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.practice-comparison section{min-width:0;padding:14px;border:1px solid #cbdff0;border-radius:12px;background:#f8fbff}.practice-comparison strong{font-size:14px;color:#28577f}.practice-comparison .transcript{white-space:pre-wrap;font-size:14px;line-height:1.9;margin:12px 0}.practice-comparison textarea{box-sizing:border-box;width:100%;min-height:210px}.grammar-mark{background:#ffe2dc;color:#933b30;border-radius:3px}.correction-mark{background:#dcefe5;color:#235f40;border-radius:3px}.comparison-key{margin:8px 0}.score-evidence{margin:8px 0 14px;padding-left:12px;border-left:3px solid #8bb1d6;font-size:13px}.score-evidence blockquote{margin:6px 0;color:#264e73}.evidence-missing{color:#9b570e;font-size:12px}.storage-note{padding:16px;background:#f0f7fe;border:1px solid #cbdff0;border-radius:12px;margin-bottom:20px}
-#freeSceneGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.free-scene{display:flex;flex-direction:column;align-items:stretch;white-space:normal}.free-scene span{display:block;min-width:0;line-height:1.6}.usage-note{margin:18px 0}.usage-note summary{cursor:pointer}.usage-note p{margin:8px 0}
-@media(max-width:900px){.practice-comparison{grid-template-columns:1fr}.practice-comparison textarea{min-height:130px}}@media(max-width:600px){#freeSceneGrid{grid-template-columns:1fr}.free-scene{flex-direction:row;align-items:center;gap:14px}.free-scene img{width:88px;margin-bottom:0;flex-shrink:0}}@media(max-width:420px){#sceneGenerationFeedback[data-waiting="true"]{padding:18px;width:calc(100% - 28px)}.scene-stages{gap:4px;font-size:11px}}
+.usage-note,.storage-note p,.intent-entry p,.comparison-key,#comparisonSummary{font-size:12px;line-height:1.8;color:#526b83}.intent-entry{margin:16px 0;padding:16px;background:#f1f7fd;border-left:3px solid #6a9ecb;border-radius:10px}.intent-entry label{display:block;font-weight:600;color:#28577f}.intent-entry input{display:block;width:100%;box-sizing:border-box;padding:12px;margin:10px 0;border:1px solid #bed4e9;border-radius:8px;background:white;color:#233f59;font:inherit}.intent-entry button{max-width:100%}.practice-comparison{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.practice-comparison section{min-width:0;padding:14px;border:1px solid #cbdff0;border-radius:12px;background:#f8fbff}.practice-comparison strong{font-size:14px;color:#28577f}.practice-comparison .transcript{white-space:pre-wrap;font-size:14px;line-height:1.9;margin:12px 0}.practice-comparison textarea{box-sizing:border-box;width:100%;min-height:210px}.grammar-mark{background:#ffe2dc;color:#933b30;border-radius:3px}.correction-mark{background:#dcefe5;color:#235f40;border-radius:3px}.comparison-key{margin:8px 0}.score-evidence{margin:8px 0 14px;padding-left:12px;border-left:3px solid #8bb1d6;font-size:13px}.score-evidence blockquote{margin:6px 0;color:#264e73}.evidence-missing{color:#9b570e;font-size:12px}.storage-note{padding:16px;background:#f0f7fe;border:1px solid #cbdff0;border-radius:12px;margin-bottom:20px}
+.usage-note{margin:18px 0}.usage-note summary{cursor:pointer}.usage-note p{margin:8px 0}
+@media(max-width:900px){.practice-comparison{grid-template-columns:1fr}.practice-comparison textarea{min-height:130px}}@media(max-width:420px){#gallerySelectionFeedback[data-waiting="true"]{padding:18px;width:calc(100% - 28px)}.scene-stages{gap:4px;font-size:11px}}
 button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visible{outline:3px solid var(--primary);outline-offset:4px}
 .btn-group,.flex-between,.profile-card,.history-body{min-width:0}.transcript,.corrected-box,.hint-tags li,.history-detail{overflow-wrap:anywhere}audio,textarea,select{max-width:100%}.history-detail{min-width:min(200px,100%)}
 @media(max-width:760px){body{padding:0 20px calc(105px + env(safe-area-inset-bottom))}.wolf-header{min-height:78px;gap:15px}.wolf-brand img{width:38px;height:38px}.wolf-brand strong{font-size:20px}.wolf-header-note{font-size:11px}.bottom-nav{bottom:max(12px,env(safe-area-inset-bottom));width:calc(100% - 32px);max-width:450px;padding:6px 10px;gap:5px;border-radius:18px}.nav-item{font-size:13px;border-radius:12px;padding:12px 3px;min-width:0}.nav-item.active{background:var(--primary-soft);color:var(--primary-dark);box-shadow:inset 0 -2px 0 var(--primary)}.wolf-hero{grid-template-columns:1fr;gap:0;min-height:0}.wolf-intro{padding-top:30px}#wolf-title{font-size:31px;margin:12px 0 15px}.wolf-greeting{font-size:19px}.wolf-hero-art{height:265px;margin:0 0 10px}.wolf-signature{margin-top:18px}.profile-card{margin-bottom:25px;padding:12px}.profile-info .meta{overflow-wrap:anywhere}.entry-choice{grid-template-columns:1fr;gap:16px}.entry-card{padding:23px}.entry-card .desc{min-height:0;max-width:100%}.wolf-steps{grid-template-columns:1fr 1fr;gap:20px}.step{padding:20px;border-radius:16px}.step h2.wolf-material-title{gap:6px;margin-bottom:18px;font-size:20px}.me-section,.me-section:last-child{padding:18px}.avatar-picker>div[style]{min-width:0!important;width:100%}.history-thumb{width:100%;height:150px}.history-detail{width:100%;min-width:0}.wolf-welcome-art{max-height:24vh}.welcome-line{font-size:22px}.welcome-line.small{font-size:18px}.bubble{padding:12px 19px}.skip-btn{bottom:max(18px,env(safe-area-inset-bottom))}}
@@ -408,22 +408,21 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
 
     <div id="mainPractice" class="step">
       <h2 class="wolf-material-title">今天，从哪个画面开始？<small>选一份素材，开启你的口语练习</small></h2>
-      <div id="sceneGenerationFeedback">
-        <div id="sceneGenerationStatus" class="status-message hidden" role="status" aria-live="polite"></div>
+      <div id="gallerySelectionFeedback">
+        <div id="gallerySelectionStatus" class="status-message hidden" role="status" aria-live="polite"></div>
         <div id="sceneWaitTools" class="hidden">
-          <ol class="scene-stages" aria-label="生成进度"><li id="stageImage">生成图片</li><li id="stageAnalysis">分析与整理词句</li><li id="stageReady">完成</li></ol>
+          <ol class="scene-stages" aria-label="取图与识图进度"><li id="stageImage">随机取图</li><li id="stageAnalysis">识图与整理词句</li><li id="stageReady">完成</li></ol>
           <p id="sceneElapsed">已等待 0 秒</p>
           <button id="cancelSceneWaitBtn" class="btn btn-secondary btn-sm" type="button">取消等待</button>
-          <small>取消后不再等待结果；已提交的模型请求可能仍产生费用。</small>
+          <small>取消后保留已显示的图片；已提交的识图请求可能仍产生费用。</small>
         </div>
       </div>
-      <details class="practice-library"><summary>免费场景图库 · 不消耗 AI 生成和识图额度</summary><p>原创教学插画，配有人工整理的词句。润色和最终评分仍需 AI 服务。</p><div id="freeSceneGrid" class="btn-group"></div><p id="freeSceneStatus" role="status"></p></details>
       <details class="usage-note"><summary id="practiceUsage" role="status">正在读取今日 AI 使用次数…</summary><p id="practiceUsageInfo">次数按当前浏览器计算，不是个人账号额度。同一网络另有共享上限，服务重新部署时可能重置。</p></details>
 
       <div id="entrySection">
         <p class="wolf-source-label">选择一种素材来源</p>
         <div class="entry-choice">
-          <button type="button" class="entry-card" data-mode="generate"><span class="wolf-source-mark" aria-hidden="true">✧</span><span class="title">让灵感来敲门</span><span class="desc">挑一个日常主题，生成一张属于今天的场景图。照片、漫画、卡通，都可以。</span><span class="wolf-source-action">智能生成场景</span></button>
+          <button type="button" class="entry-card" data-mode="gallery"><span class="wolf-source-mark" aria-hidden="true">✧</span><span class="title">随机图片</span><span class="desc">选择一个主题，从对应图库随机抽取一张照片，开始口语练习。</span><span class="wolf-source-action">从主题图库选图</span></button>
           <button type="button" class="entry-card" data-mode="upload"><span class="wolf-source-mark" aria-hidden="true">▧</span><span class="title">把你的生活带进来</span><span class="desc">一张旅行照、一次聚餐、一个喜欢的角落，都能成为值得开口的话题。</span><span class="wolf-source-action">上传我的照片</span></button>
         </div>
 
@@ -437,15 +436,8 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
       </div>
 
       <div id="themeSelectionSection" class="hidden">
-        <p style="color:#1d3f62;font-weight:500;margin-bottom:.3rem;">请选择主题场景，或让系统随机生成：</p>
-        <p style="color:#1d3f62;font-weight:500;margin:.9rem 0 .45rem;">选择图片风格（也可以使用原创漫画或卡通表现）：</p>
-        <div id="sceneStyleGrid" class="btn-group" style="margin-top:0;flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm scene-style-btn" data-style="teaching-photo">📘 清晰教材照片</button>
-          <button type="button" class="btn btn-secondary btn-sm scene-style-btn" data-style="daily-photo">🏠 真实日常实拍</button>
-          <button type="button" class="btn btn-secondary btn-sm scene-style-btn" data-style="street-photo">🚶 街拍纪实</button>
-          <button type="button" class="btn btn-secondary btn-sm scene-style-btn" data-style="manga-comic">✒️ 原创漫画风</button>
-          <button type="button" class="btn btn-secondary btn-sm scene-style-btn" data-style="cartoon">🌈 明亮卡通风</button>
-        </div>
+        <p style="color:#1d3f62;font-weight:500;">请选择主题，再从对应图库随机抽取一张照片：</p>
+        <p id="galleryAvailability" class="usage-note" role="status">正在读取各主题的图库数量…</p>
         <div class="category-grid" id="categoryGrid"></div>
       </div>
 
@@ -454,7 +446,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
           <span style="font-weight:500;color:#1d3f62;">练习场景已就绪</span>
           <div class="btn-group" style="margin-top:0;">
             <button id="backToEntryBtn" class="btn btn-secondary btn-sm">← 重选素材</button>
-            <button id="regenerateBtn" class="btn btn-secondary btn-sm">🎲 换一个</button>
+            <button id="regenerateBtn" class="btn btn-secondary btn-sm">🎲 换一张</button>
           </div>
         </div>
         <div id="photoPreviewContainer" class="photo-area">
@@ -689,1083 +681,6 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
   <button type="button" class="nav-item" data-nav="me">ME</button>
 </nav>
 
-<script id="sceneData">
-window.SCENE_LIBRARY = (function(){
-  const scenes = [];
-  function add(category, name, elements, hints) {
-    scenes.push({ category, name, elements, hints });
-  }
-
-  /* ============================================================
-     提示词格式：[英文, 美式音标, 英式音标, 中文]
-     词组/句型格式：[英文, 美式音标, 英式音标, 中文]
-     ============================================================ */
-
-  /* ============================================================
-     核心：每个主题的共用词库（该主题下所有场景通用）
-     ============================================================ */
-  const CATEGORY_SHARED = {
-    '日常生活': ['桌子','椅子','台灯','窗户','地板','房间','门','墙壁','空气','光线','角落','表面','物品','空间','感觉','声音','颜色','形状','干净','整洁'],
-    '餐饮美食': ['碗','筷子','杯子','菜单','盘子','勺子','叉子','刀','餐巾','桌子','椅子','味道','香气','口感','温度','颜色','服务','环境','氛围','价格'],
-    '出行交通': ['背包','地图','导航','时间','路线','方向','速度','距离','车站','道路','天气','风景','人群','声音','安全','方便','准时','等待','出发','到达'],
-    '旅游观光': ['相机','地图','行李箱','护照','门票','照片','风景','文化','历史','故事','人群','天气','心情','记忆','体验','冒险','安静','美丽','难忘','特别'],
-    '工作职场': ['电脑','文件','会议','客户','报告','办公桌','笔记本','钢笔','名片','时间','效率','沟通','团队','目标','计划','压力','成就','挑战','机会','合作'],
-    '休闲娱乐': ['音乐','游戏','书本','朋友','咖啡','时间','心情','快乐','放松','兴趣','爱好','笑声','故事','创意','节奏','色彩','感觉','氛围','享受','回忆'],
-    '购物消费': ['价格','商品','折扣','钱包','信用卡','购物袋','标签','质量','品牌','选择','比较','满意','服务','环境','人群','时间','预算','需求','喜欢','值得'],
-    '宠物动物': ['宠物','食物','玩具','毛发','声音','动作','可爱','温柔','陪伴','快乐','照顾','健康','习惯','性格','眼神','温暖','柔软','活泼','安静','信任'],
-    '运动健身': ['球','跑步','瑜伽','队友','教练','汗水','力量','速度','耐力','健康','目标','坚持','挑战','快乐','放松','节奏','呼吸','动作','团队','进步'],
-    '自然风景': ['天空','云朵','太阳','山','海','树','花朵','草地','风','雨','雪','彩虹','星星','月亮','光','颜色','声音','气息','美丽','宁静'],
-    '学习校园': ['教室','黑板','书本','笔','考试','图书馆','课桌','书包','笔记','知识','老师','同学','问题','答案','努力','进步','梦想','青春','友谊','回忆'],
-    '医疗健康': ['医生','药','医院','检查','健康','休息','护士','体温','血压','口罩','消毒','病历','处方','针管','轮椅','病床','关心','照顾','恢复','安心']
-  };
-
-  /* ============================================================
-     每个主题下每一个场景都拥有独立的独有词库
-     ============================================================ */
-  const SCENE_UNIQUE = {
-    /* ========== 日常生活（40个场景） ========== */
-    '叠被子': ['被子','枕头','床单','被套','叠法','棱角','平整','褶皱','床铺','卧室'],
-    '整理床铺': ['床垫','床架','床头','床尾','毯子','铺平','拉直','拍打','整理','舒适'],
-    '打扫房间': ['扫帚','拖把','抹布','灰尘','垃圾','清洁剂','水桶','吸尘器','角落','干净'],
-    '擦桌子': ['抹布','桌面','污渍','水渍','清洁剂','光亮','擦拭','木纹','干净','反光'],
-    '扫地': ['扫帚','簸箕','灰尘','毛发','角落','地板','垃圾','清扫','干净','细致'],
-    '拖地': ['拖把','水桶','地板','水渍','清洁剂','光亮','潮湿','干燥','干净','反光'],
-    '整理书架': ['书架','书籍','分类','排列','作者','标题','灰尘','整齐','知识','阅读'],
-    '整理衣柜': ['衣柜','衣架','衣服','折叠','分类','季节','颜色','材质','整齐','空间'],
-    '擦窗户': ['窗户','玻璃','抹布','清洁剂','水渍','透明','明亮','光线','干净','反射'],
-    '倒垃圾': ['垃圾桶','垃圾袋','分类','回收','厨房','异味','清理','环保','干净','卫生'],
-    '洗衣服': ['洗衣机','洗衣液','衣服','水','泡沫','污渍','颜色','分类','晾晒','干净'],
-    '晾衣服': ['晾衣架','衣架','衣服','阳光','风','干燥','整齐','夹子','阳台','清新'],
-    '熨衣服': ['熨斗','熨衣板','衣服','褶皱','平整','温度','蒸汽','布料','笔挺','细致'],
-    '收纳物品': ['收纳盒','抽屉','标签','分类','整理','空间','整齐','寻找','方便','有序'],
-    '布置客厅': ['沙发','茶几','地毯','花瓶','装饰画','抱枕','灯光','颜色','风格','温馨'],
-    '卧室起床': ['闹钟','窗帘','阳光','床','睡衣','拖鞋','清晨','清醒','伸展','新的一天'],
-    '客厅休息': ['沙发','电视','遥控器','靠垫','茶水','零食','放松','舒适','安静','惬意'],
-    '厨房做饭': ['锅','铲子','灶台','食材','油','盐','火候','香味','翻炒','美味'],
-    '阳台浇花': ['花盆','水壶','植物','土壤','阳光','叶子','花朵','浇水','修剪','生机'],
-    '浴室洗漱': ['牙刷','牙膏','毛巾','镜子','水龙头','洗面奶','泡沫','清水','清爽','干净'],
-    '书房阅读': ['书架','台灯','书本','书签','笔记','安静','专注','知识','思考','沉浸'],
-    '听音乐': ['耳机','音箱','旋律','节奏','歌词','歌手','专辑','心情','放松','沉浸'],
-    '看电影': ['银幕','剧情','演员','导演','特效','字幕','感动','震撼','回忆','爆米花'],
-    '喝茶': ['茶杯','茶叶','热水','茶壶','香气','苦涩','回甘','宁静','品味','悠闲'],
-    '泡咖啡': ['咖啡豆','咖啡机','杯子','热水','香气','苦涩','奶泡','糖','提神','享受'],
-    '烤面包': ['面包','烤箱','黄油','果酱','香气','金黄','酥脆','早餐','温暖','满足'],
-    '做早餐': ['鸡蛋','牛奶','面包','煎锅','早餐','营养','简单','美味','开始','能量'],
-    '洗碗': ['洗碗布','洗洁精','碗筷','水','泡沫','油污','冲洗','干净','摆放','整洁'],
-    '擦镜子': ['镜子','抹布','水渍','清洁剂','反光','清晰','明亮','干净','倒影','细致'],
-    '整理鞋柜': ['鞋柜','鞋子','鞋架','分类','季节','清洁','摆放','整齐','空间','方便'],
-    '整理冰箱': ['冰箱','食物','保鲜','分类','温度','过期','清理','整洁','新鲜','卫生'],
-    '整理抽屉': ['抽屉','收纳','分类','标签','小物件','整齐','寻找','方便','空间','有序'],
-    '擦地板': ['地板','抹布','拖把','水渍','清洁剂','光亮','跪姿','用力','干净','反光'],
-    '收拾玩具': ['玩具','收纳箱','分类','积木','娃娃','小汽车','整理','整齐','儿童','快乐'],
-    '换床单': ['床单','被套','枕头套','床垫','更换','清洗','清新','舒适','睡眠','干净'],
-    '叠衣服': ['衣服','折叠','分类','衣柜','整齐','平整','T恤','裤子','收纳','空间'],
-    '摆放餐具': ['餐具','碗','盘子','筷子','勺子','餐桌','摆放','整齐','吃饭','仪式感'],
-    '清洗空调': ['空调','滤网','灰尘','清洁剂','刷子','冲洗','晾干','安装','清新','健康'],
-    '擦门': ['门','抹布','门把手','污渍','清洁剂','擦拭','干净','木纹','细致','光亮'],
-    '擦窗台': ['窗台','抹布','灰尘','水渍','清洁剂','擦拭','干净','角落','细致','明亮'],
-
-    /* ========== 餐饮美食（40个场景） ========== */
-    '中餐馆': ['筷子','炒锅','米饭','炒菜','圆桌','茶壶','酱油','醋','热气','团圆'],
-    '西餐厅': ['刀叉','牛排','红酒','餐巾','蜡烛','沙拉','面包','优雅','浪漫','氛围'],
-    '快餐店': ['汉堡','薯条','可乐','托盘','柜台','快速','方便','纸盒','番茄酱','效率'],
-    '咖啡厅': ['咖啡','拿铁','卡布奇诺','蛋糕','沙发','音乐','安静','香气','放松','闲聊'],
-    '火锅店': ['火锅','鸳鸯锅','涮肉','蘸料','麻辣','热气','围坐','热闹','冬天','温暖'],
-    '夜市小吃': ['烤串','臭豆腐','炸鸡','奶茶','灯笼','摊位','热闹','人群','香气','夜宵'],
-    '日料店': ['寿司','刺身','芥末','酱油','清酒','榻榻米','精致','新鲜','安静','礼仪'],
-    '韩餐馆': ['泡菜','烤肉','石锅拌饭','辣酱','烧酒','小菜','热闹','辛辣','分享','温暖'],
-    '素食馆': ['蔬菜','豆腐','菌菇','清淡','健康','有机','安静','自然','养生','环保'],
-    '甜品店': ['蛋糕','冰淇淋','巧克力','草莓','奶油','甜蜜','精致','少女心','下午茶','幸福'],
-    '烧烤摊': ['烤串','炭火','孜然','辣椒','啤酒','露天','烟火','热闹','夜晚','朋友'],
-    '面馆': ['面条','拉面','汤底','葱花','牛肉','热气','简单','满足','快速','温暖'],
-    '粥铺': ['粥','皮蛋','瘦肉','油条','咸菜','清淡','养生','早餐','温暖','舒适'],
-    '包子铺': ['包子','馒头','豆浆','油条','蒸笼','热气','早餐','简单','满足','传统'],
-    '汉堡店': ['汉堡','薯条','可乐','番茄酱','牛肉饼','生菜','快速','方便','美式','快餐'],
-    '披萨店': ['披萨','芝士','番茄酱','香肠','烤箱','拉丝','分享','意大利','圆形','满足'],
-    '寿司店': ['寿司','刺身','芥末','酱油','海苔','米饭','生鱼','精致','新鲜','日本'],
-    '牛排馆': ['牛排','刀叉','红酒','黑胡椒','铁板','三分熟','西餐','优雅','肉汁','满足'],
-    '自助餐': ['自助','盘子','夹子','海鲜','甜品','水果','选择','丰富','无限量','满足'],
-    '早餐摊': ['油条','豆浆','包子','鸡蛋饼','煎饼','热气','清晨','简单','快速','温暖'],
-    '下午茶': ['红茶','蛋糕','饼干','三明治','果酱','瓷器','优雅','闲聊','阳光','惬意'],
-    '冰激凌店': ['冰淇淋','甜筒','草莓','巧克力','香草','冰凉','甜蜜','夏天','色彩','快乐'],
-    '奶茶店': ['奶茶','珍珠','椰果','吸管','杯子','甜度','冰量','排队','年轻人','流行'],
-    '果汁吧': ['果汁','橙子','苹果','榨汁机','新鲜','健康','维生素','颜色','清凉','自然'],
-    '酒吧': ['啤酒','鸡尾酒','吧台','调酒师','音乐','灯光','夜晚','放松','社交','微醺'],
-    '茶馆': ['茶壶','茶杯','茶叶','热水','香气','安静','传统','品味','慢生活','禅意'],
-    '自助火锅': ['火锅','自助','涮肉','蔬菜','蘸料','锅底','热闹','自由','选择','满足'],
-    '家常菜': ['家常','炒菜','米饭','汤','妈妈','温暖','简单','熟悉','味道','回忆'],
-    '粤菜馆': ['粤菜','蒸鱼','白切鸡','虾饺','烧卖','清淡','鲜美','精致','广东','早茶'],
-    '川菜馆': ['川菜','辣椒','花椒','麻辣','水煮鱼','回锅肉','火锅','热烈','过瘾','四川'],
-    '湘菜馆': ['湘菜','辣椒','剁椒鱼头','腊肉','香辣','湖南','热烈','下饭','过瘾','家乡'],
-    '西式简餐': ['三明治','沙拉','意面','咖啡','简单','快速','健康','西式','方便','轻食'],
-    '意大利餐厅': ['意面','披萨','橄榄油','芝士','番茄','罗勒','浪漫','西餐','优雅','地中海'],
-    '法式餐厅': ['法餐','鹅肝','蜗牛','红酒','面包','精致','浪漫','优雅','艺术','高级'],
-    '美式餐厅': ['汉堡','牛排','薯条','可乐','大份','自由','休闲','美式','快餐','满足'],
-    '墨西哥餐厅': ['塔可','玉米饼','辣椒','牛油果','莎莎酱','热情','色彩','墨西哥','辛辣','欢乐'],
-    '印度餐厅': ['咖喱','香料','馕','手抓饭','辛辣','浓郁','印度','神秘','色彩','热情'],
-    '泰国餐厅': ['冬阴功','咖喱','椰奶','香茅','柠檬叶','酸甜','辛辣','泰国','热带','热情'],
-    '越南餐厅': ['河粉','春卷','鱼露','薄荷','清淡','越南','热带','清新','健康','东南亚'],
-    '日式居酒屋': ['清酒','烤鸟','刺身','小菜','灯笼','深夜','放松','烟火','日本','微醺'],
-    '韩国烤肉店': ['烤肉','五花肉','生菜','大蒜','辣酱','烧酒','热闹','聚餐','炭火','美味'],
-
-    /* ========== 出行交通（40个场景） ========== */
-    '地铁通勤': ['地铁','车厢','站台','扶手','早高峰','拥挤','耳机','手机','到站','通勤'],
-    '公交车站': ['公交车','站牌','候车亭','投币','刷卡','座位','路线','等待','拥挤','到站'],
-    '出租车': ['出租车','司机','计价器','后座','招手','目的地','堵车','方便','快捷','费用'],
-    '机场候机': ['飞机','登机牌','安检','候机厅','行李','航班','延误','广播','起飞','旅行'],
-    '火车站': ['火车','站台','车票','候车厅','检票','行李','铁轨','鸣笛','出发','到达'],
-    '自行车骑行': ['自行车','踏板','车把','头盔','车道','风吹','自由','环保','运动','风景'],
-    '自驾出行': ['汽车','方向盘','导航','油门','刹车','高速','风景','音乐','自由','旅途'],
-    '高铁出行': ['高铁','车厢','座位','速度','窗外','平稳','快捷','舒适','商务','旅行'],
-    '轮渡出行': ['轮船','甲板','海风','汽笛','波浪','港口','乘客','摇晃','浪漫','远航'],
-    '共享单车': ['单车','二维码','解锁','骑行','街道','方便','环保','短途','城市','自由'],
-    '网约车': ['手机','订单','司机','定位','上车','路线','费用','方便','快捷','等待'],
-    '地铁换乘': ['换乘','通道','指示牌','人流','楼梯','电梯','方向','线路','匆忙','到达'],
-    '长途巴士': ['巴士','座位','行李','高速','窗景','颠簸','长途','休息站','乘客','旅途'],
-    '拼车出行': ['拼车','乘客','分摊','路线','聊天','方便','省钱','社交','约定','到达'],
-    '步行通勤': ['步行','街道','人行道','红绿灯','耳机','商店','行人','锻炼','观察','城市'],
-    '滑板出行': ['滑板','轮子','街道','平衡','技巧','年轻人','自由','酷','城市','风'],
-    '电动车': ['电动车','电池','充电','车把','街道','方便','环保','安静','短途','城市'],
-    '摩托车': ['摩托车','引擎','头盔','公路','风','自由','速度','激情','旅行','风景'],
-    '景区摆渡车': ['摆渡车','景区','游客','路线','站点','风景','方便','等待','观光','到达'],
-    '机场安检': ['安检','行李','X光','金属探测','液体','证件','排队','严格','安全','通过'],
-    '登机口': ['登机口','登机牌','广播','排队','廊桥','座位','起飞','旅行','等待','告别'],
-    '行李托运': ['行李','托运','标签','传送带','重量','超重','领取','机场','旅行','等待'],
-    '火车站台': ['站台','火车','铁轨','黄线','等待','上车','鸣笛','行李','旅客','出发'],
-    '候车厅': ['候车厅','座位','大屏幕','广播','旅客','行李','等待','出发','到达','人群'],
-    '检票口': ['检票口','车票','身份证','闸机','排队','通过','车站','出发','秩序','旅行'],
-    '出租车候车点': ['出租车','候车点','排队','行李','司机','目的地','等待','方便','城市','出行'],
-    '公交站台': ['站台','公交车','站牌','候车','路线','乘客','等待','城市','出行','方便'],
-    '地铁车厢': ['车厢','座椅','扶手','广播','乘客','到站','拥挤','安静','手机','通勤'],
-    '公交车上': ['公交车','座椅','扶手','投币','乘客','到站','拥挤','窗外','城市','日常'],
-    '驾驶舱': ['驾驶舱','仪表盘','方向盘','油门','刹车','导航','专注','速度','控制','安全'],
-    '游轮甲板': ['游轮','甲板','海风','阳光','躺椅','海浪','远方','度假','浪漫','放松'],
-    '热气球': ['热气球','吊篮','火焰','升空','风景','高度','风','冒险','浪漫','俯瞰'],
-    '直升机观光': ['直升机','螺旋桨','飞行员','空中','俯瞰','风景','刺激','噪音','观光','记忆'],
-    '房车旅行': ['房车','公路','露营','厨房','床铺','自由','风景','旅途','家庭','冒险'],
-    '邮轮旅行': ['邮轮','甲板','餐厅','剧院','泳池','海景','度假','豪华','放松','享受'],
-    '帆船航行': ['帆船','帆','风','海浪','舵','海风','自由','冒险','海洋','宁静'],
-    '皮划艇': ['皮划艇','桨','水面','平衡','力量','河流','冒险','运动','自然','清凉'],
-    '观光缆车': ['缆车','缆绳','山景','高度','玻璃','风景','缓慢','俯瞰','观光','记忆'],
-    '观光巴士': ['巴士','敞篷','导游','景点','路线','城市','风景','游客','方便','记忆'],
-    '飞机客舱': ['客舱','座椅','空乘','安全带','舷窗','云层','餐饮','电影','飞行','旅行'],
-    '机场摆渡车': ['摆渡车','机场','乘客','登机','拥挤','短暂','路线','等待','到达','出发'],
-
-    /* ========== 旅游观光（40个场景） ========== */
-    '海滩度假': ['沙滩','海浪','贝壳','阳光','椰树','泳衣','遮阳伞','脚印','海风','度假'],
-    '爬山徒步': ['山峰','石阶','登山杖','背包','汗水','山顶','云海','喘息','风景','坚持'],
-    '博物馆参观': ['文物','展柜','讲解','历史','青铜','陶瓷','绘画','安静','知识','震撼'],
-    '古镇游览': ['青石板','小桥','流水','灯笼','老屋','小巷','古韵','宁静','时光','回忆'],
-    '露营野餐': ['帐篷','野餐垫','篝火','星空','烧烤','睡袋','草地','虫鸣','夜晚','自然'],
-    '城市地标': ['塔楼','雕塑','广场','喷泉','灯光','合影','游客','繁华','夜景','标志'],
-    '海岛游': ['海岛','沙滩','游船','椰林','潜水','海鸥','阳光','蔚蓝','浪漫','悠闲'],
-    '沙漠探险': ['沙丘','骆驼','绿洲','烈日','驼铃','足迹','浩瀚','干旱','冒险','星空'],
-    '森林徒步': ['树木','小径','鸟鸣','苔藓','露珠','氧气','阳光','幽静','自然','呼吸'],
-    '雪山观光': ['雪峰','冰川','缆车','寒风','白雪','阳光','壮丽','纯净','高海拔','震撼'],
-    '峡谷漂流': ['峡谷','橡皮艇','急流','桨','浪花','岩石','尖叫','刺激','清凉','团队'],
-    '温泉度假': ['温泉','热气','矿物质','泡池','毛巾','放松','疗愈','安静','舒适','养生'],
-    '乡村民宿': ['农舍','菜园','鸡鸣','炊烟','星空','田野','朴素','宁静','慢生活','回归'],
-    '自驾游': ['公路','方向盘','导航','音乐','风景','加油','休息站','自由','旅途','探索'],
-    '跟团游': ['导游','旗帜','大巴','团员','行程','拍照','集合','匆忙','景点','热闹'],
-    '背包旅行': ['背包','地图','青旅','搭车','省钱','自由','冒险','相遇','故事','青春'],
-    '摄影之旅': ['相机','镜头','三脚架','光线','构图','快门','美景','等待','瞬间','记录'],
-    '美食之旅': ['小吃','摊位','味蕾','香气','特色','品尝','回味','烟火','当地','满足'],
-    '历史文化游': ['古迹','碑文','寺庙','故事','朝代','沧桑','厚重','沉淀','敬畏','传承'],
-    '亲子游': ['孩子','欢笑','游乐','家庭','合影','童趣','陪伴','温馨','快乐','回忆'],
-    '蜜月旅行': ['浪漫','牵手','夕阳','烛光','海景','二人','甜蜜','私密','幸福','纪念'],
-    '毕业旅行': ['同学','青春','合影','狂欢','告别','未来','回忆','热血','友谊','启程'],
-    '独自旅行': ['独行','背包','自由','思考','相遇','安静','成长','勇气','探索','内心'],
-    '主题公园': ['过山车','旋转木马','卡通','巡游','尖叫','欢乐','排队','烟火','童话','刺激'],
-    '动物园': ['动物','笼舍','喂食','大象','长颈鹿','猴子','孩子','好奇','可爱','自然'],
-    '水族馆': ['水族','鱼群','鲨鱼','珊瑚','海龟','隧道','蔚蓝','奇幻','安静','海洋'],
-    '植物园': ['花卉','温室','仙人掌','兰花','蝴蝶','绿意','芬芳','宁静','自然','科普'],
-    '国家公园': ['原始','森林','湖泊','野生动物','步道','保护','壮美','纯净','自然','敬畏'],
-    '世界遗产': ['遗产','古迹','文化','保护','历史','价值','沧桑','传承','庄严','震撼'],
-    '日出观赏': ['日出','地平线','霞光','云海','等待','黎明','希望','壮丽','安静','感动'],
-    '日落观赏': ['日落','晚霞','余晖','海面','剪影','黄昏','浪漫','不舍','宁静','回忆'],
-    '星空露营': ['星空','银河','帐篷','篝火','虫鸣','流星','浩瀚','宁静','许愿','浪漫'],
-    '冰川徒步': ['冰川','冰裂缝','冰镐','绳索','向导','寒冷','壮丽','危险','纯净','敬畏'],
-    '热气球体验': ['热气球','吊篮','火焰','升空','俯瞰','风景','浪漫','冒险','高度','记忆'],
-    '潜水体验': ['潜水','面镜','氧气瓶','珊瑚','鱼群','海底','静谧','奇幻','呼吸','探索'],
-    '冲浪体验': ['冲浪','浪板','海浪','平衡','摔倒','站起','刺激','阳光','自由','挑战'],
-    '滑翔伞': ['滑翔伞','起飞','气流','俯瞰','风','自由','刺激','美景','高度','勇气'],
-    '跳伞体验': ['跳伞','飞机','自由落体','降落伞','尖叫','刺激','极限','勇气','俯瞰','重生'],
-    '丛林探险': ['丛林','藤蔓','瀑布','野生动物','向导','闷热','神秘','冒险','原始','敬畏'],
-
-    /* ========== 工作职场（40个场景） ========== */
-    '办公室办公': ['电脑','键盘','文件','咖啡','办公桌','打印机','会议','邮件','专注','效率'],
-    '会议室开会': ['投影仪','白板','笔记本','讨论','PPT','汇报','决策','团队','头脑风暴','目标'],
-    '远程办公': ['视频','耳机','网络','居家','时差','协作','软件','安静','自律','效率'],
-    '商务出差': ['机票','酒店','客户','行李','行程','谈判','疲惫','效率','专业','成果'],
-    '团队协作': ['分工','沟通','信任','配合','目标','冲突','协调','默契','成果','成长'],
-    '面试应聘': ['简历','自我介绍','面试官','提问','紧张','自信','经验','技能','薪资','机会'],
-    '客户拜访': ['名片','握手','需求','方案','礼貌','信任','沟通','签约','关系','专业'],
-    '项目汇报': ['PPT','数据','进度','成果','问题','方案','领导','汇报','清晰','说服'],
-    '产品发布': ['产品','舞台','演示','亮点','媒体','用户','期待','创新','发布','轰动'],
-    '团队建设': ['拓展','游戏','信任','合作','笑声','挑战','默契','友谊','团队','成长'],
-    '绩效评估': ['目标','KPI','评估','反馈','改进','面谈','公平','激励','成长','结果'],
-    '职业培训': ['讲师','课件','笔记','练习','技能','考核','证书','提升','专注','收获'],
-    '商务谈判': ['报价','条款','让步','底线','策略','沉默','签约','博弈','双赢','专业'],
-    '合同签署': ['合同','签字','印章','条款','法律','生效','仪式','握手','合作','信任'],
-    '市场调研': ['问卷','数据','样本','分析','趋势','用户','竞品','报告','洞察','决策'],
-    '数据分析': ['表格','图表','模型','趋势','异常','结论','洞察','工具','逻辑','决策'],
-    '战略规划': ['愿景','目标','路径','资源','竞争','布局','长期','决策','执行','调整'],
-    '预算管理': ['预算','成本','收入','支出','报表','控制','审批','节省','平衡','绩效'],
-    '招聘面试': ['岗位','简历','筛选','面试','评估','录用','人才','团队','匹配','培养'],
-    '员工培训': ['课件','讲师','学员','练习','考核','反馈','技能','成长','投入','产出'],
-    '跨部门协作': ['沟通','协调','资源','冲突','目标','会议','邮件','推进','成果','共赢'],
-    '公司年会': ['舞台','节目','抽奖','致辞','表彰','聚餐','欢笑','合影','感恩','展望'],
-    '商务午餐': ['餐厅','菜单','红酒','话题','礼仪','合作','轻松','洽谈','关系','机会'],
-    '商务邮件': ['主题','正文','附件','礼貌','简洁','抄送','回复','跟进','专业','效率'],
-    '电话会议': ['拨号','静音','发言','记录','时差','网络','议程','结论','跟进','效率'],
-    '视频会议': ['摄像头','麦克风','屏幕共享','背景','发言','记录','网络','礼仪','协作','效率'],
-    '项目截止': ['截止','冲刺','加班','压力','交付','质量','验收','团队','成果','疲惫'],
-    '创意头脑风暴': ['白板','便签','点子','自由','碰撞','灵感','记录','筛选','落地','创新'],
-    '产品设计': ['原型','用户','体验','界面','功能','迭代','测试','反馈','美学','实用'],
-    '用户体验研究': ['用户','访谈','问卷','痛点','场景','数据','洞察','改进','体验','满意'],
-    '竞争对手分析': ['竞品','数据','优势','劣势','策略','对比','报告','洞察','应对','超越'],
-    '供应链管理': ['供应商','库存','物流','成本','效率','风险','协调','优化','交付','质量'],
-    '客户服务': ['热线','耐心','问题','解决','满意度','投诉','跟进','礼貌','专业','口碑'],
-    '售后支持': ['维修','退换','保修','响应','满意','跟进','记录','反馈','信任','口碑'],
-    '项目管理': ['计划','进度','资源','风险','沟通','协调','交付','复盘','团队','成果'],
-    '时间管理': ['优先级','待办','番茄钟','专注','效率','拖延','计划','复盘','平衡','成果'],
-    '团队领导': ['愿景','激励','授权','反馈','信任','榜样','决策','成长','团队','成果'],
-    '员工激励': ['奖励','认可','成长','目标','信任','授权','氛围','归属','动力','产出'],
-    '绩效考核': ['指标','打分','反馈','面谈','改进','晋升','公平','激励','成长','结果'],
-
-    /* ========== 休闲娱乐（40个场景） ========== */
-    '电影院': ['银幕','爆米花','可乐','座位','剧情','演员','特效','字幕','感动','回忆'],
-    '公园散步': ['小径','绿树','长椅','鸟鸣','阳光','悠闲','散步','花香','放松','自然'],
-    '健身房锻炼': ['哑铃','跑步机','汗水','肌肉','教练','镜子','音乐','坚持','力量','蜕变'],
-    'KTV唱歌': ['麦克风','点歌','屏幕','包厢','合唱','高音','掌声','欢笑','放松','释放'],
-    '游乐园': ['过山车','旋转木马','摩天轮','尖叫','欢笑','排队','童话','刺激','烟花','回忆'],
-    '桌游聚会': ['骰子','卡牌','棋盘','规则','策略','欢笑','朋友','竞争','合作','夜晚'],
-    '露营': ['帐篷','篝火','星空','睡袋','烧烤','虫鸣','夜晚','自然','放松','朋友'],
-    '钓鱼': ['鱼竿','鱼饵','浮漂','水面','安静','等待','收获','耐心','阳光','自然'],
-    '下棋': ['棋盘','棋子','策略','思考','对手','胜负','专注','智慧','安静','博弈'],
-    '打牌': ['扑克','牌桌','筹码','运气','策略','欢笑','朋友','夜晚','刺激','放松'],
-    '看演出': ['舞台','灯光','演员','掌声','剧情','音乐','感动','震撼','座位','回忆'],
-    '听音乐会': ['乐团','指挥','乐器','旋律','和声','掌声','灯光','震撼','沉浸','感动'],
-    '看展览': ['展品','灯光','解说','艺术','安静','思考','拍照','灵感','文化','沉淀'],
-    '逛书店': ['书架','书香','翻页','安静','挑选','阅读','角落','咖啡','知识','沉浸'],
-    '泡温泉': ['温泉','热气','矿物质','泡池','毛巾','放松','疗愈','安静','舒适','养生'],
-    '做手工': ['材料','剪刀','胶水','创意','专注','成品','满足','颜色','形状','乐趣'],
-    '绘画': ['画笔','颜料','画布','色彩','构图','灵感','专注','表达','美','创作'],
-    '摄影': ['相机','镜头','光线','构图','快门','瞬间','记录','美','等待','回忆'],
-    '园艺': ['花盆','土壤','种子','浇水','修剪','阳光','绿意','耐心','生机','收获'],
-    '养宠物': ['宠物','喂食','遛弯','毛发','陪伴','可爱','责任','快乐','温暖','信任'],
-    '做饭聚会': ['厨房','食材','锅铲','香气','合作','欢笑','餐桌','分享','美味','温暖'],
-    '烧烤': ['炭火','烤串','孜然','辣椒','啤酒','露天','烟火','热闹','夜晚','朋友'],
-    '密室逃脱': ['密室','线索','谜题','推理','团队','紧张','合作','逃脱','刺激','成就'],
-    '剧本杀': ['剧本','角色','推理','线索','讨论','演技','沉浸','悬念','朋友','真相'],
-    '保龄球': ['球道','保龄球','球瓶','投球','全中','分数','技巧','欢笑','运动','朋友'],
-    '台球': ['球桌','球杆','台球','瞄准','进球','技巧','专注','策略','优雅','朋友'],
-    '飞镖': ['飞镖','靶盘','瞄准','投掷','分数','技巧','专注','酒吧','朋友','放松'],
-    '攀岩': ['岩壁','绳索','抓手','力量','技巧','高度','挑战','坚持','成就','勇气'],
-    '蹦极': ['蹦极','高台','绳索','坠落','尖叫','刺激','勇气','极限','重生','记忆'],
-    '滑板': ['滑板','轮子','街道','平衡','技巧','年轻人','自由','酷','城市','风'],
-    '轮滑': ['轮滑','轮子','护具','平衡','速度','技巧','街道','自由','运动','青春'],
-    '骑马': ['马匹','马鞍','缰绳','草原','奔跑','风','自由','优雅','勇气','自然'],
-    '看球赛': ['球场','球迷','欢呼','进球','呐喊','旗帜','激情','紧张','团队','胜利'],
-    '打游戏': ['手柄','屏幕','关卡','队友','策略','胜利','失败','沉浸','刺激','放松'],
-    '追剧': ['剧集','屏幕','沙发','零食','剧情','熬夜','沉浸','讨论','期待','放松'],
-    '看综艺': ['综艺','明星','游戏','笑点','屏幕','零食','轻松','欢乐','放松','周末'],
-    '听播客': ['播客','耳机','话题','主播','通勤','学习','放松','思考','陪伴','知识'],
-    '看直播': ['直播','主播','弹幕','打赏','互动','热闹','实时','娱乐','陪伴','放松'],
-    '刷短视频': ['短视频','手机','滑动','点赞','搞笑','碎片','上瘾','娱乐','放松','时间'],
-
-    /* ========== 购物消费（40个场景） ========== */
-    '超市购物': ['购物车','货架','商品','价格','收银台','塑料袋','促销','挑选','排队','满载'],
-    '商场逛街': ['橱窗','电梯','品牌','试衣间','导购','折扣','人群','灯光','闲逛','购物袋'],
-    '书店购书': ['书架','书香','翻阅','封面','作者','收银','挑选','安静','知识','收获'],
-    '菜市场': ['摊位','蔬菜','鱼虾','秤','讨价','新鲜','吆喝','热闹','塑料袋','烟火'],
-    '药店买药': ['药盒','处方','药师','柜台','剂量','说明','健康','安心','医保','对症'],
-    '网上购物': ['手机','订单','购物车','支付','快递','评价','优惠','比价','方便','等待'],
-    '便利店': ['货架','零食','饮料','收银','关东煮','便当','24小时','方便','快速','日常'],
-    '水果店': ['水果','苹果','香蕉','秤','新鲜','香甜','颜色','季节','挑选','健康'],
-    '面包店': ['面包','烤箱','香气','黄油','蛋糕','柜台','新鲜','早餐','甜蜜','温暖'],
-    '花店': ['鲜花','玫瑰','百合','包装','香气','颜色','花语','浪漫','礼物','祝福'],
-    '服装店': ['衣架','试衣间','镜子','尺码','颜色','面料','导购','搭配','折扣','风格'],
-    '鞋店': ['鞋架','运动鞋','皮鞋','试穿','尺码','舒适','品牌','款式','走路','搭配'],
-    '珠宝店': ['珠宝','黄金','钻石','柜台','灯光','光泽','价格','鉴定','礼物','珍藏'],
-    '电子产品店': ['手机','电脑','参数','体验','屏幕','电池','价格','售后','科技','选择'],
-    '家具店': ['沙发','床','桌子','样板间','尺寸','材质','风格','搭配','送货','布置'],
-    '化妆品店': ['口红','粉底','试色','镜子','导购','品牌','功效','包装','试用','美丽'],
-    '宠物用品店': ['狗粮','猫砂','玩具','牵引绳','笼子','宠物','可爱','挑选','照顾','陪伴'],
-    '体育用品店': ['球鞋','球拍','运动服','器材','品牌','试穿','专业','运动','活力','健康'],
-    '玩具店': ['玩具','积木','娃娃','遥控车','颜色','孩子','欢笑','挑选','礼物','童年'],
-    '文具店': ['钢笔','笔记本','橡皮','尺子','书包','学生','挑选','实用','学习','开学'],
-    '眼镜店': ['镜框','镜片','验光','度数','试戴','清晰','时尚','专业','舒适','视力'],
-    '钟表店': ['手表','表带','机芯','指针','品牌','精准','优雅','收藏','礼物','时间'],
-    '茶叶店': ['茶叶','茶具','香气','冲泡','品种','产地','品味','传统','送礼','养生'],
-    '酒类专卖店': ['红酒','白酒','啤酒','年份','产地','酒架','品鉴','送礼','聚会','微醺'],
-    '二手车市场': ['二手车','车况','里程','价格','试驾','过户','发动机','保养','选择','划算'],
-    '房产中介': ['房源','户型','面积','价格','看房','贷款','地段','签约','安家','投资'],
-    '免税店': ['免税','化妆品','香水','烟酒','品牌','护照','优惠','游客','购物袋','划算'],
-    '奥特莱斯': ['折扣','品牌','工厂店','优惠','购物袋','人群','挑选','划算','逛街','收获'],
-    '跳蚤市场': ['旧货','摊位','讨价','古董','书籍','怀旧','淘宝','便宜','热闹','惊喜'],
-    '夜市': ['摊位','小吃','灯笼','人群','热闹','烧烤','游戏','夜晚','烟火','欢笑'],
-    '年货市场': ['年货','春联','灯笼','糖果','腊肉','热闹','红色','喜庆','团圆','祝福'],
-    '花鸟市场': ['花鸟','鱼缸','鸟笼','盆栽','鸣叫','色彩','热闹','挑选','生机','陪伴'],
-    '建材市场': ['瓷砖','地板','油漆','五金','样品','价格','装修','挑选','施工','新家'],
-    '批发市场': ['批发','货物','价格','摊位','量大','讨价','搬运','热闹','实惠','效率'],
-    '礼品店': ['礼品','包装','贺卡','创意','挑选','心意','惊喜','祝福','纪念','温暖'],
-    '母婴店': ['奶粉','尿布','婴儿车','玩具','柔软','安全','妈妈','挑选','呵护','成长'],
-    '老年用品店': ['拐杖','轮椅','保健品','舒适','安全','关爱','挑选','实用','健康','陪伴'],
-    '健康食品店': ['有机','粗粮','坚果','蜂蜜','营养','天然','健康','挑选','养生','品质'],
-    '进口商品店': ['进口','零食','红酒','化妆品','包装','价格','品质','异国','挑选','尝鲜'],
-
-    /* ========== 宠物动物（40个场景） ========== */
-    '撸猫': ['猫咪','毛发','呼噜','爪子','眼睛','柔软','可爱','抚摸','陪伴','治愈'],
-    '遛狗': ['狗狗','牵引绳','公园','奔跑','摇尾','粪便袋','欢快','运动','陪伴','责任'],
-    '宠物医院': ['诊室','疫苗','听诊','体温','医生','安抚','检查','治疗','健康','安心'],
-    '喂鱼': ['鱼缸','鱼食','水面','游动','色彩','安静','观察','喂食','气泡','悠闲'],
-    '遛鸟': ['鸟笼','鸣叫','羽毛','清晨','公园','老人','悠闲','陪伴','自然','和谐'],
-    '宠物美容': ['洗澡','吹风','修剪','毛发','香波','美容师','可爱','干净','造型','呵护'],
-    '养仓鼠': ['仓鼠','笼子','跑轮','木屑','瓜子','腮帮','可爱','小巧','夜行','陪伴'],
-    '养兔子': ['兔子','长耳','胡萝卜','笼子','柔软','蹦跳','可爱','安静','温顺','陪伴'],
-    '养乌龟': ['乌龟','龟壳','水池','缓慢','晒太阳','长寿','安静','耐心','观察','陪伴'],
-    '养蜥蜴': ['蜥蜴','鳞片','加热灯','昆虫','爬行','冷血','独特','安静','观察','个性'],
-    '养蛇': ['蛇','鳞片','缠绕','吐信','冷血','安静','独特','神秘','观察','敬畏'],
-    '养金鱼': ['金鱼','鱼缸','水草','游动','色彩','气泡','安静','观察','喂食','悠闲'],
-    '养鹦鹉': ['鹦鹉','羽毛','学舌','鸟笼','色彩','聪明','鸣叫','互动','陪伴','欢乐'],
-    '养龙猫': ['龙猫','绒毛','大耳','跳跃','沙浴','可爱','夜行','安静','柔软','陪伴'],
-    '养荷兰猪': ['荷兰猪','豚鼠','叫声','蔬菜','笼子','圆滚','可爱','温顺','群居','陪伴'],
-    '养蜘蛛': ['蜘蛛','蛛网','捕食','绒毛','独特','安静','观察','神秘','个性','敬畏'],
-    '养蚂蚁': ['蚂蚁','蚁巢','工蚁','搬运','团队','微小','观察','秩序','勤劳','神奇'],
-    '养蜗牛': ['蜗牛','壳','触角','缓慢','黏液','安静','观察','潮湿','耐心','可爱'],
-    '养青蛙': ['青蛙','池塘','呱叫','跳跃','绿色','滑腻','夜行','观察','自然','活力'],
-    '养鸭子': ['鸭子','扁嘴','摇摆','池塘','嘎嘎','羽毛','可爱','水边','活泼','陪伴'],
-    '养鸡': ['母鸡','公鸡','鸡蛋','打鸣','羽毛','啄食','农家','清晨','热闹','收获'],
-    '养羊驼': ['羊驼','绒毛','呆萌','咀嚼','草原','温顺','可爱','拍照','独特','陪伴'],
-    '养马': ['马','鬃毛','马蹄','奔跑','草原','优雅','力量','骑乘','自由','陪伴'],
-    '养驴': ['驴','长耳','叫声','拉车','倔强','农家','朴实','力量','劳作','陪伴'],
-    '养孔雀': ['孔雀','开屏','羽毛','绚丽','优雅','炫耀','惊艳','观赏','高贵','美丽'],
-    '养天鹅': ['天鹅','优雅','白羽','湖面','游弋','高贵','安静','倒影','浪漫','观赏'],
-    '养海豚': ['海豚','海洋','跳跃','聪明','光滑','表演','友善','灵动','水花','欢乐'],
-    '观察野鸟': ['望远镜','羽毛','鸣叫','树枝','飞翔','迁徙','自然','安静','观察','记录'],
-    '蝴蝶观赏': ['蝴蝶','翅膀','色彩','花朵','飞舞','轻盈','美丽','花园','安静','瞬间'],
-    '蜜蜂养殖': ['蜂箱','蜜蜂','蜂王','蜂蜜','蜂巢','勤劳','嗡嗡','采集','甜蜜','自然'],
-    '宠物训练': ['口令','奖励','坐下','握手','耐心','重复','训练','聪明','配合','成就'],
-    '宠物领养': ['领养','流浪','收容所','责任','陪伴','温暖','选择','缘分','家庭','爱心'],
-    '宠物寄养': ['寄养','笼舍','喂食','照顾','安心','短暂','分离','信任','专业','陪伴'],
-    '宠物摄影': ['相机','宠物','抓拍','可爱','姿势','耐心','光线','瞬间','记录','回忆'],
-    '宠物咖啡馆': ['咖啡','猫咪','抚摸','放松','安静','可爱','陪伴','午后','治愈','温馨'],
-    '宠物友好餐厅': ['宠物','餐厅','友好','陪伴','用餐','舒适','欢迎','户外','愉快','分享'],
-    '宠物公园': ['公园','宠物','奔跑','玩耍','社交','草地','欢快','自由','陪伴','欢乐'],
-    '宠物游泳池': ['泳池','宠物','游泳','划水','安全','教练','清凉','健康','欢乐','技能'],
-    '宠物健身房': ['器械','宠物','锻炼','跑步机','教练','健康','力量','坚持','活力','陪伴'],
-
-    /* ========== 运动健身（40个场景） ========== */
-    '打篮球': ['篮球','篮筐','运球','投篮','队友','防守','突破','得分','汗水','团队'],
-    '踢足球': ['足球','球门','传球','射门','队友','防守','跑动','进球','欢呼','团队'],
-    '打羽毛球': ['球拍','羽毛球','球网','扣杀','接发','步伐','技巧','对手','速度','敏捷'],
-    '游泳': ['泳池','泳镜','泳帽','划水','换气','自由泳','蛙泳','水花','耐力','清凉'],
-    '瑜伽': ['垫子','体式','呼吸','伸展','平衡','冥想','柔韧','专注','放松','身心'],
-    '滑雪': ['雪板','雪杖','雪道','缆车','寒风','速度','转弯','摔倒','刺激','雪山'],
-    '打网球': ['球拍','网球','球场','发球','抽球','对手','跑动','技巧','力量','专注'],
-    '打乒乓球': ['球拍','乒乓球','球台','旋转','扣杀','反应','技巧','速度','对手','敏捷'],
-    '跑步': ['跑道','跑鞋','汗水','呼吸','配速','公里','坚持','心肺','释放','健康'],
-    '骑自行车': ['自行车','踏板','头盔','车道','风吹','速度','耐力','风景','自由','运动'],
-    '登山': ['山峰','石阶','登山杖','背包','汗水','山顶','云海','喘息','风景','坚持'],
-    '健身操': ['音乐','动作','节奏','跳跃','拉伸','汗水','活力','燃烧','协调','快乐'],
-    '举重': ['杠铃','哑铃','肌肉','力量','呼吸','姿势','突破','重量','专注','蜕变'],
-    '拳击': ['拳套','沙袋','出拳','躲闪','步伐','力量','速度','对手','汗水','坚韧'],
-    '跆拳道': ['道服','腰带','踢腿','喊声','礼仪','对手','技巧','力量','尊重','坚韧'],
-    '柔道': ['道服','摔投','地面技','对手','礼仪','技巧','力量','平衡','尊重','坚韧'],
-    '击剑': ['剑','面罩','剑道','刺击','步伐','对手','优雅','速度','技巧','专注'],
-    '射箭': ['弓','箭','靶心','瞄准','呼吸','稳定','专注','力量','精准','沉静'],
-    '攀岩': ['岩壁','绳索','抓手','力量','技巧','高度','挑战','坚持','成就','勇气'],
-    '跳伞': ['飞机','自由落体','降落伞','尖叫','刺激','极限','勇气','俯瞰','重生','记忆'],
-    '冲浪': ['浪板','海浪','平衡','摔倒','站起','刺激','阳光','自由','挑战','海洋'],
-    '划船': ['船桨','水面','节奏','力量','配合','方向','水花','团队','耐力','平静'],
-    '帆船': ['帆','风','舵','海浪','倾斜','自由','方向','技巧','海洋','冒险'],
-    '潜水': ['面镜','氧气瓶','珊瑚','鱼群','海底','静谧','奇幻','呼吸','探索','海洋'],
-    '滑冰': ['冰面','冰鞋','旋转','平衡','摔倒','优雅','速度','寒冷','技巧','快乐'],
-    '轮滑': ['轮滑','轮子','护具','平衡','速度','技巧','街道','自由','运动','青春'],
-    '滑板': ['滑板','轮子','街道','平衡','技巧','年轻人','自由','酷','城市','风'],
-    '街舞': ['音乐','节奏','动作','地板','力量','创意','个性','团队','活力','表达'],
-    '芭蕾': ['足尖','芭蕾裙','旋转','优雅','音乐','伸展','柔韧','气质','舞台','美'],
-    '拉丁舞': ['音乐','节奏','舞步','旋转','热情','裙摆','搭档','性感','活力','表达'],
-    '广场舞': ['音乐','队伍','舞步','大妈','广场','欢笑','健身','热闹','傍晚','活力'],
-    '太极拳': ['太极','缓慢','呼吸','动作','平衡','专注','柔和','养生','宁静','和谐'],
-    '普拉提': ['垫子','核心','呼吸','伸展','平衡','专注','柔韧','控制','塑形','身心'],
-    'CrossFit': ['杠铃','跳绳','波比跳','汗水','强度','挑战','团队','极限','坚持','蜕变'],
-    '马术': ['马匹','马鞍','缰绳','骑乘','优雅','力量','配合','信任','草原','自由'],
-    '高尔夫': ['球杆','高尔夫球','球洞','挥杆','草地','阳光','优雅','专注','耐心','精准'],
-    '保龄球': ['球道','保龄球','球瓶','投球','全中','分数','技巧','欢笑','运动','朋友'],
-    '台球': ['球桌','球杆','台球','瞄准','进球','技巧','专注','策略','优雅','朋友'],
-    '飞镖': ['飞镖','靶盘','瞄准','投掷','分数','技巧','专注','酒吧','朋友','放松'],
-
-    /* ========== 自然风景（40个场景） ========== */
-    '日出': ['地平线','霞光','云海','黎明','希望','壮丽','安静','等待','金黄','感动'],
-    '星空': ['银河','繁星','流星','夜空','浩瀚','宁静','许愿','浪漫','深邃','敬畏'],
-    '下雨天': ['雨滴','雨伞','水洼','屋檐','潮湿','安静','窗边','思绪','清新','诗意'],
-    '雪景': ['雪花','积雪','白茫','冰凌','寒冷','纯净','安静','脚印','童话','宁静'],
-    '秋叶': ['枫叶','金黄','落叶','小径','秋风','斑斓','萧瑟','诗意','季节','回忆'],
-    '彩虹': ['彩虹','七色','雨后','天空','惊艳','短暂','美丽','希望','拍照','幸运'],
-    '夕阳': ['晚霞','余晖','海面','剪影','黄昏','浪漫','不舍','宁静','金黄','回忆'],
-    '云海': ['云海','翻腾','山峰','日出','壮丽','浩瀚','仙境','俯瞰','震撼','安静'],
-    '瀑布': ['瀑布','水帘','岩石','水花','轰鸣','彩虹','清凉','壮观','力量','震撼'],
-    '溪流': ['溪流','石头','水声','清凉','曲折','清澈','苔藓','安静','自然','治愈'],
-    '湖泊': ['湖面','倒影','平静','波纹','远山','天鹅','宁静','清澈','如镜','安详'],
-    '森林': ['树木','小径','鸟鸣','苔藓','露珠','氧气','阳光','幽静','自然','呼吸'],
-    '草原': ['草原','绿浪','牛羊','蓝天','白云','辽阔','风','自由','奔驰','宁静'],
-    '沙漠': ['沙丘','骆驼','绿洲','烈日','驼铃','足迹','浩瀚','干旱','冒险','星空'],
-    '冰川': ['冰川','冰裂缝','冰镐','寒冷','壮丽','纯净','危险','蓝色','敬畏','探险'],
-    '峡谷': ['峡谷','岩壁','河流','深邃','壮丽','回声','阳光','探险','震撼','时光'],
-    '火山': ['火山','岩浆','喷发','浓烟','炽热','壮观','危险','力量','敬畏','地球'],
-    '温泉': ['温泉','热气','矿物质','泡池','放松','疗愈','安静','舒适','养生','自然'],
-    '海浪': ['海浪','拍岸','浪花','潮汐','声音','力量','蔚蓝','沙滩','节奏','自由'],
-    '潮汐': ['潮汐','涨落','沙滩','贝壳','规律','月亮','力量','时间','自然','神秘'],
-    '极光': ['极光','绿光','夜空','绚丽','神秘','寒冷','梦幻','震撼','罕见','浪漫'],
-    '星空银河': ['银河','繁星','夜空','浩瀚','宁静','许愿','浪漫','深邃','敬畏','宇宙'],
-    '流星雨': ['流星','夜空','许愿','划过','短暂','绚烂','浪漫','惊叹','等待','记忆'],
-    '雾凇': ['雾凇','树枝','冰晶','白茫','寒冷','纯净','安静','童话','冬日','美丽'],
-    '日出云海': ['日出','云海','霞光','山峰','壮丽','仙境','俯瞰','震撼','安静','希望'],
-    '日落晚霞': ['日落','晚霞','余晖','天空','绚烂','浪漫','不舍','宁静','金黄','回忆'],
-    '满月': ['满月','月亮','银光','夜空','圆满','宁静','浪漫','潮汐','神秘','思念'],
-    '新月': ['新月','月牙','夜空','纤细','安静','神秘','开始','希望','浪漫','宁静'],
-    '繁星': ['繁星','夜空','闪烁','浩瀚','宁静','浪漫','深邃','许愿','宇宙','敬畏'],
-    '薄雾': ['薄雾','朦胧','清晨','弥漫','神秘','安静','轻柔','诗意','若隐若现','梦幻'],
-    '晨露': ['晨露','草叶','晶莹','清晨','清新','阳光','闪烁','短暂','自然','诗意'],
-    '春雨': ['春雨','细雨','滋润','新绿','清新','安静','诗意','生机','温柔','希望'],
-    '夏雷': ['夏雷','闪电','轰鸣','暴雨','震撼','力量','炎热','激烈','自然','敬畏'],
-    '秋风': ['秋风','落叶','萧瑟','清爽','金黄','诗意','季节','思绪','凉意','回忆'],
-    '冬雪': ['冬雪','雪花','白茫','寒冷','纯净','安静','童话','脚印','宁静','美丽'],
-    '春雪': ['春雪','雪花','嫩芽','清新','短暂','纯净','希望','生机','诗意','美丽'],
-    '夏雨': ['夏雨','暴雨','雷声','冲刷','清凉','激烈','水花','闷热','畅快','自然'],
-    '秋雾': ['秋雾','朦胧','清晨','凉意','神秘','安静','诗意','落叶','若隐若现','梦幻'],
-    '冬霜': ['冬霜','窗花','冰晶','寒冷','纯净','安静','清晨','美丽','短暂','诗意'],
-
-    /* ========== 学习校园（40个场景） ========== */
-    '图书馆': ['书架','书香','安静','阅览','笔记','专注','台灯','自习','知识','沉浸'],
-    '教室上课': ['黑板','讲台','课桌','粉笔','笔记','举手','老师','同学','专注','知识'],
-    '实验室': ['试管','显微镜','试剂','白大褂','记录','实验','严谨','探索','发现','科学'],
-    '操场运动': ['跑道','球场','哨声','汗水','奔跑','加油','团队','青春','活力','运动'],
-    '宿舍生活': ['床铺','书桌','室友','夜谈','泡面','欢笑','青春','友谊','日常','回忆'],
-    '毕业典礼': ['学位服','证书','合影','致辞','鲜花','泪水','告别','青春','未来','回忆'],
-    '自习室': ['书桌','台灯','笔记','安静','专注','刷题','咖啡','深夜','努力','梦想'],
-    '阶梯教室': ['阶梯','讲台','投影','笔记','学生','教授','安静','专注','知识','课堂'],
-    '计算机房': ['电脑','键盘','编程','屏幕','代码','专注','安静','科技','学习','实践'],
-    '音乐教室': ['钢琴','乐谱','乐器','音符','旋律','练习','专注','艺术','美','表达'],
-    '美术教室': ['画架','颜料','画笔','画布','色彩','创作','专注','艺术','美','表达'],
-    '体育馆': ['球场','看台','地板','哨声','比赛','加油','汗水','团队','运动','青春'],
-    '游泳馆': ['泳池','泳道','泳镜','水花','划水','教练','清凉','运动','耐力','健康'],
-    '校园食堂': ['窗口','餐盘','饭菜','排队','香味','嘈杂','餐桌','同学','日常','烟火'],
-    '校园书店': ['书架','教材','文具','翻页','挑选','安静','知识','学习','开学','收获'],
-    '校医院': ['诊室','药片','体温计','护士','检查','安静','治疗','健康','关心','恢复'],
-    '行政楼': ['办公室','文件','盖章','办事','走廊','安静','流程','严谨','老师','效率'],
-    '图书馆阅览室': ['书架','台灯','书桌','安静','翻阅','笔记','专注','知识','沉浸','时光'],
-    '学术报告厅': ['讲台','投影','听众','演讲','笔记','提问','掌声','学术','知识','启发'],
-    '社团活动室': ['海报','道具','会议','讨论','创意','欢笑','合作','青春','兴趣','友谊'],
-    '学生会办公室': ['文件','会议','策划','海报','讨论','忙碌','服务','组织','领导','成长'],
-    '校园广播站': ['麦克风','喇叭','稿件','播音','音乐','午间','声音','校园','青春','回忆'],
-    '校车': ['校车','座位','路线','站点','同学','清晨','放学','拥挤','准时','日常'],
-    '校园小卖部': ['零食','饮料','柜台','课间','同学','拥挤','便宜','热闹','日常','回忆'],
-    '校园操场': ['跑道','球场','哨声','汗水','奔跑','加油','团队','青春','活力','运动'],
-    '校门口': ['校门','门卫','放学','接送','人流','书包','清晨','傍晚','告别','日常'],
-    '教学楼走廊': ['走廊','教室','脚步','铃声','课间','同学','喧闹','青春','日常','回忆'],
-    '实验楼': ['实验室','仪器','白大褂','试剂','记录','严谨','探索','发现','科学','安静'],
-    '天文台': ['望远镜','星空','观测','穹顶','记录','浩瀚','神秘','专注','科学','敬畏'],
-    '植物园': ['花卉','温室','仙人掌','兰花','蝴蝶','绿意','芬芳','宁静','自然','科普'],
-    '校园湖': ['湖面','倒影','柳树','长椅','安静','散步','天鹅','宁静','青春','回忆'],
-    '林荫道': ['树木','小径','阳光','落叶','长椅','散步','安静','青春','浪漫','回忆'],
-    '英语角': ['英语','对话','交流','朋友','练习','勇敢','口音','欢笑','成长','自信'],
-    '辩论社': ['辩题','正方','反方','论据','逻辑','表达','反驳','思维','口才','成长'],
-    '运动会': ['跑道','加油','呐喊','终点','汗水','奖牌','团队','青春','拼搏','荣誉'],
-    '开学典礼': ['礼堂','致辞','新生','校歌','掌声','期待','开始','青春','梦想','启程'],
-    '军训': ['军装','教官','口令','烈日','汗水','站军姿','坚持','团队','青春','成长'],
-    '社团招新': ['海报','摊位','报名','宣传','热闹','选择','兴趣','朋友','青春','开始'],
-
-    /* ========== 医疗健康（40个场景） ========== */
-    '看医生': ['诊室','听诊器','问诊','处方','医生','症状','检查','安心','专业','恢复'],
-    '牙医诊所': ['牙椅','钻头','镜子','麻药','补牙','洗牙','疼痛','紧张','专业','健康'],
-    '体检中心': ['体检','抽血','B超','身高','体重','报告','排队','空腹','健康','安心'],
-    '药店买药': ['药盒','处方','药师','柜台','剂量','说明','健康','安心','医保','对症'],
-    '急救': ['救护车','担架','氧气','心肺复苏','紧急','速度','生命','专业','紧张','希望'],
-    '中医针灸': ['银针','穴位','经络','艾草','调理','酸胀','传统','疗效','放松','养生'],
-    '看眼科': ['视力表','眼压','眼底','镜片','验光','模糊','清晰','专业','护眼','健康'],
-    '看皮肤科': ['皮疹','药膏','过敏','瘙痒','诊断','治疗','皮肤','护理','专业','恢复'],
-    '看儿科': ['儿童','听诊','疫苗','身高','体重','哭闹','安抚','医生','健康','成长'],
-    '看妇科': ['妇科','检查','B超','问诊','隐私','专业','关怀','健康','安心','恢复'],
-    '看骨科': ['X光','石膏','关节','骨折','复位','康复','疼痛','专业','恢复','坚强'],
-    '看心理医生': ['咨询','倾诉','情绪','压力','倾听','疏导','隐私','信任','放松','疗愈'],
-    '接种疫苗': ['疫苗','针管','棉签','接种','免疫','观察','健康','防护','安心','专业'],
-    '抽血化验': ['针管','试管','止血带','化验','报告','空腹','专业','轻微','健康','安心'],
-    '做B超': ['B超','探头','耦合剂','屏幕','检查','憋尿','专业','安心','健康','诊断'],
-    '做CT': ['CT','扫描','造影剂','机器','影像','检查','专业','安心','诊断','健康'],
-    '做核磁共振': ['核磁','磁场','噪音','扫描','影像','检查','专业','安静','诊断','健康'],
-    '做心电图': ['心电图','电极','导联','波形','检查','心脏','专业','安心','诊断','健康'],
-    '住院': ['病房','病床','护士','输液','查房','安静','治疗','陪伴','恢复','安心'],
-    '手术': ['手术室','无影灯','麻醉','手术刀','医生','紧张','专业','生命','希望','恢复'],
-    '康复训练': ['康复','器械','理疗','训练','坚持','进步','耐心','专业','恢复','希望'],
-    '理疗': ['理疗','热敷','电疗','按摩','放松','舒缓','专业','疗程','恢复','舒适'],
-    '按摩': ['按摩','推拿','穴位','放松','酸胀','舒适','手法','专业','舒缓','养生'],
-    '针灸': ['银针','穴位','经络','酸胀','调理','传统','疗效','放松','专业','养生'],
-    '拔罐': ['火罐','吸力','印痕','祛湿','酸胀','传统','调理','放松','专业','养生'],
-    '推拿': ['推拿','手法','穴位','酸胀','放松','舒适','专业','调理','养生','舒缓'],
-    '健康讲座': ['讲师','PPT','听众','笔记','提问','知识','健康','预防','科普','收获'],
-    '营养咨询': ['营养','膳食','搭配','热量','食谱','专业','健康','均衡','建议','改善'],
-    '戒烟咨询': ['戒烟','尼古丁','替代','支持','鼓励','健康','坚持','专业','改善','新生'],
-    '心理咨询': ['咨询','倾诉','情绪','压力','倾听','疏导','隐私','信任','放松','疗愈'],
-    '家庭医生': ['家庭','医生','上门','随访','档案','贴心','专业','健康','信任','安心'],
-    '社区诊所': ['诊所','社区','医生','输液','药房','方便','亲切','健康','日常','安心'],
-    '急救车': ['救护车','警笛','担架','氧气','紧急','速度','生命','专业','紧张','希望'],
-    '医院挂号': ['挂号','窗口','自助机','排队','号码','科室','医保','等待','看病','流程'],
-    '取药': ['药房','窗口','处方','药盒','核对','剂量','说明','药师','健康','安心'],
-    '看内科': ['内科','问诊','听诊','化验','诊断','处方','专业','仔细','健康','恢复'],
-    '看外科': ['外科','伤口','缝合','换药','手术','消毒','专业','恢复','坚强','健康'],
-    '看耳鼻喉科': ['耳镜','鼻镜','喉镜','检查','听力','咽喉','专业','仔细','健康','恢复'],
-    '看口腔科': ['口腔','牙齿','牙龈','检查','清洁','专业','健康','护理','微笑','自信'],
-    '康复中心': ['康复','器械','训练','理疗','坚持','进步','耐心','专业','恢复','希望'],
-    '健康体检': ['体检','抽血','B超','心电图','报告','空腹','排队','健康','预防','安心']
-  };
-
-  const CATEGORIES = ['日常生活','餐饮美食','出行交通','旅游观光','工作职场','休闲娱乐','购物消费','宠物动物','运动健身','自然风景','学习校园','医疗健康'];
-
-  const CATEGORY_NAMES = {
-    '日常生活': ['叠被子','整理床铺','打扫房间','擦桌子','扫地','拖地','整理书架','整理衣柜','擦窗户','倒垃圾','洗衣服','晾衣服','熨衣服','收纳物品','布置客厅','卧室起床','客厅休息','厨房做饭','阳台浇花','浴室洗漱','书房阅读','听音乐','看电影','喝茶','泡咖啡','烤面包','做早餐','洗碗','擦镜子','整理鞋柜','整理冰箱','整理抽屉','擦地板','收拾玩具','换床单','叠衣服','摆放餐具','清洗空调','擦门','擦窗台'],
-    '餐饮美食': ['中餐馆','西餐厅','快餐店','咖啡厅','火锅店','夜市小吃','日料店','韩餐馆','素食馆','甜品店','烧烤摊','面馆','粥铺','包子铺','汉堡店','披萨店','寿司店','牛排馆','自助餐','早餐摊','下午茶','冰激凌店','奶茶店','果汁吧','酒吧','茶馆','自助火锅','家常菜','粤菜馆','川菜馆','湘菜馆','西式简餐','意大利餐厅','法式餐厅','美式餐厅','墨西哥餐厅','印度餐厅','泰国餐厅','越南餐厅','日式居酒屋','韩国烤肉店'],
-    '出行交通': ['地铁通勤','公交车站','出租车','机场候机','火车站','自行车骑行','自驾出行','高铁出行','轮渡出行','共享单车','网约车','地铁换乘','长途巴士','拼车出行','步行通勤','滑板出行','电动车','摩托车','景区摆渡车','机场安检','登机口','行李托运','火车站台','候车厅','检票口','出租车候车点','公交站台','地铁车厢','公交车上','驾驶舱','游轮甲板','热气球','直升机观光','房车旅行','邮轮旅行','帆船航行','皮划艇','观光缆车','观光巴士','飞机客舱','机场摆渡车'],
-    '旅游观光': ['海滩度假','爬山徒步','博物馆参观','古镇游览','露营野餐','城市地标','海岛游','沙漠探险','森林徒步','雪山观光','峡谷漂流','温泉度假','乡村民宿','自驾游','跟团游','背包旅行','摄影之旅','美食之旅','历史文化游','亲子游','蜜月旅行','毕业旅行','独自旅行','主题公园','动物园','水族馆','植物园','国家公园','世界遗产','日出观赏','日落观赏','星空露营','冰川徒步','热气球体验','潜水体验','冲浪体验','滑翔伞','跳伞体验','丛林探险'],
-    '工作职场': ['办公室办公','会议室开会','远程办公','商务出差','团队协作','面试应聘','客户拜访','项目汇报','产品发布','团队建设','绩效评估','职业培训','商务谈判','合同签署','市场调研','数据分析','战略规划','预算管理','招聘面试','员工培训','跨部门协作','公司年会','商务午餐','商务邮件','电话会议','视频会议','项目截止','创意头脑风暴','产品设计','用户体验研究','竞争对手分析','供应链管理','客户服务','售后支持','项目管理','时间管理','团队领导','员工激励','绩效考核'],
-    '休闲娱乐': ['电影院','公园散步','健身房锻炼','KTV唱歌','游乐园','桌游聚会','露营','钓鱼','下棋','打牌','看演出','听音乐会','看展览','逛书店','泡温泉','做手工','绘画','摄影','园艺','养宠物','做饭聚会','烧烤','密室逃脱','剧本杀','保龄球','台球','飞镖','攀岩','蹦极','滑板','轮滑','骑马','看球赛','打游戏','追剧','看综艺','听播客','看直播','刷短视频'],
-    '购物消费': ['超市购物','商场逛街','书店购书','菜市场','药店买药','网上购物','便利店','水果店','面包店','花店','服装店','鞋店','珠宝店','电子产品店','家具店','化妆品店','宠物用品店','体育用品店','玩具店','文具店','眼镜店','钟表店','茶叶店','酒类专卖店','二手车市场','房产中介','免税店','奥特莱斯','跳蚤市场','夜市','年货市场','花鸟市场','建材市场','批发市场','礼品店','母婴店','老年用品店','健康食品店','进口商品店'],
-    '宠物动物': ['撸猫','遛狗','宠物医院','喂鱼','遛鸟','宠物美容','养仓鼠','养兔子','养乌龟','养蜥蜴','养蛇','养金鱼','养鹦鹉','养龙猫','养荷兰猪','养蜘蛛','养蚂蚁','养蜗牛','养青蛙','养鸭子','养鸡','养羊驼','养马','养驴','养孔雀','养天鹅','养海豚','观察野鸟','蝴蝶观赏','蜜蜂养殖','宠物训练','宠物领养','宠物寄养','宠物摄影','宠物咖啡馆','宠物友好餐厅','宠物公园','宠物游泳池','宠物健身房'],
-    '运动健身': ['打篮球','踢足球','打羽毛球','游泳','瑜伽','滑雪','打网球','打乒乓球','跑步','骑自行车','登山','健身操','举重','拳击','跆拳道','柔道','击剑','射箭','攀岩','跳伞','冲浪','划船','帆船','潜水','滑冰','轮滑','滑板','街舞','芭蕾','拉丁舞','广场舞','太极拳','普拉提','CrossFit','马术','高尔夫','保龄球','台球','飞镖'],
-    '自然风景': ['日出','星空','下雨天','雪景','秋叶','彩虹','夕阳','云海','瀑布','溪流','湖泊','森林','草原','沙漠','冰川','峡谷','火山','温泉','海浪','潮汐','极光','星空银河','流星雨','雾凇','日出云海','日落晚霞','满月','新月','繁星','薄雾','晨露','春雨','夏雷','秋风','冬雪','春雪','夏雨','秋雾','冬霜'],
-    '学习校园': ['图书馆','教室上课','实验室','操场运动','宿舍生活','毕业典礼','自习室','阶梯教室','计算机房','音乐教室','美术教室','体育馆','游泳馆','校园食堂','校园书店','校医院','行政楼','图书馆阅览室','学术报告厅','社团活动室','学生会办公室','校园广播站','校车','校园小卖部','校园操场','校门口','教学楼走廊','实验楼','天文台','植物园','校园湖','林荫道','英语角','辩论社','运动会','开学典礼','军训','社团招新'],
-    '医疗健康': ['看医生','牙医诊所','体检中心','药店买药','急救','中医针灸','看眼科','看皮肤科','看儿科','看妇科','看骨科','看心理医生','接种疫苗','抽血化验','做B超','做CT','做核磁共振','做心电图','住院','手术','康复训练','理疗','按摩','针灸','拔罐','推拿','健康讲座','营养咨询','戒烟咨询','心理咨询','家庭医生','社区诊所','急救车','医院挂号','取药','看内科','看外科','看耳鼻喉科','看口腔科','康复中心','健康体检']
-  };
-
-  const GRADES_ALL = ['小学','初中','高中','四级','六级','专四','专八','大学及以上'];
-  /* ============================================================
-     通用词组库（按学历分级，适配任意场景）
-     每个学历 20 个词组，展示时随机抽 3 个
-     ============================================================ */
-  const COMMON_PHRASES = {
-    '小学': [
-      ['look at','/lʊk æt/','/lʊk æt/','看'],
-      ['a lot of','/ə lɑːt əv/','/ə lɒt əv/','许多'],
-      ['have fun','/hæv fʌn/','/hæv fʌn/','玩得开心'],
-      ['very good','/ˈveri ɡʊd/','/ˈveri ɡʊd/','非常好'],
-      ['go to','/ɡoʊ tuː/','/ɡəʊ tuː/','去'],
-      ['come from','/kʌm frɑːm/','/kʌm frɒm/','来自'],
-      ['play with','/pleɪ wɪð/','/pleɪ wɪð/','和……玩'],
-      ['look for','/lʊk fɔːr/','/lʊk fɔː/','寻找'],
-      ['talk about','/tɔːk əˈbaʊt/','/tɔːk əˈbaʊt/','谈论'],
-      ['be good at','/bi ɡʊd æt/','/biː ɡʊd æt/','擅长'],
-      ['listen to','/ˈlɪsn tuː/','/ˈlɪsn tuː/','听'],
-      ['wait for','/weɪt fɔːr/','/weɪt fɔː/','等待'],
-      ['help with','/help wɪð/','/help wɪð/','帮助做'],
-      ['put on','/pʊt ɑːn/','/pʊt ɒn/','穿上'],
-      ['take off','/teɪk ɔːf/','/teɪk ɒf/','脱下'],
-      ['get up','/ɡet ʌp/','/ɡet ʌp/','起床'],
-      ['wake up','/weɪk ʌp/','/weɪk ʌp/','醒来'],
-      ['sit down','/sɪt daʊn/','/sɪt daʊn/','坐下'],
-      ['stand up','/stænd ʌp/','/stænd ʌp/','起立'],
-      ['come in','/kʌm ɪn/','/kʌm ɪn/','进来']
-    ],
-    '初中': [
-      ['take part in','/teɪk pɑːrt ɪn/','/teɪk pɑːt ɪn/','参加'],
-      ['be interested in','/bi ˈɪntrəstɪd ɪn/','/biː ˈɪntrəstɪd ɪn/','对……感兴趣'],
-      ['look forward to','/lʊk ˈfɔːrwərd tuː/','/lʊk ˈfɔːwəd tuː/','期待'],
-      ['make sure','/meɪk ʃʊr/','/meɪk ʃʊə/','确保'],
-      ['as soon as possible','/æz suːn æz ˈpɑːsəbl/','/æz suːn æz ˈpɒsəbl/','尽快'],
-      ['be proud of','/bi praʊd əv/','/biː praʊd əv/','为……骄傲'],
-      ['get along with','/ɡet əˈlɔːŋ wɪð/','/ɡet əˈlɒŋ wɪð/','与……相处'],
-      ['pay attention to','/peɪ əˈtenʃn tuː/','/peɪ əˈtenʃn tuː/','注意'],
-      ['deal with','/diːl wɪð/','/diːl wɪð/','处理'],
-      ['depend on','/dɪˈpend ɑːn/','/dɪˈpend ɒn/','依靠'],
-      ['be afraid of','/bi əˈfreɪd əv/','/biː əˈfreɪd əv/','害怕'],
-      ['be full of','/bi fʊl əv/','/biː fʊl əv/','充满'],
-      ['be similar to','/bi ˈsɪmələr tuː/','/biː ˈsɪmələ tuː/','与……相似'],
-      ['be different from','/bi ˈdɪfrənt frɑːm/','/biː ˈdɪfrənt frɒm/','与……不同'],
-      ['be famous for','/bi ˈfeɪməs fɔːr/','/biː ˈfeɪməs fɔː/','以……闻名'],
-      ['be ready for','/bi ˈredi fɔːr/','/biː ˈredi fɔː/','为……做好准备'],
-      ['be busy with','/bi ˈbɪzi wɪð/','/biː ˈbɪzi wɪð/','忙于'],
-      ['be late for','/bi leɪt fɔːr/','/biː leɪt fɔː/','迟到'],
-      ['be angry with','/bi ˈæŋɡri wɪð/','/biː ˈæŋɡri wɪð/','生……的气'],
-      ['be strict with','/bi strɪkt wɪð/','/biː strɪkt wɪð/','对……严格']
-    ],
-    '高中': [
-      ['play an important role in','/pleɪ ən ɪmˈpɔːrtnt roʊl ɪn/','/pleɪ ən ɪmˈpɔːtnt rəʊl ɪn/','在……中起重要作用'],
-      ['be aware of','/bi əˈwer əv/','/biː əˈweər əv/','意识到'],
-      ['take advantage of','/teɪk ədˈvæntɪdʒ əv/','/teɪk ədˈvɑːntɪdʒ əv/','利用'],
-      ['in terms of','/ɪn tɜːrmz əv/','/ɪn tɜːmz əv/','就……而言'],
-      ['contribute to','/kənˈtrɪbjuːt tuː/','/kənˈtrɪbjuːt tuː/','有助于'],
-      ['be beneficial to','/bi ˌbenɪˈfɪʃl tuː/','/biː ˌbenɪˈfɪʃl tuː/','对……有益'],
-      ['make a difference','/meɪk ə ˈdɪfrəns/','/meɪk ə ˈdɪfrəns/','产生影响'],
-      ['keep in mind','/kiːp ɪn maɪnd/','/kiːp ɪn maɪnd/','牢记'],
-      ['adapt to','/əˈdæpt tuː/','/əˈdæpt tuː/','适应'],
-      ['focus on','/ˈfoʊkəs ɑːn/','/ˈfəʊkəs ɒn/','专注于'],
-      ['be responsible for','/bi rɪˈspɑːnsəbl fɔːr/','/biː rɪˈspɒnsəbl fɔː/','对……负责'],
-      ['be connected with','/bi kəˈnektɪd wɪð/','/biː kəˈnektɪd wɪð/','与……有关'],
-      ['be equipped with','/bi ɪˈkwɪpt wɪð/','/biː ɪˈkwɪpt wɪð/','配备有'],
-      ['be involved in','/bi ɪnˈvɑːlvd ɪn/','/biː ɪnˈvɒlvd ɪn/','参与'],
-      ['be committed to','/bi kəˈmɪtɪd tuː/','/biː kəˈmɪtɪd tuː/','致力于'],
-      ['make up for','/meɪk ʌp fɔːr/','/meɪk ʌp fɔː/','弥补'],
-      ['look up to','/lʊk ʌp tuː/','/lʊk ʌp tuː/','敬仰'],
-      ['come up with','/kʌm ʌp wɪð/','/kʌm ʌp wɪð/','想出'],
-      ['put up with','/pʊt ʌp wɪð/','/pʊt ʌp wɪð/','忍受'],
-      ['get rid of','/ɡet rɪd əv/','/ɡet rɪd əv/','摆脱']
-    ],
-    '四级': [
-      ['with regard to','/wɪð rɪˈɡɑːrd tuː/','/wɪð rɪˈɡɑːd tuː/','关于'],
-      ['in light of','/ɪn laɪt əv/','/ɪn laɪt əv/','鉴于'],
-      ['give rise to','/ɡɪv raɪz tuː/','/ɡɪv raɪz tuː/','引起'],
-      ['shed light on','/ʃed laɪt ɑːn/','/ʃed laɪt ɒn/','阐明'],
-      ['in accordance with','/ɪn əˈkɔːrdns wɪð/','/ɪn əˈkɔːdns wɪð/','依照'],
-      ['account for','/əˈkaʊnt fɔːr/','/əˈkaʊnt fɔː/','解释；占'],
-      ['be attributed to','/bi əˈtrɪbjuːtɪd tuː/','/biː əˈtrɪbjuːtɪd tuː/','归因于'],
-      ['in the long run','/ɪn ðə lɔːŋ rʌn/','/ɪn ðə lɒŋ rʌn/','从长远看'],
-      ['make the most of','/meɪk ðə moʊst əv/','/meɪk ðə məʊst əv/','充分利用'],
-      ['serve as','/sɜːrv æz/','/sɜːv æz/','作为'],
-      ['bear in mind','/ber ɪn maɪnd/','/beər ɪn maɪnd/','牢记'],
-      ['in response to','/ɪn rɪˈspɑːns tuː/','/ɪn rɪˈspɒns tuː/','回应'],
-      ['on behalf of','/ɑːn bɪˈhæf əv/','/ɒn bɪˈhɑːf əv/','代表'],
-      ['in favor of','/ɪn ˈfeɪvər əv/','/ɪn ˈfeɪvər əv/','支持'],
-      ['by contrast','/baɪ ˈkɑːntræst/','/baɪ ˈkɒntrɑːst/','相比之下'],
-      ['in addition to','/ɪn əˈdɪʃn tuː/','/ɪn əˈdɪʃn tuː/','除……之外'],
-      ['as a result of','/æz ə rɪˈzʌlt əv/','/æz ə rɪˈzʌlt əv/','由于'],
-      ['in spite of','/ɪn spaɪt əv/','/ɪn spaɪt əv/','尽管'],
-      ['regardless of','/rɪˈɡɑːrdləs əv/','/rɪˈɡɑːdləs əv/','不管'],
-      ['prior to','/ˈpraɪər tuː/','/ˈpraɪə tuː/','在……之前']
-    ],
-    '六级': [
-      ['stem from','/stem frɑːm/','/stem frɒm/','源于'],
-      ['resort to','/rɪˈzɔːrt tuː/','/rɪˈzɔːt tuː/','诉诸于'],
-      ['be subject to','/bi ˈsʌbdʒɪkt tuː/','/biː ˈsʌbdʒɪkt tuː/','受……影响'],
-      ['in the wake of','/ɪn ðə weɪk əv/','/ɪn ðə weɪk əv/','随着……而来'],
-      ['at the expense of','/æt ði ɪkˈspens əv/','/æt ði ɪkˈspens əv/','以……为代价'],
-      ['take into account','/teɪk ˈɪntu əˈkaʊnt/','/teɪk ˈɪntuː əˈkaʊnt/','考虑到'],
-      ['be inclined to','/bi ɪnˈklaɪnd tuː/','/biː ɪnˈklaɪnd tuː/','倾向于'],
-      ['bear in mind','/ber ɪn maɪnd/','/beər ɪn maɪnd/','牢记'],
-      ['cope with','/koʊp wɪð/','/kəʊp wɪð/','应对'],
-      ['in essence','/ɪn ˈesns/','/ɪn ˈesns/','本质上'],
-      ['be exposed to','/bi ɪkˈspoʊzd tuː/','/biː ɪkˈspəʊzd tuː/','暴露于'],
-      ['be immune to','/bi ɪˈmjuːn tuː/','/biː ɪˈmjuːn tuː/','对……免疫'],
-      ['be susceptible to','/bi səˈseptəbl tuː/','/biː səˈseptəbl tuː/','易受……影响'],
-      ['be liable to','/bi ˈlaɪəbl tuː/','/biː ˈlaɪəbl tuː/','易于'],
-      ['in conjunction with','/ɪn kənˈdʒʌŋkʃn wɪð/','/ɪn kənˈdʒʌŋkʃn wɪð/','与……结合'],
-      ['by no means','/baɪ noʊ miːnz/','/baɪ nəʊ miːnz/','绝不'],
-      ['in vain','/ɪn veɪn/','/ɪn veɪn/','徒劳'],
-      ['on the whole','/ɑːn ðə hoʊl/','/ɒn ðə həʊl/','总的来说'],
-      ['to some extent','/tu sʌm ɪkˈstent/','/tuː sʌm ɪkˈstent/','在某种程度上'],
-      ['for the most part','/fɔːr ðə moʊst pɑːrt/','/fɔː ðə məʊst pɑːt/','大部分']
-    ],
-    '专四': [
-      ['by virtue of','/baɪ ˈvɜːrtʃuː əv/','/baɪ ˈvɜːtʃuː əv/','凭借'],
-      ['in the midst of','/ɪn ðə mɪdst əv/','/ɪn ðə mɪdst əv/','在……之中'],
-      ['on the verge of','/ɑːn ðə vɜːrdʒ əv/','/ɒn ðə vɜːdʒ əv/','濒临'],
-      ['in the realm of','/ɪn ðə relm əv/','/ɪn ðə relm əv/','在……领域'],
-      ['with a view to','/wɪð ə vjuː tuː/','/wɪð ə vjuː tuː/','为了'],
-      ['be tantamount to','/bi ˈtæntəmaʊnt tuː/','/biː ˈtæntəmaʊnt tuː/','等同于'],
-      ['in lieu of','/ɪn luː əv/','/ɪn luː əv/','代替'],
-      ['for the sake of','/fɔːr ðə seɪk əv/','/fɔː ðə seɪk əv/','为了……的缘故'],
-      ['in the vicinity of','/ɪn ðə vəˈsɪnəti əv/','/ɪn ðə vəˈsɪnəti əv/','在……附近'],
-      ['by and large','/baɪ ænd lɑːrdʒ/','/baɪ ænd lɑːdʒ/','大体上'],
-      ['in retrospect','/ɪn ˈretrəspekt/','/ɪn ˈretrəspekt/','回想起来'],
-      ['in defiance of','/ɪn dɪˈfaɪəns əv/','/ɪn dɪˈfaɪəns əv/','无视'],
-      ['in compliance with','/ɪn kəmˈplaɪəns wɪð/','/ɪn kəmˈplaɪəns wɪð/','遵照'],
-      ['in pursuit of','/ɪn pərˈsuːt əv/','/ɪn pəˈsjuːt əv/','追求'],
-      ['in the absence of','/ɪn ði ˈæbsəns əv/','/ɪn ði ˈæbsəns əv/','缺乏'],
-      ['in the face of','/ɪn ðə feɪs əv/','/ɪn ðə feɪs əv/','面对'],
-      ['in the event of','/ɪn ði ɪˈvent əv/','/ɪn ði ɪˈvent əv/','万一'],
-      ['in the course of','/ɪn ðə kɔːrs əv/','/ɪn ðə kɔːs əv/','在……过程中'],
-      ['in the aftermath of','/ɪn ði ˈæftərmæθ əv/','/ɪn ði ˈɑːftəmæθ əv/','在……之后'],
-      ['at the mercy of','/æt ðə ˈmɜːrsi əv/','/æt ðə ˈmɜːsi əv/','任由……摆布']
-    ],
-    '专八': [
-      ['by the same token','/baɪ ðə seɪm ˈtoʊkən/','/baɪ ðə seɪm ˈtəʊkən/','同样地'],
-      ['in juxtaposition with','/ɪn ˌdʒʌkstəpəˈzɪʃn wɪð/','/ɪn ˌdʒʌkstəpəˈzɪʃn wɪð/','与……并置'],
-      ['a paradigm of','/ə ˈpærədaɪm əv/','/ə ˈpærədaɪm əv/','……的典范'],
-      ['the quintessence of','/ðə kwɪnˈtesns əv/','/ðə kwɪnˈtesns əv/','……的精髓'],
-      ['in a state of','/ɪn ə steɪt əv/','/ɪn ə steɪt əv/','处于……状态'],
-      ['be tantamount to','/bi ˈtæntəmaʊnt tuː/','/biː ˈtæntəmaʊnt tuː/','无异于'],
-      ['in the throes of','/ɪn ðə θroʊz əv/','/ɪn ðə θrəʊz əv/','正处于……的阵痛中'],
-      ['a touch of','/ə tʌtʃ əv/','/ə tʌtʃ əv/','一丝……'],
-      ['in the offing','/ɪn ði ˈɔːfɪŋ/','/ɪn ði ˈɒfɪŋ/','即将发生'],
-      ['on a par with','/ɑːn ə pɑːr wɪð/','/ɒn ə pɑː wɪð/','与……不相上下'],
-      ['in a nutshell','/ɪn ə ˈnʌtʃel/','/ɪn ə ˈnʌtʃel/','简而言之'],
-      ['at the outset','/æt ði ˈaʊtset/','/æt ði ˈaʊtset/','起初'],
-      ['by dint of','/baɪ dɪnt əv/','/baɪ dɪnt əv/','凭借'],
-      ['in the final analysis','/ɪn ðə ˈfaɪnl əˈnæləsɪs/','/ɪn ðə ˈfaɪnl əˈnæləsɪs/','归根结底'],
-      ['a far cry from','/ə fɑːr kraɪ frɑːm/','/ə fɑː kraɪ frɒm/','与……相去甚远'],
-      ['at odds with','/æt ɑːdz wɪð/','/æt ɒdz wɪð/','与……不一致'],
-      ['in the limelight','/ɪn ðə ˈlaɪmlaɪt/','/ɪn ðə ˈlaɪmlaɪt/','处于焦点'],
-      ['on the threshold of','/ɑːn ðə ˈθreʃhoʊld əv/','/ɒn ðə ˈθreʃhəʊld əv/','在……的门槛上'],
-      ['with impunity','/wɪð ɪmˈpjuːnəti/','/wɪð ɪmˈpjuːnəti/','不受惩罚地'],
-      ['in abeyance','/ɪn əˈbeɪəns/','/ɪn əˈbeɪəns/','处于中止状态']
-    ],
-    '大学及以上': [
-      ['in terms of','/ɪn tɜːrmz əv/','/ɪn tɜːmz əv/','就……而言'],
-      ['with respect to','/wɪð rɪˈspekt tuː/','/wɪð rɪˈspekt tuː/','关于'],
-      ['in the context of','/ɪn ðə ˈkɑːntekst əv/','/ɪn ðə ˈkɒntekst əv/','在……背景下'],
-      ['by means of','/baɪ miːnz əv/','/baɪ miːnz əv/','通过'],
-      ['for the purpose of','/fɔːr ðə ˈpɜːrpəs əv/','/fɔː ðə ˈpɜːpəs əv/','为了……目的'],
-      ['in conjunction with','/ɪn kənˈdʒʌŋkʃn wɪð/','/ɪn kənˈdʒʌŋkʃn wɪð/','与……结合'],
-      ['as a means of','/æz ə miːnz əv/','/æz ə miːnz əv/','作为一种……手段'],
-      ['in relation to','/ɪn rɪˈleɪʃn tuː/','/ɪn rɪˈleɪʃn tuː/','与……相关'],
-      ['with reference to','/wɪð ˈrefrəns tuː/','/wɪð ˈrefrəns tuː/','参考……'],
-      ['to a great extent','/tu ə ɡreɪt ɪkˈstent/','/tuː ə ɡreɪt ɪkˈstent/','在很大程度上'],
-      ['in the interest of','/ɪn ði ˈɪntrəst əv/','/ɪn ði ˈɪntrəst əv/','为了……的利益'],
-      ['in the process of','/ɪn ðə ˈprɑːses əv/','/ɪn ðə ˈprəʊses əv/','在……过程中'],
-      ['with the exception of','/wɪð ði ɪkˈsepʃn əv/','/wɪð ði ɪkˈsepʃn əv/','除……之外'],
-      ['on the grounds of','/ɑːn ðə ɡraʊndz əv/','/ɒn ðə ɡraʊndz əv/','基于……的理由'],
-      ['in the light of','/ɪn ðə laɪt əv/','/ɪn ðə laɪt əv/','鉴于'],
-      ['by the same token','/baɪ ðə seɪm ˈtoʊkən/','/baɪ ðə seɪm ˈtəʊkən/','同样地'],
-      ['for fear of','/fɔːr fɪr əv/','/fɔː fɪər əv/','以免'],
-      ['in the name of','/ɪn ðə neɪm əv/','/ɪn ðə neɪm əv/','以……的名义'],
-      ['at the discretion of','/æt ðə dɪˈskreʃn əv/','/æt ðə dɪˈskreʃn əv/','由……自行决定'],
-      ['in the absence of','/ɪn ði ˈæbsəns əv/','/ɪn ði ˈæbsəns əv/','缺乏']
-    ]
-  };
-
-  /* ============================================================
-     通用句型库（按学历分级，适配任意场景）
-     每个学历 10 个句型，展示时随机抽 2 个
-     ============================================================ */
-  const COMMON_SENTENCES = {
-    '小学': [
-      ['This is a ___.','/ðɪs ɪz ə/','/ðɪs ɪz ə/','这是一个___。'],
-      ['I can see ___.','/aɪ kæn siː/','/aɪ kæn siː/','我能看见___。'],
-      ['I like ___.','/aɪ laɪk/','/aɪ laɪk/','我喜欢___。'],
-      ['There is a ___.','/ðer ɪz ə/','/ðeər ɪz ə/','有一个___。'],
-      ['It is very ___.','/ɪt ɪz ˈveri/','/ɪt ɪz ˈveri/','它非常___。'],
-      ['I have a ___.','/aɪ hæv ə/','/aɪ hæv ə/','我有一个___。'],
-      ['I want to ___.','/aɪ wɑːnt tuː/','/aɪ wɒnt tuː/','我想___。'],
-      ['Can you ___?','/kæn juː/','/kæn juː/','你能___吗？'],
-      ['Let us ___.','/let ʌs/','/let ʌs/','让我们___。'],
-      ['I am ___.','/aɪ æm/','/aɪ æm/','我是___。']
-    ],
-    '初中': [
-      ['There is / are ___ in the picture.','/ðer ɪz / ɑːr/','/ðeər ɪz / ɑː/','图片里有___。'],
-      ['I think ___ is very ___.','/aɪ θɪŋk ___ ɪz ˈveri/','/aɪ θɪŋk ___ ɪz ˈveri/','我认为___非常___。'],
-      ['I often ___ because ___.','/aɪ ˈɔːfn/','/aɪ ˈɒfn/','我经常___，因为___。'],
-      ['It is important for me to ___.','/ɪt ɪz ɪmˈpɔːrtnt fɔːr miː tuː/','/ɪt ɪz ɪmˈpɔːtnt fɔː miː tuː/','对我来说做___很重要。'],
-      ['My favorite ___ is ___.','/maɪ ˈfeɪvərɪt ___ ɪz/','/maɪ ˈfeɪvərɪt ___ ɪz/','我最喜欢的___是___。'],
-      ['I want to ___ because ___.','/aɪ wɑːnt tuː/','/aɪ wɒnt tuː/','我想___，因为___。'],
-      ['When I ___, I feel ___.','/wen aɪ ... aɪ fiːl/','/wen aɪ ... aɪ fiːl/','当我___时，我感到___。'],
-      ['If you ___, you will ___.','/ɪf juː ... juː wɪl/','/ɪf juː ... juː wɪl/','如果你___，你将___。'],
-      ['I am interested in ___.','/aɪ æm ˈɪntrəstɪd ɪn/','/aɪ æm ˈɪntrəstɪd ɪn/','我对___感兴趣。'],
-      ['It is a good way to ___.','/ɪt ɪz ə ɡʊd weɪ tuː/','/ɪt ɪz ə ɡʊd weɪ tuː/','这是做___的好方法。']
-    ],
-    '高中': [
-      ['What impresses me most is ___.','/wɑːt ɪmˈpresɪz miː moʊst ɪz/','/wɒt ɪmˈpresɪz miː məʊst ɪz/','最让我印象深刻的是___。'],
-      ['It is + adj. + to ___.','/ɪt ɪz ... tuː/','/ɪt ɪz ... tuː/','做___是……的。'],
-      ['Not only ___ but also ___.','/nɑːt ˈoʊnli ... bʌt ˈɔːlsoʊ/','/nɒt ˈəʊnli ... bʌt ˈɔːlsəʊ/','不仅___而且___。'],
-      ['The reason why ___ is that ___.','/ðə ˈriːzn waɪ ___ ɪz ðæt/','/ðə ˈriːzn waɪ ___ ɪz ðæt/','___的原因是___。'],
-      ['As far as I am concerned, ___.','/æz fɑːr æz aɪ æm kənˈsɜːrnd/','/æz fɑːr æz aɪ æm kənˈsɜːnd/','就我而言，___。'],
-      ['It is not only ___ but also ___.','/ɪt ɪz nɑːt ˈoʊnli ... bʌt ˈɔːlsoʊ/','/ɪt ɪz nɒt ˈəʊnli ... bʌt ˈɔːlsəʊ/','它不仅是___，也是___。'],
-      ['There is no doubt that ___.','/ðer ɪz noʊ daʊt ðæt/','/ðeər ɪz nəʊ daʊt ðæt/','毫无疑问___。'],
-      ['It goes without saying that ___.','/ɪt ɡoʊz wɪˈðaʊt ˈseɪɪŋ ðæt/','/ɪt ɡəʊz wɪˈðaʊt ˈseɪɪŋ ðæt/','不言而喻___。'],
-      ['What I want to say is that ___.','/wɑːt aɪ wɑːnt tuː seɪ ɪz ðæt/','/wɒt aɪ wɒnt tuː seɪ ɪz ðæt/','我想说的是___。'],
-      ['The more ___, the more ___.','/ðə mɔːr ... ðə mɔːr/','/ðə mɔː ... ðə mɔː/','越___，越___。']
-    ],
-    '四级': [
-      ['It is widely acknowledged that ___.','/ɪt ɪz ˈwaɪdli əkˈnɑːlɪdʒd ðæt/','/ɪt ɪz ˈwaɪdli əkˈnɒlɪdʒd ðæt/','人们普遍认为___。'],
-      ['What matters most is ___.','/wɑːt ˈmætərz moʊst ɪz/','/wɒt ˈmætəz məʊst ɪz/','最重要的是___。'],
-      ['It is + adj. + that ___.','/ɪt ɪz ... ðæt/','/ɪt ɪz ... ðæt/','___是……的。'],
-      ['There is no denying that ___.','/ðer ɪz noʊ dɪˈnaɪɪŋ ðæt/','/ðeər ɪz nəʊ dɪˈnaɪɪŋ ðæt/','不可否认___。'],
-      ['It goes without saying that ___.','/ɪt ɡoʊz wɪˈðaʊt ˈseɪɪŋ ðæt/','/ɪt ɡəʊz wɪˈðaʊt ˈseɪɪŋ ðæt/','不言而喻___。'],
-      ['When it comes to ___, ___.','/wen ɪt kʌmz tuː/','/wen ɪt kʌmz tuː/','说到___，___。'],
-      ['It is essential that ___.','/ɪt ɪz ɪˈsenʃl ðæt/','/ɪt ɪz ɪˈsenʃl ðæt/','___是必要的。'],
-      ['There is a tendency that ___.','/ðer ɪz ə ˈtendənsi ðæt/','/ðeər ɪz ə ˈtendənsi ðæt/','有一种趋势___。'],
-      ['It can be concluded that ___.','/ɪt kæn bi kənˈkluːdɪd ðæt/','/ɪt kæn biː kənˈkluːdɪd ðæt/','可以得出结论___。'],
-      ['What deserves our attention is ___.','/wɑːt dɪˈzɜːrvz aʊr əˈtenʃn ɪz/','/wɒt dɪˈzɜːvz aʊə əˈtenʃn ɪz/','值得我们关注的是___。']
-    ],
-    '六级': [
-      ['It is worth noting that ___.','/ɪt ɪz wɜːrθ ˈnoʊtɪŋ ðæt/','/ɪt ɪz wɜːθ ˈnəʊtɪŋ ðæt/','值得注意的是___。'],
-      ['There is a growing tendency to ___.','/ðer ɪz ə ˈɡroʊɪŋ ˈtendənsi tuː/','/ðeər ɪz ə ˈɡrəʊɪŋ ˈtendənsi tuː/','有一种日益增长的趋势去___。'],
-      ['It is not uncommon that ___.','/ɪt ɪz nɑːt ʌnˈkɑːmən ðæt/','/ɪt ɪz nɒt ʌnˈkɒmən ðæt/','___并不少见。'],
-      ['In essence, ___.','/ɪn ˈesns/','/ɪn ˈesns/','本质上，___。'],
-      ['It is + of great importance to ___.','/ɪt ɪz əv ɡreɪt ɪmˈpɔːrtns tuː/','/ɪt ɪz əv ɡreɪt ɪmˈpɔːtns tuː/','做___非常重要。'],
-      ['Whether or not ___, ___.','/ˈweðər ɔːr nɑːt/','/ˈweðər ɔː nɒt/','无论是否___，___。'],
-      ['It is no exaggeration to say that ___.','/ɪt ɪz noʊ ɪɡˌzædʒəˈreɪʃn tuː seɪ ðæt/','/ɪt ɪz nəʊ ɪɡˌzædʒəˈreɪʃn tuː seɪ ðæt/','毫不夸张地说___。'],
-      ['What is more important is that ___.','/wɑːt ɪz mɔːr ɪmˈpɔːrtnt ɪz ðæt/','/wɒt ɪz mɔː ɪmˈpɔːtnt ɪz ðæt/','更重要的是___。'],
-      ['It is high time that ___.','/ɪt ɪz haɪ taɪm ðæt/','/ɪt ɪz haɪ taɪm ðæt/','是时候___了。'],
-      ['There is no denying the fact that ___.','/ðer ɪz noʊ dɪˈnaɪɪŋ ðə fækt ðæt/','/ðeər ɪz nəʊ dɪˈnaɪɪŋ ðə fækt ðæt/','不可否认的事实是___。']
-    ],
-    '专四': [
-      ['It is imperative that ___.','/ɪt ɪz ɪmˈperətɪv ðæt/','/ɪt ɪz ɪmˈperətɪv ðæt/','迫切需要___。'],
-      ['What strikes me most is ___.','/wɑːt straɪks miː moʊst ɪz/','/wɒt straɪks miː məʊst ɪz/','最打动我的是___。'],
-      ['It is by no means ___ that ___.','/ɪt ɪz baɪ noʊ miːnz ðæt/','/ɪt ɪz baɪ nəʊ miːnz ðæt/','绝不___。'],
-      ['The more ___, the more ___.','/ðə mɔːr ... ðə mɔːr/','/ðə mɔː ... ðə mɔː/','越___，越___。'],
-      ['Given that ___, ___.','/ˈɡɪvn ðæt/','/ˈɡɪvn ðæt/','考虑到___，___。'],
-      ['It is not so much ___ as ___.','/ɪt ɪz nɑːt soʊ mʌtʃ ... æz/','/ɪt ɪz nɒt səʊ mʌtʃ ... æz/','与其说是___，不如说是___。'],
-      ['So + adj. + be + subject + that ___.','/soʊ ... ðæt/','/səʊ ... ðæt/','如此___以至于___。'],
-      ['It is + adj. + of sb. to do ___.','/ɪt ɪz ... əv ... tuː duː/','/ɪt ɪz ... əv ... tuː duː/','某人做___真是___。'],
-      ['Only when ___ can we ___.','/ˈoʊnli wen ... kæn wiː/','/ˈəʊnli wen ... kæn wiː/','只有当___我们才能___。'],
-      ['No sooner had ___ than ___.','/noʊ ˈsuːnər hæd ... ðæn/','/nəʊ ˈsuːnə hæd ... ðæn/','一___就___。']
-    ],
-    '专八': [
-      ['It is not an exaggeration to say that ___.','/ɪt ɪz nɑːt ən ɪɡˌzædʒəˈreɪʃn tuː seɪ ðæt/','/ɪt ɪz nɒt ən ɪɡˌzædʒəˈreɪʃn tuː seɪ ðæt/','毫不夸张地说___。'],
-      ['What epitomizes the scene is ___.','/wɑːt ɪˈpɪtəmaɪzɪz ðə siːn ɪz/','/wɒt ɪˈpɪtəmaɪzɪz ðə siːn ɪz/','最能体现这一场景的是___。'],
-      ['It is a paradox that ___.','/ɪt ɪz ə ˈpærədɑːks ðæt/','/ɪt ɪz ə ˈpærədɒks ðæt/','矛盾的是___。'],
-      ['What is more intriguing is that ___.','/wɑːt ɪz mɔːr ɪnˈtriːɡɪŋ ɪz ðæt/','/wɒt ɪz mɔː ɪnˈtriːɡɪŋ ɪz ðæt/','更有趣的是___。'],
-      ['It is tantamount to saying that ___.','/ɪt ɪz ˈtæntəmaʊnt tuː ˈseɪɪŋ ðæt/','/ɪt ɪz ˈtæntəmaʊnt tuː ˈseɪɪŋ ðæt/','这无异于说___。'],
-      ['Such is the nature of ___ that ___.','/sʌtʃ ɪz ðə ˈneɪtʃər əv ___ ðæt/','/sʌtʃ ɪz ðə ˈneɪtʃə əv ___ ðæt/','___的本质如此，以至于___。'],
-      ['It is not so much a matter of ___ as of ___.','/ɪt ɪz nɑːt soʊ mʌtʃ ə ˈmætər əv ... æz əv/','/ɪt ɪz nɒt səʊ mʌtʃ ə ˈmætə əv ... æz əv/','与其说是___问题，不如说是___问题。'],
-      ['Nowhere is this more evident than in ___.','/ˈnoʊwer ɪz ðɪs mɔːr ˈevɪdənt ðæn ɪn/','/ˈnəʊweər ɪz ðɪs mɔː ˈevɪdənt ðæn ɪn/','没有哪里比___更能体现这一点。'],
-      ['It is in ___ that we find ___.','/ɪt ɪz ɪn ___ ðæt wiː faɪnd/','/ɪt ɪz ɪn ___ ðæt wiː faɪnd/','正是在___中我们发现了___。'],
-      ['So intricate is ___ that ___.','/soʊ ˈɪntrɪkət ɪz ___ ðæt/','/səʊ ˈɪntrɪkət ɪz ___ ðæt/','___如此复杂，以至于___。']
-    ],
-    '大学及以上': [
-      ['It is universally acknowledged that ___.','/ɪt ɪz ˌjuːnɪˈvɜːrsəli əkˈnɑːlɪdʒd ðæt/','/ɪt ɪz ˌjuːnɪˈvɜːsəli əkˈnɒlɪdʒd ðæt/','普遍认为___。'],
-      ['What deserves our attention is ___.','/wɑːt dɪˈzɜːrvz aʊr əˈtenʃn ɪz/','/wɒt dɪˈzɜːvz aʊə əˈtenʃn ɪz/','值得我们关注的是___。'],
-      ['It is of paramount importance to ___.','/ɪt ɪz əv ˈpærəmaʊnt ɪmˈpɔːrtns tuː/','/ɪt ɪz əv ˈpærəmaʊnt ɪmˈpɔːtns tuː/','做___至关重要。'],
-      ['There is a prevailing view that ___.','/ðer ɪz ə prɪˈveɪlɪŋ vjuː ðæt/','/ðeər ɪz ə prɪˈveɪlɪŋ vjuː ðæt/','有一种普遍的观点认为___。'],
-      ['It can be argued that ___.','/ɪt kæn bi ˈɑːrɡjuːd ðæt/','/ɪt kæn biː ˈɑːɡjuːd ðæt/','可以认为___。'],
-      ['What is of significance is ___.','/wɑːt ɪz əv sɪɡˈnɪfɪkəns ɪz/','/wɒt ɪz əv sɪɡˈnɪfɪkəns ɪz/','具有重要意义的是___。'],
-      ['It is imperative that we ___.','/ɪt ɪz ɪmˈperətɪv ðæt wiː/','/ɪt ɪz ɪmˈperətɪv ðæt wiː/','我们必须___。'],
-      ['There is every reason to believe that ___.','/ðer ɪz ˈevri ˈriːzn tuː bɪˈliːv ðæt/','/ðeər ɪz ˈevri ˈriːzn tuː bɪˈliːv ðæt/','有充分理由相信___。'],
-      ['It is incumbent upon us to ___.','/ɪt ɪz ɪnˈkʌmbənt əˈpɑːn ʌs tuː/','/ɪt ɪz ɪnˈkʌmbənt əˈpɒn ʌs tuː/','我们有责任___。'],
-      ['What we should bear in mind is that ___.','/wɑːt wiː ʃʊd ber ɪn maɪnd ɪz ðæt/','/wɒt wiː ʃʊd beər ɪn maɪnd ɪz ðæt/','我们应牢记的是___。']
-    ]
-  };
-
-  /* ============================================================
-     随机抽样工具
-     ============================================================ */
-  function pickRandom(arr, n) {
-    if (!arr || arr.length === 0) return [];
-    const copy = arr.slice();
-    for (let i = copy.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-    }
-    return copy.slice(0, Math.min(n, copy.length));
-  }
-
-  /* ============================================================
-     中文 → 英文 映射表
-     ============================================================ */
-  const ZH_EN_MAP = {
-    '被子':'quilt','枕头':'pillow','床单':'sheet','被套':'duvet cover','叠法':'folding method',
-    '棱角':'edges','平整':'flat','褶皱':'wrinkles','床铺':'bed','卧室':'bedroom',
-    '床垫':'mattress','床架':'bed frame','床头':'headboard','床尾':'footboard','毯子':'blanket',
-    '铺平':'smooth out','拉直':'straighten','拍打':'pat','整理':'tidy','舒适':'comfortable',
-    '扫帚':'broom','拖把':'mop','抹布':'rag','灰尘':'dust','垃圾':'garbage',
-    '清洁剂':'cleaner','水桶':'bucket','吸尘器':'vacuum','角落':'corner','干净':'clean',
-    '桌面':'tabletop','污渍':'stain','水渍':'water stain','光亮':'shiny','擦拭':'wipe',
-    '木纹':'wood grain','反光':'reflection','簸箕':'dustpan','毛发':'hair','地板':'floor',
-    '清扫':'sweep','细致':'careful','书架':'bookshelf','书籍':'books','分类':'category',
-    '排列':'arrange','作者':'author','标题':'title','整齐':'neat','知识':'knowledge',
-    '阅读':'reading','衣柜':'wardrobe','衣架':'hanger','衣服':'clothes','折叠':'fold',
-    '季节':'season','颜色':'color','材质':'material','空间':'space','窗户':'window',
-    '玻璃':'glass','透明':'transparent','明亮':'bright','光线':'light','反射':'reflect',
-    '垃圾桶':'trash can','垃圾袋':'garbage bag','回收':'recycle','厨房':'kitchen','异味':'odor',
-    '清理':'clean up','环保':'environmental','卫生':'hygiene','洗衣机':'washing machine','洗衣液':'detergent',
-    '水':'water','泡沫':'foam','晾晒':'dry','晾衣架':'drying rack','阳光':'sunlight',
-    '风':'wind','干燥':'dry','夹子':'clip','阳台':'balcony','清新':'fresh',
-    '熨斗':'iron','熨衣板':'ironing board','温度':'temperature','蒸汽':'steam','布料':'fabric',
-    '笔挺':'crisp','收纳盒':'storage box','抽屉':'drawer','标签':'label','寻找':'find',
-    '方便':'convenient','有序':'orderly','沙发':'sofa','茶几':'coffee table','地毯':'carpet',
-    '花瓶':'vase','装饰画':'painting','抱枕':'cushion','灯光':'lighting','风格':'style',
-    '温馨':'cozy','闹钟':'alarm clock','窗帘':'curtain','睡衣':'pajamas','拖鞋':'slippers',
-    '清晨':'morning','清醒':'awake','伸展':'stretch','新的一天':'new day','电视':'TV',
-    '遥控器':'remote control','靠垫':'cushion','茶水':'tea','零食':'snack','放松':'relax',
-    '安静':'quiet','惬意':'pleasant','锅':'pot','铲子':'spatula','灶台':'stove',
-    '食材':'ingredients','油':'oil','盐':'salt','火候':'heat','香味':'aroma',
-    '翻炒':'stir-fry','美味':'delicious','花盆':'flower pot','水壶':'watering can','植物':'plant',
-    '土壤':'soil','叶子':'leaf','花朵':'flower','浇水':'water','修剪':'prune',
-    '生机':'vitality','牙刷':'toothbrush','牙膏':'toothpaste','毛巾':'towel','镜子':'mirror',
-    '水龙头':'faucet','洗面奶':'facial cleanser','清水':'clean water','清爽':'refreshing','书签':'bookmark',
-    '笔记':'notes','专注':'focus','思考':'think','沉浸':'immerse','耳机':'headphones',
-    '音箱':'speaker','旋律':'melody','节奏':'rhythm','歌词':'lyrics','歌手':'singer',
-    '专辑':'album','心情':'mood','银幕':'screen','剧情':'plot','演员':'actor',
-    '导演':'director','特效':'special effects','字幕':'subtitles','感动':'touched','震撼':'shocked',
-    '回忆':'memory','爆米花':'popcorn','茶杯':'teacup','茶叶':'tea leaves','热水':'hot water',
-    '茶壶':'teapot','香气':'aroma','苦涩':'bitter','回甘':'sweet aftertaste','宁静':'peaceful',
-    '品味':'savor','悠闲':'leisurely','咖啡豆':'coffee beans','咖啡机':'coffee machine','杯子':'cup',
-    '奶泡':'milk foam','糖':'sugar','提神':'refresh','享受':'enjoy','面包':'bread',
-    '烤箱':'oven','黄油':'butter','果酱':'jam','金黄':'golden','酥脆':'crispy',
-    '早餐':'breakfast','温暖':'warm','满足':'satisfied','鸡蛋':'egg','牛奶':'milk',
-    '煎锅':'frying pan','营养':'nutrition','简单':'simple','开始':'start','能量':'energy',
-    '洗碗布':'dishcloth','洗洁精':'dish soap','碗筷':'bowls and chopsticks','油污':'grease','冲洗':'rinse',
-    '摆放':'arrange','整洁':'tidy','倒影':'reflection','鞋柜':'shoe cabinet','鞋子':'shoes',
-    '鞋架':'shoe rack','冰箱':'fridge','食物':'food','保鲜':'keep fresh','过期':'expired',
-    '新鲜':'fresh','小物件':'small items','跪姿':'kneeling','用力':'put effort','玩具':'toy',
-    '收纳箱':'storage box','积木':'building blocks','娃娃':'doll','小汽车':'toy car','儿童':'children',
-    '快乐':'happy','更换':'replace','清洗':'wash','睡眠':'sleep','T恤':'T-shirt',
-    '裤子':'pants','餐具':'tableware','碗':'bowl','盘子':'plate','筷子':'chopsticks',
-    '勺子':'spoon','餐桌':'dining table','吃饭':'eat','仪式感':'sense of ceremony','空调':'air conditioner',
-    '滤网':'filter','刷子':'brush','晾干':'dry','安装':'install','健康':'health',
-    '门':'door','门把手':'doorknob','窗台':'windowsill','菜单':'menu',
-    '叉子':'fork','刀':'knife','餐巾':'napkin','椅子':'chair','味道':'taste',
-    '口感':'texture','服务':'service','环境':'environment','氛围':'atmosphere','价格':'price',
-    '背包':'backpack','地图':'map','导航':'navigation','时间':'time','路线':'route',
-    '方向':'direction','速度':'speed','距离':'distance','车站':'station','道路':'road',
-    '天气':'weather','风景':'scenery','人群':'crowd','声音':'sound','安全':'safety',
-    '准时':'on time','等待':'wait','出发':'depart','到达':'arrive','相机':'camera',
-    '行李箱':'suitcase','护照':'passport','门票':'ticket','照片':'photo','文化':'culture',
-    '历史':'history','故事':'story','记忆':'memory','体验':'experience','冒险':'adventure',
-    '美丽':'beautiful','难忘':'unforgettable','特别':'special','电脑':'computer','文件':'document',
-    '会议':'meeting','客户':'client','报告':'report','办公桌':'desk','笔记本':'notebook',
-    '钢笔':'pen','名片':'business card','效率':'efficiency','沟通':'communication','团队':'team',
-    '目标':'goal','计划':'plan','压力':'pressure','成就':'achievement','挑战':'challenge',
-    '机会':'opportunity','合作':'cooperation','音乐':'music','游戏':'game','书本':'book',
-    '朋友':'friend','咖啡':'coffee','兴趣':'interest','爱好':'hobby','笑声':'laughter',
-    '创意':'creativity','色彩':'color','感觉':'feeling','商品':'product','折扣':'discount',
-    '钱包':'wallet','信用卡':'credit card','购物袋':'shopping bag','质量':'quality','品牌':'brand',
-    '选择':'choice','比较':'compare','满意':'satisfied','预算':'budget','需求':'need',
-    '喜欢':'like','值得':'worth','宠物':'pet','陪伴':'companionship','照顾':'care',
-    '习惯':'habit','性格':'personality','眼神':'gaze','柔软':'soft','活泼':'lively',
-    '信任':'trust','球':'ball','跑步':'running','瑜伽':'yoga','队友':'teammate',
-    '教练':'coach','汗水':'sweat','力量':'strength','耐力':'endurance','坚持':'persist',
-    '呼吸':'breath','动作':'movement','进步':'progress','天空':'sky','云朵':'cloud',
-    '太阳':'sun','山':'mountain','海':'sea','树':'tree','草地':'grass',
-    '雨':'rain','雪':'snow','彩虹':'rainbow','星星':'star','月亮':'moon',
-    '光':'light','气息':'breath','教室':'classroom','黑板':'blackboard','笔':'pen',
-    '考试':'exam','图书馆':'library','课桌':'desk','书包':'schoolbag','老师':'teacher',
-    '同学':'classmate','问题':'question','答案':'answer','努力':'effort','梦想':'dream',
-    '青春':'youth','友谊':'friendship','医生':'doctor','药':'medicine','医院':'hospital',
-    '检查':'checkup','休息':'rest','护士':'nurse','体温':'temperature','血压':'blood pressure',
-    '口罩':'mask','消毒':'disinfect','病历':'medical record','处方':'prescription','针管':'syringe',
-    '轮椅':'wheelchair','病床':'hospital bed','关心':'care','恢复':'recovery','安心':'reassured',
-    '炒锅':'wok','米饭':'rice','炒菜':'stir-fried dish','圆桌':'round table','酱油':'soy sauce',
-    '醋':'vinegar','热气':'steam','团圆':'reunion','刀叉':'knife and fork','牛排':'steak',
-    '红酒':'red wine','蜡烛':'candle','沙拉':'salad','优雅':'elegant','浪漫':'romantic',
-    '汉堡':'hamburger','薯条':'fries','可乐':'cola','托盘':'tray','柜台':'counter',
-    '快速':'fast','纸盒':'paper box','番茄酱':'ketchup','拿铁':'latte','卡布奇诺':'cappuccino',
-    '蛋糕':'cake','闲聊':'chat','火锅':'hot pot','鸳鸯锅':'divided pot','涮肉':'sliced meat',
-    '蘸料':'dipping sauce','麻辣':'spicy','围坐':'sit around','热闹':'lively','冬天':'winter',
-    '烤串':'skewer','臭豆腐':'stinky tofu','炸鸡':'fried chicken','奶茶':'milk tea','灯笼':'lantern',
-    '摊位':'stall','夜宵':'late-night snack','寿司':'sushi','刺身':'sashimi','芥末':'wasabi',
-    '清酒':'sake','榻榻米':'tatami','精致':'exquisite','礼仪':'etiquette','泡菜':'kimchi',
-    '烤肉':'barbecue','石锅拌饭':'bibimbap','辣酱':'chili sauce','烧酒':'soju','小菜':'side dish',
-    '辛辣':'spicy','分享':'share','蔬菜':'vegetable','豆腐':'tofu','菌菇':'mushroom',
-    '清淡':'light','有机':'organic','养生':'wellness','冰淇淋':'ice cream','巧克力':'chocolate',
-    '草莓':'strawberry','奶油':'cream','甜蜜':'sweet','少女心':'girly','下午茶':'afternoon tea',
-    '幸福':'happiness','炭火':'charcoal','孜然':'cumin','辣椒':'chili','啤酒':'beer',
-    '露天':'outdoor','烟火':'smoke and fire','夜晚':'night','面条':'noodles','拉面':'ramen',
-    '汤底':'soup base','葱花':'chopped scallion','牛肉':'beef','粥':'porridge','皮蛋':'century egg',
-    '瘦肉':'lean meat','油条':'fried dough stick','咸菜':'pickled vegetable','包子':'steamed bun',
-    '馒头':'steamed bread','豆浆':'soy milk','蒸笼':'steamer','传统':'traditional','芝士':'cheese',
-    '香肠':'sausage','拉丝':'stretchy','意大利':'Italian','圆形':'round','海苔':'seaweed',
-    '生鱼':'raw fish','日本':'Japan','黑胡椒':'black pepper','铁板':'iron plate','三分熟':'medium rare',
-    '西餐':'western food','肉汁':'gravy','自助':'buffet','夹子':'tongs','海鲜':'seafood',
-    '甜品':'dessert','水果':'fruit','丰富':'abundant','无限量':'unlimited','鸡蛋饼':'egg pancake',
-    '煎饼':'pancake','红茶':'black tea','饼干':'cookie','三明治':'sandwich','瓷器':'porcelain',
-    '甜筒':'cone','香草':'vanilla','冰凉':'icy','夏天':'summer','珍珠':'pearl',
-    '椰果':'coconut jelly','吸管':'straw','甜度':'sweetness','冰量':'ice level','排队':'queue',
-    '年轻人':'young people','流行':'popular','果汁':'juice','橙子':'orange','苹果':'apple',
-    '榨汁机':'juicer','维生素':'vitamin','清凉':'cool','自然':'natural','鸡尾酒':'cocktail',
-    '吧台':'bar counter','调酒师':'bartender','社交':'social','微醺':'tipsy','家常':'home-style',
-    '汤':'soup','妈妈':'mom','熟悉':'familiar','粤菜':'Cantonese cuisine','蒸鱼':'steamed fish',
-    '白切鸡':'poached chicken','虾饺':'shrimp dumpling','烧卖':'shumai','鲜美':'delicious','广东':'Guangdong',
-    '早茶':'morning tea','川菜':'Sichuan cuisine','花椒':'Sichuan pepper','水煮鱼':'boiled fish','回锅肉':'twice-cooked pork',
-    '热烈':'passionate','过瘾':'satisfying','四川':'Sichuan','湘菜':'Hunan cuisine','剁椒鱼头':'fish head with chili',
-    '腊肉':'cured meat','香辣':'spicy','湖南':'Hunan','下饭':'goes well with rice','家乡':'hometown',
-    '意面':'pasta','橄榄油':'olive oil','番茄':'tomato','罗勒':'basil','地中海':'Mediterranean',
-    '法餐':'French cuisine','鹅肝':'foie gras','蜗牛':'snail','高级':'upscale','大份':'large portion',
-    '休闲':'casual','塔可':'taco','玉米饼':'tortilla','牛油果':'avocado','莎莎酱':'salsa',
-    '热情':'enthusiastic','墨西哥':'Mexico','咖喱':'curry','香料':'spice','馕':'naan',
-    '手抓饭':'pilaf','浓郁':'rich','印度':'India','神秘':'mysterious','冬阴功':'tom yum',
-    '椰奶':'coconut milk','香茅':'lemongrass','柠檬叶':'kaffir lime leaf','酸甜':'sweet and sour','泰国':'Thailand',
-    '热带':'tropical','河粉':'pho','春卷':'spring roll','鱼露':'fish sauce','薄荷':'mint',
-    '越南':'Vietnam','东南亚':'Southeast Asia','烤鸟':'yakitori','深夜':'late night','五花肉':'pork belly',
-    '生菜':'lettuce','大蒜':'garlic','聚餐':'dinner party'
-  };
-
-  function chineseToEnglish(zh) {
-    if (!zh) return zh;
-    return ZH_EN_MAP[zh] || zh;
-  }
-
-  function simplePhonetic(en) {
-    return '/' + en.toLowerCase() + '/';
-  }
-
-  // 稳定的哈希函数
-  function hashCode(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash |= 0;
-    }
-    return Math.abs(hash);
-  }
-
-  // 为每个场景生成关键词：一半独有词 + 一半共用词
-  function buildSceneElements(category, sceneName) {
-    const uniquePool = SCENE_UNIQUE[sceneName] || ['特色','亮点','细节','氛围','感觉','体验','故事','记忆','风格','味道'];
-    const sharedPool = CATEGORY_SHARED[category] || ['物品','环境','感觉','时间','空间'];
-
-    const uniqueCount = Math.min(Math.ceil(uniquePool.length / 2), 5);
-    const uniqueShuffled = uniquePool.slice();
-    let seed = hashCode(sceneName + '_unique');
-    for (let i = uniqueShuffled.length - 1; i > 0; i--) {
-      seed = (seed * 9301 + 49297) % 233280;
-      const j = Math.floor((seed / 233280) * (i + 1));
-      [uniqueShuffled[i], uniqueShuffled[j]] = [uniqueShuffled[j], uniqueShuffled[i]];
-    }
-    const uniques = uniqueShuffled.slice(0, uniqueCount);
-
-    const sharedCount = Math.min(6, Math.max(4, Math.ceil(sharedPool.length / 3)));
-    const sharedShuffled = sharedPool.slice();
-    seed = hashCode(sceneName + '_shared_' + category);
-    for (let i = sharedShuffled.length - 1; i > 0; i--) {
-      seed = (seed * 9301 + 49297) % 233280;
-      const j = Math.floor((seed / 233280) * (i + 1));
-      [sharedShuffled[i], sharedShuffled[j]] = [sharedShuffled[j], sharedShuffled[i]];
-    }
-    const shareds = sharedShuffled.slice(0, sharedCount);
-
-    return [...uniques, ...shareds];
-  }
-
-  // 构建场景提示词
-  function buildHintWords(sceneName, category) {
-    const uniquePool = SCENE_UNIQUE[sceneName] || [];
-    const sharedPool = CATEGORY_SHARED[category] || [];
-    const allWords = [...uniquePool.slice(0, 5), ...sharedPool.slice(0, 3)];
-    const seen = new Set();
-    const result = [];
-    allWords.forEach(w => {
-      if (!seen.has(w) && w) {
-        seen.add(w);
-        result.push(w);
-      }
-    });
-    return result.slice(0, 8).map(zh => {
-      const en = chineseToEnglish(zh);
-      const ph = simplePhonetic(en);
-      return [en, ph, ph, zh];
-    });
-  }
-
-  // 生成所有场景
-  CATEGORIES.forEach(cat => {
-    const names = CATEGORY_NAMES[cat] || [];
-    names.forEach((name) => {
-      const elements = buildSceneElements(cat, name);
-      const words = buildHintWords(name, cat);
-
-      const hints = {};
-      GRADES_ALL.forEach(g => {
-        hints[g] = {
-          words: words,
-          phrases: COMMON_PHRASES[g] || COMMON_PHRASES['大学及以上'],
-          sentences: COMMON_SENTENCES[g] || COMMON_SENTENCES['大学及以上']
-        };
-      });
-      add(cat, name, elements, hints);
-    });
-  });
-
-  // 暴露到全局
-  window.COMMON_PHRASES = COMMON_PHRASES;
-  window.COMMON_SENTENCES = COMMON_SENTENCES;
-  window.chineseToEnglish = chineseToEnglish;
-  window.pickRandom = pickRandom;
-
-  return scenes;
-})();
-</script>
 <script>
 (function(){
   // ========== 应用状态 ==========
@@ -1790,13 +705,12 @@ window.SCENE_LIBRARY = (function(){
 
   let currentScene = null;
   let currentMode = null;
-  let sceneImageStyle = 'teaching-photo';
   let uploadedFile = null;
   let recognizedImageResult = null;
   let currentEditedTranscript = '';
   let speechEvaluationRequestId = 0;
-  let sceneGenerationRequestId = 0;
-  let sceneGenerationPending = false;
+  let gallerySelectionRequestId = 0;
+  let gallerySelectionPending = false;
   let latestEvaluation = null;
   let currentHintSet = null;
   let imageHintRequestId = 0;
@@ -1860,7 +774,6 @@ window.SCENE_LIBRARY = (function(){
     return false;
   }
 
-  const SCENE_LIBRARY = window.SCENE_LIBRARY || [];
   const CATEGORY_META = [
     { name:'日常生活', emoji:'🏠' },{ name:'餐饮美食', emoji:'🍜' },
     { name:'出行交通', emoji:'🚇' },{ name:'旅游观光', emoji:'✈️' },
@@ -1873,23 +786,9 @@ window.SCENE_LIBRARY = (function(){
   const AVATAR_EMOJIS = ['🦊','🐱','🐶','🐼','🦁','🐯','🐨','🐸','🦄','🐲','🌟','🍀','🌙','⚡','🎧','📚','🎨','🎯','🚀','🌈','🍎'];
 
   const $ = id => document.getElementById(id);
-  const sceneStyleLabels = { 'teaching-photo':'清晰教材照片', 'daily-photo':'真实日常实拍', 'street-photo':'街拍纪实', 'manga-comic':'原创漫画风', cartoon:'明亮卡通风' };
-  const sceneStyleLabel = () => sceneStyleLabels[sceneImageStyle] || sceneStyleLabels['teaching-photo'];
   const nowModule = $('nowModule'), pastModule = $('pastModule'), meModule = $('meModule');
   const navItems = document.querySelectorAll('.nav-item');
   const bottomNav = $('bottomNav');
-
-  document.querySelectorAll('.scene-style-btn').forEach(button => {
-    button.addEventListener('click', () => {
-      sceneImageStyle = button.dataset.style || 'teaching-photo';
-      document.querySelectorAll('.scene-style-btn').forEach(item => {
-        const selected = item.dataset.style === sceneImageStyle;
-        item.classList.toggle('btn-secondary', !selected);
-        item.classList.toggle('btn', selected);
-        item.setAttribute('aria-pressed', String(selected));
-      });
-    });
-  });
 
   function applyTheme(color) {
     document.body.dataset.theme = color;
@@ -2043,10 +942,7 @@ window.SCENE_LIBRARY = (function(){
         $('retryEvaluationBtn').classList.remove('hidden');
         $('saveSessionBtn').disabled = false;
       }
-      if (currentScene?.photoAnalyzed) {
-        if(currentMode==='library' && !currentScene.intent) renderHints(getHintsForScene(currentScene),state.prefs.education);
-        else {imageHintRequestId++; imageHintsPending=false;analyzeCurrentScenePhoto();}
-      }
+      if(currentScene?.photoAnalyzed){imageHintRequestId++;imageHintsPending=false;analyzeCurrentScenePhoto();}
     });
     renderBubbleOptions('meEducationBubbles', EDUCATION_OPTIONS, state.prefs.education, (v) => { state.prefs.education = v; saveState(); renderProfile(); });
     applyTheme(state.theme);
@@ -2329,7 +1225,7 @@ window.SCENE_LIBRARY = (function(){
       try { result = await request(`/api/analyze-image/jobs/${encodeURIComponent(job.jobId)}`); }
       catch (error) {
         if (!error.transient) throw error;
-        onProgress('连接暂时中断，正在取回同一次识图结果，无需重新生成图片...');
+        onProgress('连接暂时中断，正在取回同一次识图结果，无需重新选图...');
         continue;
       }
       if (!active()) throw canceled();
@@ -2357,30 +1253,21 @@ window.SCENE_LIBRARY = (function(){
       const imageBlob = await (await fetch(originalImage)).blob();
       const image = await normalizeVisionImage(imageBlob);
       if (!active()) return;
-      const data = await requestImageAnalysis({ image, intent, education: state.prefs.education, accent: state.prefs.accent,
-        ...(currentMode === 'generate' ? { mode: 'generated-scene', expectedScene: scene.name, expectedCategory: scene.category } : {}) }, {
+      const data = await requestImageAnalysis({ image, intent, education: state.prefs.education, accent: state.prefs.accent }, {
         active,
         onProgress: message => { if (active()) $('imageHintsStatus').textContent = message; }
       });
       if (!data.hints?.words?.length || !data.elements?.length) throw new Error('未返回完整的画面词句，请重试');
       if (requestId !== imageHintRequestId || currentScene !== scene) return;
-      if (currentMode === 'generate' && (data.qualityOk === false || data.sceneMatch === false)) {
-        const issues = Array.isArray(data.qualityIssues) && data.qualityIssues.length ? data.qualityIssues.join('；') : '画面与预期场景不够一致或存在明显结构问题';
-        scene.photoAnalyzed = false;
-        $('recognizedElements').textContent = `这张图片需要重新生成：${issues}`;
-        $('imageHintsStatus').textContent = '质量检查未通过。请点击“换一个”生成另一张图片；本次没有把异常图片用于正式提示词。';
-        $('imageHintsStatus').style.color = '#a34a00';
-        return { qualityOk: false, qualityIssues: data.qualityIssues || [] };
-      }
       Object.assign(scene, { intent, elements: data.elements, likelyIntent: data.likelyIntent, hints: { '大学及以上': data.hints }, photoAnalyzed: true });
       $('recognizedElements').textContent = `画面要点：${data.elements.join('、')}。可能表达：${data.likelyIntent || '描述画面'}（可自由选择自己的话题）`;
       renderHints(data.hints, state.prefs.education);
       $('imageHintsStatus').textContent = intent ? '已结合图片与“'+intent+'”更新词句。' : '已根据实际图片生成词句；交流意图仅供参考。';
       $('speakingIntent').value = intent;
       $('imageHintsStatus').style.color = '';
-      if (currentMode === 'generate') {
-        $('sceneGenerationStatus').textContent = '图片与专属词句已就绪，可以开始练习。';
-        $('sceneGenerationStatus').className = 'status-message status-success';
+      if (currentMode === 'gallery') {
+        $('gallerySelectionStatus').textContent = '图片与专属词句已就绪，可以开始练习。';
+        $('gallerySelectionStatus').className = 'status-message status-success';
       }
       return { success:true, qualityOk: data.qualityOk !== false && data.sceneMatch !== false, qualityIssues: data.qualityIssues || [] };
     } catch (error) {
@@ -2398,7 +1285,7 @@ window.SCENE_LIBRARY = (function(){
   }
   $('retryHintsBtn').addEventListener('click', analyzeCurrentScenePhoto);
   $('applyIntentBtn').addEventListener('click', async () => {
-    if (!currentScene || imageHintsPending || sceneGenerationPending) { $('intentStatus').textContent='请先等当前图片分析完成。'; return; }
+    if (!currentScene || imageHintsPending || gallerySelectionPending) { $('intentStatus').textContent='请先等当前图片分析完成。'; return; }
     const scene=currentScene, button=$('applyIntentBtn'); button.disabled=true;
     $('intentStatus').textContent='正在根据你的表达目标整理词句；原有词句会保留到更新成功。';
     try {
@@ -2432,10 +1319,10 @@ window.SCENE_LIBRARY = (function(){
   function setWolfWaiting(target, waiting) {
     const element = typeof target === 'string' ? $(target) : target;
     if (!element) return;
-    if(element.id==='sceneGenerationStatus') {
-      $('sceneGenerationFeedback').toggleAttribute('data-waiting',false);
+    if(element.id==='gallerySelectionStatus') {
+      $('gallerySelectionFeedback').toggleAttribute('data-waiting',false);
       if(waiting) {
-        $('sceneGenerationFeedback').dataset.waiting='true'; $('sceneWaitTools').classList.remove('hidden');
+        $('gallerySelectionFeedback').dataset.waiting='true'; $('sceneWaitTools').classList.remove('hidden');
         if(!sceneWaitTimer){sceneWaitStarted=Date.now();const tick=()=>{$('sceneElapsed').textContent='已等待 '+Math.floor((Date.now()-sceneWaitStarted)/1000)+' 秒';};tick();sceneWaitTimer=setInterval(tick,1000);}
       } else {clearInterval(sceneWaitTimer);sceneWaitTimer=null;$('sceneWaitTools').classList.add('hidden');}
     }
@@ -2473,7 +1360,7 @@ window.SCENE_LIBRARY = (function(){
     card.addEventListener('click', () => {
       uploadRequestId++;
       hideStatus();
-      cancelSceneGeneration();
+      cancelGallerySelection();
       document.querySelectorAll('.entry-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
       currentMode = card.dataset.mode;
@@ -2494,8 +1381,8 @@ window.SCENE_LIBRARY = (function(){
     invalidatePractice();
     cleanupRecording(); clearAudioPlayback();
     uploadedFile = file;
-    cancelSceneGeneration();
-    $('photoPreview').classList.remove('generated-scene');
+    cancelGallerySelection();
+    $('photoPreview').classList.remove('gallery-photo');
     $('photoPreview').alt = '上传的练习照片';
     recognizedImageResult = null;
     $('fileNameDisplay').textContent = `已选择：${file.name}`;
@@ -2578,7 +1465,7 @@ window.SCENE_LIBRARY = (function(){
       const allowed = CATEGORY_META.map(item => item.name);
       const category = allowed.includes(result.category) ? result.category : '日常生活';
       const elements = Array.isArray(result.elements) ? result.elements.map(v => String(v).trim()).filter(Boolean).slice(0, 12) : [];
-      if (!elements.length) throw new Error('模型没有返回可用的照片内容，请重试');
+      if (!elements.length || !result.hints?.words?.length) throw new Error('模型没有返回完整的照片内容和词句，请重试');
       recognizedImageResult = { category, name: String(result.scene || '照片场景').slice(0, 60), likelyIntent: String(result.likelyIntent || ''), elements, hints: result.hints };
       try {
         startUploadedPhotoPractice(recognizedImageResult);
@@ -2623,7 +1510,7 @@ window.SCENE_LIBRARY = (function(){
       currentScene = { category: result.category, name: result.name, likelyIntent: result.likelyIntent || '', elements: keywords, hints: result.hints ? { '大学及以上': result.hints } : null, photoAnalyzed: true };
       resetRecordingUI();
       $('hintsContainer').classList.remove('hidden');
-      renderHints(result.hints || fallbackHints(currentScene), state.prefs.education);
+      renderHints(result.hints, state.prefs.education);
       showStatus('识图完成，已根据照片生成场景分析、可能表达和专属词句。','success');
       checkEnvironment();
   }
@@ -2631,166 +1518,68 @@ window.SCENE_LIBRARY = (function(){
   function renderCategoryGrid() {
     const grid = $('categoryGrid');
     grid.innerHTML = '';
-    const randomCard = document.createElement('div');
-    randomCard.className = 'category-card random-card';
-    randomCard.dataset.category = '__random__';
-    randomCard.innerHTML = `<span class="emoji">🎲</span>随机全部`;
-    randomCard.addEventListener('click', () => selectCategory('__random__'));
-    grid.appendChild(randomCard);
-
     CATEGORY_META.forEach(cat => {
-      const card = document.createElement('div');
+      const card = document.createElement('button');card.type='button';
       card.className = 'category-card';
       card.dataset.category = cat.name;
-      card.innerHTML = `<span class="emoji">${cat.emoji}</span>${cat.name}`;
+      card.innerHTML = `<span class="emoji">${cat.emoji}</span>${cat.name}<small data-gallery-count style="display:block;margin-top:6px;font-size:11px;">正在读取图库…</small>`;
       card.addEventListener('click', () => selectCategory(cat.name));
       grid.appendChild(card);
     });
   }
 
-  function cancelSceneGeneration() {
+  function cancelGallerySelection() {
     imageHintRequestId++;
     imageHintsPending = false;
-    sceneGenerationRequestId += 1;
-    sceneGenerationPending = false;
-    ['sceneGenerationStatus', 'imageHintsStatus'].forEach(id => setWolfWaiting(id, false));
-    $('sceneGenerationStatus').classList.add('hidden');
+    gallerySelectionRequestId += 1;
+    gallerySelectionPending = false;
+    ['gallerySelectionStatus', 'imageHintsStatus'].forEach(id => setWolfWaiting(id, false));
+    $('gallerySelectionStatus').classList.add('hidden');
     $('categoryGrid').style.pointerEvents = '';
     $('categoryGrid').removeAttribute('aria-busy');
     $('regenerateBtn').disabled = false;
   }
 
   $('cancelSceneWaitBtn').addEventListener('click',()=>{
-    cancelSceneGeneration();
-    $('sceneGenerationStatus').className='status-message status-info';
-    $('sceneGenerationStatus').textContent='已取消等待。已显示的图片和词句仍保留；你可以选择免费图库或重新开始。';
+    cancelGallerySelection();
+    if(currentScene&&!currentScene.photoAnalyzed){$('imageHintsStatus').textContent='已取消图片分析，照片已保留，可点击重新分析继续。';$('retryHintsBtn').classList.remove('hidden');}
+    $('gallerySelectionStatus').className='status-message status-info';
+    $('gallerySelectionStatus').textContent='已取消等待。已显示的图片和词句仍保留，你可以重新选择主题或上传自己的照片。';
     refreshPracticeUsage();
   });
-  async function generateSceneImage(scene, requestId) {
-    setSceneStage(0);
-    const jobId = crypto.randomUUID();
-    const body = JSON.stringify({ requestId: jobId, name: scene.name, category: scene.category, elements: scene.elements, style: sceneImageStyle });
-    const deadline = Date.now() + 180_000;
-    const status = $('sceneGenerationStatus');
-    const active = () => requestId === sceneGenerationRequestId;
-    async function request(url, options = {}) {
-      let response;
-      try {
-        response = await fetch(url, { ...options, cache: 'no-store', signal: AbortSignal.timeout(20_000) });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw Object.assign(new Error(data.error || `场景服务返回 HTTP ${response.status}`), {
-          code:data.code, retryable:data.retryable, transient: data.retryable !== false && [502, 503, 504].includes(response.status)
-        });
-        return data;
-      } catch (error) {
-        if (!response) error.transient = true;
-        throw error;
-      }
-    }
-    let job;
-    for (let attempt = 0; attempt < 3 && active(); attempt++) {
-      try {
-        job = await request('/api/generate-scene/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
-        break;
-      } catch (error) {
-        if (!error.transient || attempt === 2) throw error;
-        status.textContent = '连接暂时中断，正在重新连接场景生成服务...';
-        await new Promise(resolve => setTimeout(resolve, 1800));
-      }
-    }
-    if (!active()) return null;
-    if (!job?.jobId) throw new Error('场景服务没有返回任务编号，请重试');
-    while (Date.now() < deadline && active()) {
-      await new Promise(resolve => setTimeout(resolve, 1800));
-      if (!active()) return null;
-      let result;
-      try { result = await request(`/api/generate-scene/jobs/${encodeURIComponent(job.jobId)}`); }
-      catch (error) {
-        if (!error.transient) throw error;
-        status.textContent = '网络暂时中断，正在重新连接并取回生成结果，请稍候...';
-        continue;
-      }
-      if (!active()) return null;
-      if (result.status === 'failed') throw Object.assign(new Error(result.error || '场景图片生成失败，请重试'), {code:result.code,retryable:result.retryable});
-      if (result.status === 'complete') {
-        if (!/^data:image\/(?:png|jpeg|webp);base64,/.test(result.result?.image || '')) throw new Error('场景服务未返回可显示的图片，请重试');
-        const image = new Image();
-        image.src = result.result.image;
-        await image.decode();
-        return result.result.image;
-      }
-      status.textContent = `正在生成“${scene.name}”的${sceneStyleLabel()}，请稍候；通常需要几十秒...`;
-    }
-    if (!active()) return null;
-    throw new Error('场景图片等待超时，请稍后再试');
-  }
-
   async function selectCategory(category) {
-    if (sceneGenerationPending) return;
-    const requestId = ++sceneGenerationRequestId;
-    sceneGenerationPending = true;
-    document.querySelectorAll('#categoryGrid .category-card').forEach(c => {
-      c.classList.toggle('selected', c.dataset.category === category);
-    });
-    const grid = $('categoryGrid');
-    grid.style.pointerEvents = 'none';
-    grid.setAttribute('aria-busy', 'true');
-    $('regenerateBtn').disabled = true;
-    const status = $('sceneGenerationStatus');
-    status.className = 'status-message status-info';
-    status.textContent = `正在准备${sceneStyleLabel()}...`;
-    setWolfWaiting(status, true);
-    try {
+    if(gallerySelectionPending)return;
+    const requestId=++gallerySelectionRequestId;
+    gallerySelectionPending=true;
+    const grid=$('categoryGrid'),status=$('gallerySelectionStatus');
+    grid.setAttribute('aria-busy','true');grid.style.pointerEvents='none';$('regenerateBtn').disabled=true;
+    grid.querySelectorAll('.category-card').forEach(card=>card.classList.toggle('selected',card.dataset.category===category));
+    status.className='status-message status-info';status.textContent='正在从“'+category+'”的图库随机选图…';setSceneStage(0);setWolfWaiting(status,true);
+    const active=()=>requestId===gallerySelectionRequestId;
+    try{
       requireOnlineService();
-      const pool = SCENE_LIBRARY.filter(scene => (category === '__random__' || scene.category === category)
-        && (scene.category !== currentScene?.category || scene.name !== currentScene?.name));
-      if (!pool.length) throw new Error('该主题暂无其他场景，请选择其他主题');
-      const scene = pool[Math.floor(Math.random() * pool.length)];
-      let quality = null;
-      for (let generationAttempt = 0; generationAttempt < 2; generationAttempt++) {
-        const image = await generateSceneImage(scene, requestId);
-        if (!image || requestId !== sceneGenerationRequestId) return;
-        showScene(scene, image);
-        status.textContent = '场景已生成，正在根据实际画面检查质量并生成专属词句...';
-        status.className = 'status-message status-success';
-        setSceneStage(1);
-        quality = await analyzeCurrentScenePhoto();
-        if (quality?.qualityOk !== false || generationAttempt === 1) break;
-        status.textContent = '第一次图片质量检查未通过，正在自动换一张更清晰的图片（最多自动重试一次）...';
-        status.className = 'status-message status-info';
-        await new Promise(resolve => setTimeout(resolve, 700));
-      }
-      if (requestId !== sceneGenerationRequestId) return;
-      if(quality?.error && quality.retryable===false) throw Object.assign(new Error(quality.error),{code:quality.code,retryable:false});
-      if(currentScene?.photoAnalyzed) setSceneStage(2);
-      status.textContent = currentScene?.photoAnalyzed
-        ? '图片与专属词句已就绪，可以开始练习。'
-        : quality?.qualityOk === false
-          ? '连续两张图片质量检查未通过。图片已保留，请点击“换一个”再生成，避免使用异常画面。'
-          : '图片已保留，可点击“重新分析当前图片”重试提示词。';
-    } catch (error) {
-      if (requestId !== sceneGenerationRequestId) return;
-      status.textContent = `场景生成失败：${explainAIError(error)}` + (error.retryable===false ? '' : '。可重新选择主题或点击“换一个”。');
-      status.className = 'status-message status-error';
-    } finally {
-      if (requestId === sceneGenerationRequestId) {
-        sceneGenerationPending = false;
-        refreshPracticeUsage();
-        setWolfWaiting(status, false);
-        grid.style.pointerEvents = '';
-        grid.removeAttribute('aria-busy');
-        $('regenerateBtn').disabled = false;
-      }
-    }
+      const previous=currentScene?.category===category?currentScene.galleryImageId||'':'';
+      const response=await fetch('/api/gallery/random?category='+encodeURIComponent(category)+'&exclude='+encodeURIComponent(previous),{cache:'no-store',signal:AbortSignal.timeout(20000)});
+      const scene=await response.json();if(!active())return;
+      if(!response.ok)throw Object.assign(new Error(scene.error||'主题照片暂时无法读取'),{code:scene.code,retryable:false});
+      if(!/^data:image\/(?:jpeg|png|webp);base64,/.test(scene.image||''))throw new Error('图库未返回有效照片，请联系管理员检查图片格式');
+      const image=await normalizeVisionImage(await(await fetch(scene.image)).blob());if(!active())return;
+      showScene(scene,image);
+      status.textContent='照片已选好，正在识别实际画面并整理专属词句…';setSceneStage(1);
+      const analysis=await analyzeCurrentScenePhoto();if(!active())return;
+      if(analysis?.success){setSceneStage(2);status.className='status-message status-success';status.textContent=scene.repeated?'这个主题目前只有一张照片，已再次选中。图片与专属词句已就绪。':'已从“'+category+'”图库选取照片，图片与专属词句已就绪。';}
+      else{status.className='status-message status-info';status.textContent='照片已保留，词句分析暂未完成。'+(analysis?.error||'可以点击“重新分析当前图片”继续，或直接练习。');}
+    }catch(error){if(active()){status.className='status-message '+(error.code==='GALLERY_EMPTY'?'status-info':'status-error');status.textContent=error.code==='GALLERY_EMPTY'?error.message:'取图失败：'+explainAIError(error);}}
+    finally{if(active()){gallerySelectionPending=false;setWolfWaiting(status,false);grid.style.pointerEvents='';grid.removeAttribute('aria-busy');$('regenerateBtn').disabled=false;refreshPracticeUsage();}}
   }
 
   function showScene(scene, dataUrl) {
     $('speakingIntent').value=''; $('intentStatus').textContent='可选：写下你想聊的内容，再点击更新。会使用识图额度；原有词句更新成功后才会替换。';
-    currentScene = { category: scene.category, name: scene.name, elements: [], hints: null };
+    currentScene = {category:scene.category,name:scene.name,galleryImageId:scene.id,elements:[],hints:null};
     $('photoPreview').src = dataUrl;
-    $('photoPreview').classList.add('generated-scene');
-    $('photoPreview').alt = `${scene.name}，AI 生成的生活摄影风格场景`;
-    $('photoCaption').textContent = `【${scene.category || ''} · ${scene.name || ''}】· AI 生成`;
+    $('photoPreview').classList.add('gallery-photo');
+    $('photoPreview').alt = `${scene.name}，主题图库照片`;
+    $('photoCaption').textContent = `【${scene.category || ''} · ${scene.name || ''}】· 主题图库`;
 
     $('entrySection').classList.add('hidden');
     $('themeSelectionSection').classList.add('hidden');
@@ -2815,55 +1604,6 @@ window.SCENE_LIBRARY = (function(){
   }
 
   // ========== 提示词获取 ==========
-  function getHintsForScene(scene) {
-    const edu = state.prefs.education;
-    if (!scene.hints) return fallbackHints(scene);
-    const key = edu === '大学及以上（仅作一般口语练习）' ? '大学及以上' : edu;
-    return scene.hints[key] || scene.hints['大学及以上'];
-  }
-
-  function getHintsForUpload(category) {
-    const edu = state.prefs.education;
-    const key = edu === '大学及以上（仅作一般口语练习）' ? '大学及以上' : edu;
-    const pool = SCENE_LIBRARY.filter(s => s.category === category);
-    const allWords = [];
-    const seen = new Set();
-    pool.forEach(s => {
-      const target = s.hints?.[key] || s.hints?.['大学及以上'];
-      if (target && target.words) {
-        target.words.forEach(w => {
-          const k = w[0] + '|' + w[3];
-          if (!seen.has(k)) {
-            seen.add(k);
-            allWords.push(w);
-          }
-        });
-      }
-    });
-    const words = allWords.slice(0, 8);
-    const phrases = (window.COMMON_PHRASES && window.COMMON_PHRASES[key]) || (window.COMMON_PHRASES && window.COMMON_PHRASES['大学及以上']) || [];
-    const sentences = (window.COMMON_SENTENCES && window.COMMON_SENTENCES[key]) || (window.COMMON_SENTENCES && window.COMMON_SENTENCES['大学及以上']) || [];
-    return {
-      words: words.length ? words : fallbackHints({ elements: [] }).words,
-      phrases: phrases,
-      sentences: sentences
-    };
-  }
-
-  function fallbackHints(scene) {
-    const elements = scene.elements || [];
-    const edu = state.prefs.education;
-    const key = edu === '大学及以上（仅作一般口语练习）' ? '大学及以上' : edu;
-    const words = elements.slice(0, 8).map(e => {
-      const en = (window.chineseToEnglish && window.chineseToEnglish(e)) || e;
-      const ph = '/' + en.toLowerCase() + '/';
-      return [en, ph, ph, e];
-    });
-    const phrases = (window.COMMON_PHRASES && window.COMMON_PHRASES[key]) || (window.COMMON_PHRASES && window.COMMON_PHRASES['大学及以上']) || [];
-    const sentences = (window.COMMON_SENTENCES && window.COMMON_SENTENCES[key]) || (window.COMMON_SENTENCES && window.COMMON_SENTENCES['大学及以上']) || [];
-    return { words, phrases, sentences };
-  }
-
   // ========== 提示词渲染 ==========
   function escapeHintText(value) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -2934,11 +1674,8 @@ window.SCENE_LIBRARY = (function(){
 
   $('needHintsBtn').addEventListener('click', () => {
     if (!currentScene) { showStatus('⚠️ 请先选择素材。','error'); return; }
-    let hints;
-    if (currentMode === 'upload' && recognizedImageResult?.hints) hints = recognizedImageResult.hints;
-    else if (currentMode === 'upload' && currentScene.category) hints = getHintsForUpload(currentScene.category);
-    else if (currentScene.photoAnalyzed) hints = getHintsForScene(currentScene);
-    else { $('hintsContainer').classList.remove('hidden'); analyzeCurrentScenePhoto(); return; }
+    const hints=currentScene.hints?.['大学及以上'];
+    if(!currentScene.photoAnalyzed||!hints){$('hintsContainer').classList.remove('hidden');analyzeCurrentScenePhoto();return;}
     renderHints(hints, state.prefs.education);
     $('hintsContainer').classList.remove('hidden');
     $('recordingSection').classList.remove('hidden');
@@ -3957,11 +2694,11 @@ window.SCENE_LIBRARY = (function(){
   });
 
   $('regenerateBtn').addEventListener('click', () => {
-    if (currentScene && currentScene.category && currentMode === 'generate') selectCategory(currentScene.category);
+    if (currentScene && currentScene.category && currentMode === 'gallery') selectCategory(currentScene.category);
   });
   $('backToEntryBtn').addEventListener('click', () => {
     invalidatePractice();
-    cancelSceneGeneration();
+    cancelGallerySelection();
     $('photoSection').classList.add('hidden');
     $('hintSection').classList.add('hidden');
     $('recordingSection').classList.add('hidden');
@@ -3982,36 +2719,21 @@ window.SCENE_LIBRARY = (function(){
     try {
       const response=await fetch('/api/practice-usage',{cache:'no-store',signal:AbortSignal.timeout(10000)});
       if(!response.ok)throw new Error();const data=await response.json();
-      $('practiceUsage').textContent='今日 AI 次数（当前浏览器）：图片生成 '+data.used.scene+' / '+data.limits.scene+'；识图 '+data.used.vision+' / '+data.limits.vision+'；润色与评分 '+data.used.speech+' / '+data.limits.speech;
+      $('practiceUsage').textContent='今日 AI 次数（当前浏览器）：识图 '+data.used.vision+' / '+data.limits.vision+'；润色与评分 '+data.used.speech+' / '+data.limits.speech;
       $('practiceUsageInfo').textContent='失败任务退回本站次数，不代表供应商退费。北京时间次日 00:00 重置。'+data.scope+' 次数不是个人账号额度。';
-    } catch { $('practiceUsage').textContent='暂时无法读取 AI 次数；仍可使用免费场景图库。次数按当前浏览器计算，不是个人账号额度。'; }
+    } catch { $('practiceUsage').textContent='暂时无法读取 AI 次数；次数按当前浏览器计算，不是个人账号额度。'; }
   }
-  async function loadFreeScenes() {
-    try {
-      const response=await fetch('/api/scene-library',{signal:AbortSignal.timeout(15000)});
+  async function loadGalleryCatalog() {
+    try{
+      const response=await fetch('/api/gallery',{cache:'no-store',signal:AbortSignal.timeout(15000)});
       if(!response.ok)throw new Error();const data=await response.json();
-      for(const scene of data.scenes||[]) {
-        const button=document.createElement('button');button.type='button';button.className='btn btn-secondary free-scene';
-        const preview=document.createElement('img');preview.src=scene.image;preview.alt=scene.name+'教学插画';
-        const label=document.createElement('span');label.textContent=scene.name+' · 免费';button.append(preview,label);
-        button.addEventListener('click',async()=>{
-          button.disabled=true;
-          try {
-            cancelSceneGeneration();invalidatePractice();uploadRequestId++;
-            const image=await normalizeVisionImage(await (await fetch(scene.image)).blob());
-            currentMode='library';showScene(scene,image);
-            Object.assign(currentScene,{elements:scene.elements,likelyIntent:scene.likelyIntent,hints:{'大学及以上':scene.hints},photoAnalyzed:true,intent:''});
-            $('photoPreview').alt=scene.name+'原创教学插画';$('photoCaption').textContent='【'+scene.name+'】· 免费教学插画';
-            $('regenerateBtn').classList.add('hidden');
-            $('recognizedElements').textContent='画面要点：'+scene.elements.join('、')+'。练习方向：'+scene.likelyIntent;
-            $('imageHintsStatus').textContent='使用人工整理的词句，本次没有调用图片生成或识图模型。';
-            renderHints(scene.hints,state.prefs.education);$('freeSceneStatus').textContent='已选择 '+scene.name+'。';
-            $('photoSection').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});
-          } catch(error){$('freeSceneStatus').textContent='图库打开失败：'+error.message;}
-          finally{button.disabled=false;}
-        });$('freeSceneGrid').append(button);
-      }
-    } catch {$('freeSceneStatus').textContent='图库暂时未能加载，请刷新页面重试。';}
+      const total=data.themes.reduce((sum,theme)=>sum+theme.count,0);
+      $('galleryAvailability').textContent=total?'按主题随机选取站主提供的照片；没有照片的主题会提示待添加。':'各主题图库正在等待添加照片。现在可以先使用“上传我的照片”练习。';
+      document.querySelectorAll('#categoryGrid .category-card').forEach(card=>{const theme=data.themes.find(item=>item.name===card.dataset.category);card.querySelector('[data-gallery-count]').textContent=theme?.count?theme.count+' 张照片':'等待添加照片';});
+    }catch{
+      $('galleryAvailability').textContent='图库信息暂时未能加载。可点击主题重试，或上传自己的照片。';
+      document.querySelectorAll('[data-gallery-count]').forEach(el=>{el.textContent='点击查看图库';});
+    }
   }
   function highlightExact(text,fragments,className) {
     text=String(text||'');const ranges=[];
@@ -4049,7 +2771,7 @@ window.SCENE_LIBRARY = (function(){
   renderCategoryGrid();
 
   async function initApp() {
-    refreshPracticeUsage();loadFreeScenes();
+    refreshPracticeUsage();loadGalleryCatalog();
     await loadHistory();
     updateStorageSummary();
     applyTheme(state.theme);

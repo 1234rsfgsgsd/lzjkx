@@ -7,8 +7,9 @@ const { visionProviderOptions } = require('./vision-provider-options');
 const { providerError } = require('./provider-error');
 const { createPracticeUsage } = require('./practice-usage');
 const { evaluationContext, evaluationPrompt, parseCompletion, normalizeEvaluation, needsTenseReview } = require('./speech-evaluation');
-const { createSceneGenerator } = require('./scene-generation');
-const sceneGenerator = createSceneGenerator();
+const { createTopicGallery } = require('./topic-gallery');
+const galleryDirectory=process.env.GALLERY_DIRECTORY || path.join(__dirname,'gallery');
+const topicGallery = createTopicGallery({directory:galleryDirectory,manifestFile:process.env.GALLERY_MANIFEST_FILE || path.join(galleryDirectory,'manifest.json')});
 
 const root = __dirname;
 const port = Number(process.env.PORT || 3000);
@@ -23,7 +24,7 @@ const trustedProxyHops = Math.max(0, Number(process.env.TRUST_PROXY_HOPS || 1));
 const windows = new Map();
 const speechJobs = new Map();
 const dailyLimit = (key, fallback) => Math.max(1, Math.min(1000, Number(process.env[key]) || fallback));
-const usage = createPracticeUsage({ file: process.env.USAGE_STATE_FILE || path.join(require('node:os').tmpdir(), 'langsidu-usage-' + port + '.json'), limits: {scene:dailyLimit('DAILY_SCENE_LIMIT',6),vision:dailyLimit('DAILY_VISION_LIMIT',20),speech:dailyLimit('DAILY_SPEECH_LIMIT',20)} });
+const usage = createPracticeUsage({ file: process.env.USAGE_STATE_FILE || path.join(require('node:os').tmpdir(), 'langsidu-usage-' + port + '.json'), limits: {vision:dailyLimit('DAILY_VISION_LIMIT',20),speech:dailyLimit('DAILY_SPEECH_LIMIT',20)} });
 const crypto = require('node:crypto');
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {
@@ -296,23 +297,17 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     return send(res, 200, usage.view(usage.identity(req, res)));
   }
-  if (req.method === 'GET' && url.pathname === '/api/scene-library') {
-    return send(res, 200, { scenes: require('./scene-library') });
+  if(req.method==='GET' && url.pathname==='/api/gallery'){
+    res.setHeader('Cache-Control','no-store');
+    try{return send(res,200,topicGallery.list());}catch(error){return send(res,error.status||503,{error:error.message,code:error.code,retryable:false});}
   }
-  if (req.method === 'POST' && url.pathname === '/api/generate-scene/jobs') {
-    if (!allowedRequest(req, res)) return;
-    try {
-      const body = await readBody(req);
-      const user = usage.identity(req, res);
-      return send(res, 202, { jobId: sceneGenerator.start(body, () => usage.reserve(user, 'scene')) });
-    } catch (error) {
-      return send(res, error.status || 502, { error: error.status ? error.message : '无法启动场景图片生成，请稍后重试', code: error.code || 'SCENE_GENERATION_ERROR', retryable: false });
-    }
+  if(req.method==='GET' && url.pathname==='/api/gallery/random'){
+    res.setHeader('Cache-Control','no-store');
+    try{return send(res,200,topicGallery.select(url.searchParams.get('category'),url.searchParams.get('exclude')||''));}
+    catch(error){return send(res,error.status||503,{error:error.message,code:error.code,retryable:false});}
   }
-  const sceneJobMatch = url.pathname.match(/^\/api\/generate-scene\/jobs\/([0-9a-f-]{36})$/i);
-  if (req.method === 'GET' && sceneJobMatch) {
-    try { return send(res, 200, sceneGenerator.get(sceneJobMatch[1])); }
-    catch (error) { return send(res, error.status || 502, { error: error.message }); }
+  if(url.pathname.startsWith('/api/generate-scene')||url.pathname==='/api/scene-library'){
+    return send(res,410,{error:'图片生成与预置插画功能已移除，请刷新网页使用主题图库或上传自己的照片。',code:'FEATURE_REMOVED',retryable:false});
   }
   if (req.method === 'POST' && url.pathname === '/api/analyze-image') {
     if (!allowedRequest(req, res)) return;

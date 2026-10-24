@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "themes": [
+    {"name": "日常生活", "images": []},
+    {"name": "餐饮美食", "images": []},
+    {"name": "出行交通", "images": []},
+    {"name": "旅游观光", "images": []},
+    {"name": "工作职场", "images": []},
+    {"name": "休闲娱乐", "images": []},
+    {"name": "购物消费", "images": []},
+    {"name": "宠物动物", "images": []},
+    {"name": "运动健身", "images": []},
+    {"name": "自然风景", "images": []},
+    {"name": "学习校园", "images": []},
+    {"name": "医疗健康", "images": []}
+  ]
+}

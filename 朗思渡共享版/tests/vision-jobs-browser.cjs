@@ -12,8 +12,8 @@ const keywords = {
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    for (const mode of ['upload', 'generate', 'provider-error']) {
-      const page = await browser.newPage({ viewport: { width: mode === 'generate' ? 390 : 1280, height: 844 }, reducedMotion: 'reduce' });
+    for (const mode of ['upload', 'gallery', 'provider-error']) {
+      const page = await browser.newPage({ viewport: { width: mode === 'gallery' ? 390 : 1280, height: 844 }, reducedMotion: 'reduce' });
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.addInitScript(() => localStorage.setItem('langsidu_state_v5', JSON.stringify({ skipWelcome: true })));
@@ -47,10 +47,9 @@ const keywords = {
         return route.fulfill({ json: { status: 'complete', result: keywords } });
       });
       await page.locator('[data-nav="now"]').click();
-      if (mode === 'generate') {
-        await page.route('**/api/generate-scene/jobs', route => route.fulfill({ status: 202, json: { jobId: 'scene' } }));
-        await page.route('**/api/generate-scene/jobs/scene', route => route.fulfill({ json: { status: 'complete', result: { image } } }));
-        await page.locator('[data-mode="generate"]').click();
+      if (mode === 'gallery') {
+        await page.route('**/api/gallery/random?*',route=>route.fulfill({json:{id:'reading',name:'桌前阅读',category:'学习校园',image}}));
+        await page.locator('[data-mode="gallery"]').click();
         await page.locator('#categoryGrid [data-category="学习校园"]').click();
       } else {
         await page.locator('[data-mode="upload"]').click();
@@ -66,9 +65,9 @@ const keywords = {
         assert.equal(posts, 2);
         assert.equal(polls, 3);
         assert.equal(await page.locator('#recordingSection').isVisible(), true);
-        if (mode === 'generate') {
-          assert.equal(firstPayload.mode, 'generated-scene');
-          assert.equal(await page.locator('#photoPreview').getAttribute('src'), image, 'analysis keeps the original preview');
+        if (mode === 'gallery') {
+          assert.equal(firstPayload.mode, undefined);
+          assert.match(await page.locator('#photoPreview').getAttribute('src'), /^data:image\/jpeg;base64,/);
           assert.equal(await page.locator('#imageHintsStatus').getAttribute('aria-busy'), null);
         }
       }

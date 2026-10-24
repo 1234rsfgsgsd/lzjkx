@@ -11,7 +11,7 @@ const tick=()=>new Promise(resolve=>setImmediate(resolve));
 test('balance, auth and quota failures provide terminal actionable errors',()=>{
   for(const status of [402,401,403])assert.equal(providerError(status,'','识图').retryable,false);
   assert.equal(providerError(402).code,'AI_BALANCE_INSUFFICIENT');
-  assert.match(providerError(402).error,/免费场景/);
+  assert.match(providerError(402).error,/已保存的录音/);
   assert.equal(providerError(500).retryable,true);
   assert.equal(providerError(400,'Sorry, your account balance is insufficient').code,'AI_BALANCE_INSUFFICIENT');
 });
@@ -19,13 +19,13 @@ test('balance, auth and quota failures provide terminal actionable errors',()=>{
 test('daily allowances persist, isolate browsers, refund once and reset at Beijing midnight',t=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'langsidu-usage-test-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   const file=path.join(dir,'state.json');let now=Date.parse('2026-10-24T15:59:00Z');
-  const options={file,limits:{scene:1,vision:2,speech:1},now:()=>now};
+  const options={file,limits:{vision:1,speech:2},now:()=>now};
   const usage=createPracticeUsage(options),a={id:'a',ip:'network'},b={id:'b',ip:'network'};
-  const refund=usage.reserve(a,'scene');assert.throws(()=>usage.reserve(a,'scene'),{code:'DAILY_QUOTA'});
-  assert.equal(usage.view(b).used.scene,0);usage.reserve(b,'scene');
-  refund();refund();assert.equal(usage.view(a).used.scene,0);usage.reserve(a,'scene');
-  const restarted=createPracticeUsage(options);assert.equal(restarted.view(a).used.scene,1);
-  now=Date.parse('2026-10-24T16:00:00Z');assert.equal(usage.view(a).used.scene,0);assert.equal(usage.view(a).day,'2026-10-25');
+  const refund=usage.reserve(a,'vision');assert.throws(()=>usage.reserve(a,'vision'),{code:'DAILY_QUOTA'});
+  assert.equal(usage.view(b).used.vision,0);usage.reserve(b,'vision');
+  refund();refund();assert.equal(usage.view(a).used.vision,0);usage.reserve(a,'vision');
+  const restarted=createPracticeUsage(options);assert.equal(restarted.view(a).used.vision,1);
+  now=Date.parse('2026-10-24T16:00:00Z');assert.equal(usage.view(a).used.vision,0);assert.equal(usage.view(a).day,'2026-10-25');
 });
 
 test('signed browser cookie is stable and tampering yields a new allowance identity',t=>{
@@ -39,10 +39,10 @@ test('signed browser cookie is stable and tampering yields a new allowance ident
 
 test('shared network has a five-browser allowance cap',t=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'langsidu-network-test-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
-  const usage=createPracticeUsage({file:path.join(dir,'usage.json'),limits:{scene:1}});
-  for(let i=0;i<5;i++)usage.reserve({id:String(i),ip:'same'},'scene');
-  assert.throws(()=>usage.reserve({id:'sixth',ip:'same'},'scene'),{code:'DAILY_QUOTA'});
-  usage.reserve({id:'sixth',ip:'other'},'scene');
+  const usage=createPracticeUsage({file:path.join(dir,'usage.json'),limits:{vision:1}});
+  for(let i=0;i<5;i++)usage.reserve({id:String(i),ip:'same'},'vision');
+  assert.throws(()=>usage.reserve({id:'sixth',ip:'same'},'vision'),{code:'DAILY_QUOTA'});
+  usage.reserve({id:'sixth',ip:'other'},'vision');
 });
 
 test('image reuse is isolated by browser, intent and accent and does not reserve twice',async()=>{
@@ -63,11 +63,6 @@ test('scoring keeps only real second-transcript evidence, never the reference or
   const context=evaluationContext({phase:'final',text:'I have a book.',reference:'I enjoy visiting a library.'});
   const result=normalizeEvaluation({grammar:90,topicRelevance:80,coherence:90,vocabulary:80,fluency:90,polished:'I have a book.',scoreEvidence:{grammar:[{original:'I have a book.',explanation:'完整句子'},{original:'I enjoy visiting a library.',explanation:'来自参考稿'}],coherence:[{original:'invented',explanation:'捏造'}]}},context);
   assert.equal(result.scoreEvidence.grammar.length,1);assert.equal(result.scoreEvidence.coherence.length,0);
-});
-
-test('free teaching library ships image-grounded vocabulary with UK and US IPA',()=>{
-  const scenes=require('../scene-library');assert.equal(scenes.length,3);
-  for(const scene of scenes){assert.match(scene.image,/^data:image\/svg\+xml;base64,/);assert.ok(scene.elements.length);assert.ok(scene.hints.words.every(w=>w.length===4&&w[1]&&w[2]));}
 });
 
 test('potential backshifts of current preferences and facts trigger a targeted grammar review',()=>{

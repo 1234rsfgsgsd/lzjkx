@@ -3,7 +3,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 
 // This is a browser allowance, not an account identity. Render's ephemeral disk resets on redeploy.
-function createPracticeUsage({ file, limits = { scene: 6, vision: 20, speech: 20 }, now = () => Date.now() }) {
+function createPracticeUsage({ file, limits = { vision: 20, speech: 20 }, now = () => Date.now() }) {
   let state;
   try { state = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
   state ||= { secret: crypto.randomBytes(32).toString('hex'), day: '', entries: {} };
@@ -38,7 +38,7 @@ function createPracticeUsage({ file, limits = { scene: 6, vision: 20, speech: 20
     const keys = ['device:' + user.id, 'network:' + user.ip];
     for (const [i,key] of keys.entries()) {
       if ((state.entries[key]?.[kind] || 0) >= limits[kind] * (i ? 5 : 1)) {
-        throw Object.assign(new Error(i ? '当前网络今日的 AI 使用次数已用完，请明天再试，或使用免费场景图库。' : '当前浏览器今日的 AI 使用次数已用完，请明天再试，或使用免费场景图库。'), { status: 429, code:'DAILY_QUOTA', details:{error:'今日 AI 使用次数已用完，请明天再试，或使用免费场景图库。',code:'DAILY_QUOTA',retryable:false} });
+        throw Object.assign(new Error(i ? '当前网络今日的 AI 使用次数已用完，请明天再试，或先使用已保存的练习记录。' : '当前浏览器今日的 AI 使用次数已用完，请明天再试，或先使用已保存的练习记录。'), { status: 429, code:'DAILY_QUOTA', details:{error:'今日 AI 使用次数已用完，请明天再试，或先使用已保存的练习记录。',code:'DAILY_QUOTA',retryable:false} });
       }
     }
     for (const key of keys) { state.entries[key] ||= {}; state.entries[key][kind] = (state.entries[key][kind] || 0) + 1; }
