@@ -1,4 +1,5 @@
 const scoreWeights = Object.freeze({ grammar: 0.35, topicRelevance: 0.25, coherence: 0.20, vocabulary: 0.10, fluency: 0.10 });
+const {TEXT_WEIGHTS,textReport}=require('./oral-rubric');
 
 function countWords(value) {
   return (String(value || '').match(/[A-Za-z]+(?:['’\-][A-Za-z]+)*|\d+(?:\.\d+)?/g) || []).length;
@@ -15,6 +16,7 @@ function evaluationContext(body) {
   if (phase === 'final' && !reference) throw Object.assign(new Error('请先生成润色稿，再提交第二次朗读'), { status: 400 });
   return {
     text, originalWordCount, phase, reference,
+    ...(body.rubric==='oral-v1'?{rubric:'oral-v1'}:{}),
     targetMinWords: Math.max(1, originalWordCount - 100), targetMaxWords: originalWordCount + 100,
     accent: body.accent === '英式' ? '英式' : '美式',
     education: String(body.education || '大学及以上').slice(0, 60),
@@ -42,6 +44,7 @@ JSON格式：{"grammar":0,"topicRelevance":0,"coherence":0,"vocabulary":0,"fluen
     prompt += `\n本次是用户照着润色稿第二次朗读后的最终评分。speech 是第二次录音的转写，只能根据 speech 评分，绝不能把 reference 当作用户实际说出的内容。reference 是朗读目标，只用于比较内容是否完整、是否出现漏读、替换或重复（转写差异不代表真实发音错误）。summary 结合参考稿指出第二次表达的具体表现。主题分参考 reference 的主要信息，允许等义表达；不能仅因原稿已润色而自动给满分。只评价转写文字，不声称听过音频；无需重新润色参考稿，polished 可返回对 speech 的最小修正版本。`;
   }
   if (context.phase !== 'polish') prompt += '\n额外返回 scoreEvidence：对象的键为 grammar、topicRelevance、coherence、vocabulary、fluency，每个值是数组，每项 {original:"speech 中精确原句或片段", explanation:"中文说明该原句如何支持该项分数"}。每个维度至少一条真实引文；尤其是扣分时必须有可核对的原文依据。不能用 reference 代替 speech，也不能引用不存在的错误。';
+  if(context.rubric==='oral-v1'&&context.phase!=='polish')prompt+='\n本次采用站主英语口语评分标准 V1.0 的文本分析模式：只以 grammar 语法35%、vocabulary 词汇30%、topicRelevance 内容完成度35%计算总分。内容完成度包括是否切题、主要信息、逻辑和任务要求。coherence、fluency 等旧字段即使返回也不参与本次计分。不得根据转写文字评估发音、可理解度、语速、真实停顿或重音语调。每个参与计分的维度必须提供 scoreReasons 和精确 speech 引文。';
   return prompt;
 }
 
@@ -56,8 +59,9 @@ function parseCompletion(result) {
 }
 
 function normalizeEvaluation(parsed, context) {
+  const weights=context.rubric==='oral-v1'?TEXT_WEIGHTS:scoreWeights;
   const scores = {};
-  for (const key of context.phase === 'polish' ? [] : Object.keys(scoreWeights)) {
+  for (const key of context.phase === 'polish' ? [] : Object.keys(weights)) {
     const value = key === 'topicRelevance' ? parsed[key] ?? parsed.taskCompletion : parsed[key];
     if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error('语言模型返回的评分不完整，请重试');
     scores[key] = Math.max(0, Math.min(100, Math.round(value)));
@@ -70,8 +74,8 @@ function normalizeEvaluation(parsed, context) {
     severity: ['high', 'medium', 'low'].includes(item?.severity) ? item.severity : 'medium'
   })).filter(item => item.original && item.correction && item.original !== item.correction && context.text.includes(item.original)) : [];
   const polishedWordCount = countWords(polished);
-  return {
-    ...(context.phase === 'polish' ? {} : { ...scores, overall: Math.round(Object.entries(scoreWeights).reduce((total, [key, weight]) => total + scores[key] * weight, 0)), taskCompletion: scores.topicRelevance, scoreWeights }),
+  const result = {
+    ...(context.phase === 'polish' ? {} : { ...scores, overall: Math.round(Object.entries(weights).reduce((total, [key, weight]) => total + scores[key] * weight, 0)), taskCompletion: scores.topicRelevance, scoreWeights:weights }),
     phase: context.phase, accent: context.accent,
     topicSummary: String(parsed.topicSummary || '').slice(0, 500),
     keywords: Array.isArray(parsed.keywords) ? parsed.keywords.filter(item => item?.en).slice(0, 12).map(item => ({ en: String(item.en).slice(0, 100), zh: String(item.zh || '').slice(0, 100) })) : [],
@@ -80,11 +84,13 @@ function normalizeEvaluation(parsed, context) {
     originalWordCount: context.originalWordCount, polishedWordCount,
     targetMinWords: context.targetMinWords, targetMaxWords: context.targetMaxWords,
     wordCountWithinRange: polishedWordCount >= context.targetMinWords && polishedWordCount <= context.targetMaxWords,
-    ...(context.phase === 'polish' ? {} : { scoreReasons: Object.fromEntries(Object.keys(scoreWeights).map(key => [key, String(parsed.scoreReasons?.[key] || '模型未提供该维度的具体依据，请结合纠错和建议查看。').slice(0, 600)])) }),
-    ...(context.phase === 'polish' ? {} : { scoreEvidence: Object.fromEntries(Object.keys(scoreWeights).map(key => [key, (Array.isArray(parsed.scoreEvidence?.[key]) ? parsed.scoreEvidence[key] : []).filter(item => typeof item?.original === 'string' && item.original.trim() && context.text.includes(item.original.trim()) && typeof item.explanation === 'string' && item.explanation.trim()).slice(0,3).map(item => ({ original:item.original.trim().slice(0,600), explanation:item.explanation.slice(0,600) }))])) }),
+    ...(context.phase === 'polish' ? {} : { scoreReasons: Object.fromEntries(Object.keys(weights).map(key => [key, String(parsed.scoreReasons?.[key] || '模型未提供该维度的具体依据，请结合纠错和建议查看。').slice(0, 600)])) }),
+    ...(context.phase === 'polish' ? {} : { scoreEvidence: Object.fromEntries(Object.keys(weights).map(key => [key, (Array.isArray(parsed.scoreEvidence?.[key]) ? parsed.scoreEvidence[key] : []).filter(item => typeof item?.original === 'string' && item.original.trim() && context.text.includes(item.original.trim()) && typeof item.explanation === 'string' && item.explanation.trim()).slice(0,3).map(item => ({ original:item.original.trim().slice(0,600), explanation:item.explanation.slice(0,600) }))])) }),
     errors: errors.filter((item, index, list) => list.findIndex(other => other.original === item.original && other.correction === item.correction) === index), polished, sentences: [], summary: String(parsed.summary || '').slice(0, 600),
     assessmentBasis: '基于转写文本评估；表达自然度不代表录音发音或语速评分。'
   };
+  if(context.rubric==='oral-v1'&&context.phase!=='polish')result.oralReport=textReport(result);
+  return result;
 }
 
 // These changes can alter an ongoing preference or a current fact. A past event

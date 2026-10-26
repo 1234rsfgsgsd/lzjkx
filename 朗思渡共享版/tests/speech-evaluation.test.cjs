@@ -2,6 +2,14 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { countWords, scoreWeights, evaluationContext, evaluationPrompt, normalizeEvaluation } = require('../speech-evaluation');
 
+test('owner oral-v1 text rubric uses only grammar35 vocabulary30 content35 and keeps first pass unscored',()=>{
+  const context=evaluationContext({text:'I have coffee.',reference:'I have coffee.',phase:'final',rubric:'oral-v1'});
+  const result=normalizeEvaluation({grammar:80,vocabulary:70,topicRelevance:90,coherence:0,fluency:0,polished:'I have coffee.',scoreReasons:{grammar:'句法正确',vocabulary:'词汇简单',topicRelevance:'完成信息'}},context);
+  assert.equal(result.overall,81);assert.equal(result.oralReport.overallScore,81);assert.deepEqual(result.scoreWeights,{grammar:.35,vocabulary:.3,topicRelevance:.35});assert.equal(result.oralReport.dimensionScores.length,3);assert.equal(result.fluency,undefined);assert.equal(result.coherence,undefined);
+  const first=normalizeEvaluation({polished:'I have coffee.',overall:100},evaluationContext({text:'I has coffee.',phase:'polish',rubric:'oral-v1'}));
+  assert.equal(first.oralReport,undefined);assert.equal(first.overall,undefined);
+});
+
 test('word counts treat contractions and hyphenated compounds as one word', () => {
   assert.equal(countWords("I can't re-write it in 2026."), 6);
   assert.equal(countWords('I have a book.'), 4);

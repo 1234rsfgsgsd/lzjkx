@@ -1,6 +1,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+require('dotenv').config({path:path.join(__dirname,'.env.local'),quiet:true});
 const { categories, parseVisionResult } = require('./vision-result');
 const { createVisionJobs } = require('./vision-jobs');
 const { visionProviderOptions } = require('./vision-provider-options');
@@ -8,6 +9,9 @@ const { providerError } = require('./provider-error');
 const { createPracticeUsage } = require('./practice-usage');
 const { evaluationContext, evaluationPrompt, parseCompletion, normalizeEvaluation, needsTenseReview } = require('./speech-evaluation');
 const { createTopicGallery } = require('./topic-gallery');
+const {createXfyunAssessor}=require('./xfyun-ise');
+const {createXfyunBudget}=require('./xfyun-budget');
+const {createPronunciationJobs}=require('./pronunciation-jobs');
 const galleryDirectory=process.env.GALLERY_DIRECTORY || path.join(__dirname,'gallery');
 const topicGallery = createTopicGallery({directory:galleryDirectory,manifestFile:process.env.GALLERY_MANIFEST_FILE || path.join(galleryDirectory,'manifest.json')});
 
@@ -26,6 +30,9 @@ const speechJobs = new Map();
 const dailyLimit = (key, fallback) => Math.max(1, Math.min(1000, Number(process.env[key]) || fallback));
 const usage = createPracticeUsage({ file: process.env.USAGE_STATE_FILE || path.join(require('node:os').tmpdir(), 'langsidu-usage-' + port + '.json'), limits: {vision:dailyLimit('DAILY_VISION_LIMIT',20),speech:dailyLimit('DAILY_SPEECH_LIMIT',20)} });
 const crypto = require('node:crypto');
+const xfyunAssessor=createXfyunAssessor();
+const xfyunBudget=createXfyunBudget({file:process.env.XFYUN_USAGE_FILE||path.join(require('node:os').tmpdir(),'langsidu-xfyun-'+port+'.json'),daily:dailyLimit('XFYUN_DAILY_CALL_LIMIT',5),monthly:dailyLimit('XFYUN_MONTHLY_CALL_LIMIT',20)});
+const pronunciationJobs=createPronunciationJobs({assessor:xfyunAssessor,budget:xfyunBudget,evaluateText:evaluateSpeech,reserveUsage:user=>usage.reserve(user,'speech')});
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {
   res.writeHead(status, { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff' });
@@ -66,7 +73,7 @@ function allowedRequest(req, res) {
   req.practiceIp = ip;
   for (const [key, value] of windows) if (now - value.start > 120_000) windows.delete(key);
   const pathname = new URL(req.url, `http://${req.headers.host || 'localhost'}`).pathname;
-  const route = pathname.startsWith('/api/analyze-speech') ? 'speech' : pathname;
+  const route = pathname.startsWith('/api/analyze-speech')||pathname.startsWith('/api/pronunciation') ? 'speech' : pathname;
   const limit = route === '/api/analyze-image' ? 24 : 12;
   const bucket = `${ip}:${route}`;
   const entry = windows.get(bucket);
@@ -292,6 +299,19 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   if (req.method === 'GET' && url.pathname === '/health') {
     return send(res, 200, { ok: true, revision: process.env.RENDER_GIT_COMMIT || 'local' });
+  }
+  if(req.method==='GET'&&url.pathname==='/api/pronunciation/config'){
+    usage.identity(req,res);res.setHeader('Cache-Control','no-store');return send(res,200,{...xfyunAssessor.configuration(),budget:xfyunBudget.view()});
+  }
+  if(req.method==='POST'&&url.pathname==='/api/pronunciation/jobs'){
+    if(!allowedRequest(req,res))return;
+    try{const body=await readBody(req);const user=usage.identity(req,res);return send(res,202,{jobId:pronunciationJobs.start(body,user)});}
+    catch(error){return send(res,error.status||502,{error:error.status?error.message:'语音评测暂未完成，录音已保留。',code:error.code||'AUDIO_ASSESSMENT_FAILED',retryable:false});}
+  }
+  const pronunciationMatch=url.pathname.match(/^\/api\/pronunciation\/jobs\/([0-9a-f-]{36})$/i);
+  if(req.method==='GET'&&pronunciationMatch){
+    res.setHeader('Cache-Control','no-store');try{return send(res,200,pronunciationJobs.get(pronunciationMatch[1],usage.identity(req,res)));}
+    catch(error){return send(res,error.status||502,{error:error.message,code:error.code,retryable:false});}
   }
   if (req.method === 'GET' && url.pathname === '/api/practice-usage') {
     res.setHeader('Cache-Control', 'no-store');

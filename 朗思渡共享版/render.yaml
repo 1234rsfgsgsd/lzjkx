@@ -15,3 +15,15 @@ services:
         sync: false
       - key: SPEECH_MODEL
         sync: false
+      - key: XFYUN_ISE_ENABLED
+        value: "false"
+      - key: XFYUN_APP_ID
+        sync: false
+      - key: XFYUN_API_KEY
+        sync: false
+      - key: XFYUN_API_SECRET
+        sync: false
+      - key: XFYUN_DAILY_CALL_LIMIT
+        value: "5"
+      - key: XFYUN_MONTHLY_CALL_LIMIT
+        value: "20"

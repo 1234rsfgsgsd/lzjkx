@@ -9,5 +9,10 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test tests/*.test.cjs"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "fast-xml-parser": "^5.11.2",
+    "ws": "^8.22.0"
   }
 }
