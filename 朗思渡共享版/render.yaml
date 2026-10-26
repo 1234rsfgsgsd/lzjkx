@@ -16,7 +16,7 @@ services:
       - key: SPEECH_MODEL
         sync: false
       - key: XFYUN_ISE_ENABLED
-        value: "false"
+        value: "true"
       - key: XFYUN_APP_ID
         sync: false
       - key: XFYUN_API_KEY
