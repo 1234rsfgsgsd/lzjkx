@@ -36,6 +36,25 @@ XFYUN_API_SECRET=你的APISecret
 
 ## 部署到 Render 给同学和老师
 
+### 可选：百炼直接音频反馈（AI参考评分）
+
+新增音频评估与讯飞分开配置，默认关闭，且每次评分需单独勾选同意发送录音到百炼。只补充重音语调（10分）、可理解度（15分），不替代讯飞和实际转写分析。
+
+```dotenv
+AUDIO_REVIEW_ENABLED=false
+AUDIO_REVIEW_API_URL=业务空间的OpenAI兼容Base URL/chat/completions
+AUDIO_REVIEW_API_KEY=仅填到本地.env.local或Render环境变量
+AUDIO_REVIEW_MODEL=qwen3.8-omni-flash
+```
+
+API URL、密钥和模型必须属于同一地域及业务空间。不要修改现有 VISION_* 或 XFYUN_* 配置；不订阅额外套餐也可按百炼实际规则按量调用。先本地配置，使用自己的测试录音运行 `node tests/audio-review-live-smoke.cjs <wav路径>`；文件需16kHz单声道16位PCM WAV，3秒到3分钟。该命令会发送录音并可能产生供应商费用，不自动重试。端到端测试通过后，再在Render启用 AUDIO_REVIEW_ENABLED=true。
+
+百炼直接听第二次录音，不接收参考稿或用户转写，避免把看稿理解当作听辨。返回独立听辨内容、两项分数、中文理由、估计的片段时间及建议。缺少证据、低置信度、无有效语音、接口超时或余额不足时仍显示待评，并保留讯飞及文本结果。仅八项全部可评时显示综合参考分，缺项不补零、不缩放。
+
+这些是未经人工校准的AI参考评分，不是讯飞官方新增指标或标准化考试分。模型自报置信度、片段时间和建议均可能有误，需回听核对；英美提示不等于经过验证的分口音评分。真人录音与教师对照验证是后续校准工作，合成语音联调不能代替。PAST及导出文件会保留补充音频反馈。
+
+单元与任务验证：`node --test tests/audio-review.test.cjs`。网页回归：`node tests/xfyun-browser.cjs`，覆盖独立同意、补评分展示与失败保留讯飞结果。无需新增NPM依赖。
+
 1. 把 `朗思渡共享版` 目录上传到你自己的 GitHub 仓库。不要提交真实 `.env` 文件或 API 密钥。
 2. 在 Render 选择 **New + → Blueprint**，连接该 GitHub 仓库，并选择其中的 `render.yaml`。
 3. Render 要求填写 `VISION_API_URL`、`VISION_API_KEY`、`VISION_MODEL`。在 Render 控制台的环境变量中填入所选视觉模型服务给出的值。

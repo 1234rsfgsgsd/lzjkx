@@ -12,6 +12,7 @@ const { createTopicGallery } = require('./topic-gallery');
 const {createXfyunAssessor}=require('./xfyun-ise');
 const {createXfyunBudget}=require('./xfyun-budget');
 const {createPronunciationJobs}=require('./pronunciation-jobs');
+const {createAudioReviewer}=require('./audio-review');
 const galleryDirectory=process.env.GALLERY_DIRECTORY || path.join(__dirname,'gallery');
 const topicGallery = createTopicGallery({directory:galleryDirectory,manifestFile:process.env.GALLERY_MANIFEST_FILE || path.join(galleryDirectory,'manifest.json')});
 
@@ -31,8 +32,9 @@ const dailyLimit = (key, fallback) => Math.max(1, Math.min(1000, Number(process.
 const usage = createPracticeUsage({ file: process.env.USAGE_STATE_FILE || path.join(require('node:os').tmpdir(), 'langsidu-usage-' + port + '.json'), limits: {vision:dailyLimit('DAILY_VISION_LIMIT',20),speech:dailyLimit('DAILY_SPEECH_LIMIT',20)} });
 const crypto = require('node:crypto');
 const xfyunAssessor=createXfyunAssessor();
+const audioReviewer=createAudioReviewer();
 const xfyunBudget=createXfyunBudget({file:process.env.XFYUN_USAGE_FILE||path.join(require('node:os').tmpdir(),'langsidu-xfyun-'+port+'.json')});
-const pronunciationJobs=createPronunciationJobs({assessor:xfyunAssessor,budget:xfyunBudget,evaluateText:evaluateSpeech,reserveUsage:user=>usage.reserve(user,'speech')});
+const pronunciationJobs=createPronunciationJobs({assessor:xfyunAssessor,audioReviewer,budget:xfyunBudget,evaluateText:evaluateSpeech,reserveUsage:user=>usage.reserve(user,'speech')});
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {
   res.writeHead(status, { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff' });
@@ -301,7 +303,7 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { ok: true, revision: process.env.RENDER_GIT_COMMIT || 'local' });
   }
   if(req.method==='GET'&&url.pathname==='/api/pronunciation/config'){
-    usage.identity(req,res);res.setHeader('Cache-Control','no-store');return send(res,200,{...xfyunAssessor.configuration(),budget:xfyunBudget.view()});
+    usage.identity(req,res);res.setHeader('Cache-Control','no-store');return send(res,200,{...xfyunAssessor.configuration(),budget:xfyunBudget.view(),audioReview:audioReviewer.configuration()});
   }
   if(req.method==='POST'&&url.pathname==='/api/pronunciation/jobs'){
     if(!allowedRequest(req,res))return;

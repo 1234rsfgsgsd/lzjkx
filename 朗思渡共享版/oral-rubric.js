@@ -26,7 +26,7 @@ function textReport(evaluation){
   const overallScore=available?Math.round(dimensionScores.reduce((s,d)=>s+d.score,0)):null;
   return {mode:'text',status:available?'scored':'unscorable',rubricVersion:'oral-v1',overallScore,level:overallScore===null?null:level(overallScore),dimensionScores,disclaimer:'当前结果基于语音转写文本，不能准确反映真实发音、重音、语调、语速和停顿表现。'};
 }
-function speechReport(acoustic,evaluation){
+function speechReport(acoustic,evaluation,audioReview=null){
   const raw=acoustic?.scores||{},metrics=acoustic?.metrics||{};
   const rejected=['unscorable','incomplete'].includes(acoustic?.status);
   const scoreMap={pronunciation:finiteScore(raw.accuracy),fluency:finiteScore(raw.fluency),grammar:finiteScore(evaluation?.grammar),vocabulary:finiteScore(evaluation?.vocabulary),content:finiteScore(evaluation?.topicRelevance)};
@@ -34,6 +34,10 @@ function speechReport(acoustic,evaluation){
     let score=null,reason='当前接口未提供可直接对应的可靠指标，待教师评估。',source='unavailable';
     if(!rejected&&scoreMap[d.key]!==undefined&&scoreMap[d.key]!==null){score=rounded(scoreMap[d.key]*d.max/100);source=['grammar','vocabulary','content'].includes(d.key)?'transcript':'xfyun-audio';reason=source==='transcript'?(evaluation?.scoreReasons?.[d.key==='content'?'topicRelevance':d.key]||'根据第二次实际转写分析；请核对识别错误。'):'讯飞百分制指标按本项满分折算，属于待校准的学习反馈。';}
     if(!rejected&&d.key==='pace'&&metrics.wpm!==null&&Number.isFinite(metrics.wpm)){score=readingPace(metrics.wpm);source='word-alignment';reason='按朗读任务参考区间 80–170 WPM 计算，受词对齐和录音边界影响；不是母语口音判定。';}
+    const ai=audioReview?.status==='scored'&&audioReview.dimensions?.[d.key];
+    if(!rejected&&['prosody','intelligibility'].includes(d.key)&&ai&&Number.isFinite(ai.score)&&ai.score>=0&&ai.score<=d.max&&['high','medium'].includes(ai.confidence)&&ai.evidence?.length){
+      return {...d,score:rounded(ai.score),source:'audio-ai-reference',reason:'AI参考评分（未经人工校准）：'+ai.reason,evidence:ai.evidence,confidence:ai.confidence};
+    }
     return {...d,score,source,reason};
   });
   const available=dimensionScores.filter(d=>d.score!==null),complete=available.length===dimensions.length;
@@ -43,6 +47,7 @@ function speechReport(acoustic,evaluation){
   if(metrics.wpm>170)priorities.push('适当放慢长句和关键词，先保证每个词清晰可辨。');
   if(acoustic?.words?.some(w=>w.error))priorities.push('先回听标出的词，再听示范并短句跟读；接口误判可手动核对。');
   if(metrics.longPauseCount>0)priorities.push('回听超过两秒的词间间隔，判断是否需要按意群分句；合理停顿不必消除。');
-  return {mode:'speech',status:acoustic?.status||'unscorable',rubricVersion:'oral-v1',coverage:complete?'complete':'partial',overallScore:total,level:total===null?null:level(total),dimensionScores,availablePoints:rounded(available.reduce((s,d)=>s+d.max,0)),subtotal:available.length?rounded(available.reduce((s,d)=>s+d.score,0)):null,metrics,words:acoustic?.words||[],provider:'xfyun-ise',providerScore:finiteScore(raw.total),integrity:finiteScore(raw.integrity),priorities:priorities.slice(0,3),reason:acoustic?.reason||'',disclaimer:'本次使用真实录音。讯飞朗读分不是本标准的八项综合分；缺少可靠指标的项目显示待评，不按零分处理，也不将部分分数换算成100分。重音语调与可理解度仍需教师核对。接口暂未提供独立英式/美式评测参数，英美偏好继续用于示范播放和音标。'};
+  const aiReference=dimensionScores.some(d=>d.source==='audio-ai-reference');
+  return {mode:'speech',status:acoustic?.status||'unscorable',rubricVersion:'oral-v1',coverage:complete?'complete':'partial',overallScore:total,level:total===null?null:level(total),dimensionScores,availablePoints:rounded(available.reduce((s,d)=>s+d.max,0)),subtotal:available.length?rounded(available.reduce((s,d)=>s+d.score,0)):null,metrics,words:acoustic?.words||[],provider:'xfyun-ise',providerScore:finiteScore(raw.total),integrity:finiteScore(raw.integrity),priorities:priorities.slice(0,3),reason:acoustic?.reason||'',aiReference,audioReview:audioReview?{status:audioReview.status,heardTranscript:audioReview.heardTranscript,reason:audioReview.reason}:null,disclaimer:'本次使用真实录音。讯飞朗读分不是本标准的八项综合分；缺少可靠指标的项目显示待评，不按零分处理，也不将部分分数换算成100分。'+(aiReference?'重音语调与可理解度使用百炼直接听录音生成AI参考评分，未经人工校准；综合分也仅供练习参考。':'重音语调与可理解度未完成独立音频评估，仍待评。')+'讯飞接口暂未提供独立英式/美式评测参数；百炼的口音偏好提示不等于专门英美评测认证，英美偏好继续用于示范播放和音标。'};
 }
 module.exports={dimensions,TEXT_WEIGHTS,readingPace,textReport,speechReport};
