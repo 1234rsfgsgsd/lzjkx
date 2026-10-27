@@ -4,7 +4,7 @@ const {configuration,wavFromPcm,normalizeReview,createAudioReviewer}=require('..
 const {speechReport}=require('../oral-rubric');
 const {createPronunciationJobs}=require('../pronunciation-jobs');
 const env={AUDIO_REVIEW_ENABLED:'true',AUDIO_REVIEW_API_URL:'https://example.test/chat/completions',AUDIO_REVIEW_API_KEY:'private-test-key',AUDIO_REVIEW_MODEL:'audio-model'};
-function review(){return {status:'scored',heardTranscript:'I would like a cup of coffee.',dimensions:Object.fromEntries(['prosody','intelligibility'].map((key,i)=>[key,{score:i?12:8,confidence:'medium',reason:'听到的重点和词句基本清楚',evidence:[{start:0.5,end:2,observation:'关键词清楚，结尾较平',suggestion:'按意群朗读，突出主要信息'}]}]))};}
+function review(){return {status:'scored',heardTranscript:'I would like a cup of coffee.',dimensions:Object.fromEntries(['prosody','intelligibility'].map((key,i)=>[key,{score:i?12:8,confidence:'medium',reason:'听到的重点和词句基本清楚',evidence:[{start:0.5,end:2,kind:i?'clear_speech':'sentence_emphasis'}]}]))};}
 const input={pcm:Buffer.alloc(96000,32),durationSeconds:3,accent:'英式',reference:'SECRET REFERENCE THAT MUST NOT BE SENT'};
 const sse=(payload,finish='stop')=>new Response('data: '+JSON.stringify({choices:[{delta:{content:JSON.stringify(payload)},finish_reason:finish}]})+'\n\ndata: [DONE]\n\n',{headers:{'Content-Type':'text/event-stream'}});
 test('optional configuration hides credentials and starts disabled',()=>{assert.equal(configuration({}).enabled,false);assert.equal(configuration({...env,AUDIO_REVIEW_ENABLED:'false'}).enabled,false);assert.equal(configuration(env).enabled,true);assert.equal(JSON.stringify(configuration(env)).includes(env.AUDIO_REVIEW_API_KEY),false);});
@@ -14,11 +14,20 @@ test('audio request contains actual WAV bytes and accent, excludes reference and
  const result=await reviewer.assess(input);assert.equal(calls,1);assert.equal(result.dimensions.prosody.score,8);assert.equal(result.dimensions.intelligibility.score,12);assert.equal(JSON.stringify(result).includes('must never be returned'),false);
 });
 test('missing evidence, low confidence, bad scores and out of range timestamps cannot fill scores',()=>{
- for(const change of [d=>d.confidence='low',d=>d.score=11,d=>d.score='8',d=>d.evidence=[],d=>d.evidence[0].end=3.1,d=>d.evidence[0].start=-1,d=>d.reason='']){const value=review();change(value.dimensions.prosody);const result=normalizeReview(JSON.stringify(value),3);assert.equal(result.dimensions.prosody.score,null);assert.equal(result.dimensions.intelligibility.score,12);}
+ for(const change of [d=>d.confidence='low',d=>d.score=11,d=>d.score='8',d=>d.evidence=[],d=>d.evidence[0].end=3.1,d=>d.evidence[0].start=-1,d=>d.evidence[0].kind='made_up_pronunciation_fact']){const value=review();change(value.dimensions.prosody);const result=normalizeReview(JSON.stringify(value),3);assert.equal(result.dimensions.prosody.score,null);assert.equal(result.dimensions.intelligibility.score,12);}
  const silent=review();silent.status='insufficient';assert.equal(normalizeReview(JSON.stringify(silent),3).status,'insufficient');assert.throws(()=>normalizeReview('not JSON',3),{code:'AUDIO_REVIEW_INVALID'});
 });
 test('provider errors and truncated streams never retry or leak response bodies',async()=>{
  for(const response of [()=>new Response('secret provider details',{status:402}),()=>sse(review(),'length'),()=>new Response('data: {"choices":[{"delta":{"content":"{}"}}]}\n\n')]){let calls=0;await assert.rejects(createAudioReviewer({env,fetchImpl:async()=>{calls++;return response();}}).assess(input),e=>e.code.startsWith('AUDIO_REVIEW_')&&!e.message.includes('secret provider details'));assert.equal(calls,1);}
+});
+
+test('unverified lexical stress and phonetic teaching cannot become scored feedback',()=>{
+ for(const claim of ['gentleman 的正确重音在第二个音节','正确读作 gen-TLE-man','元音应为 /ə/','Place lexical stress on the second syllable']){
+  const value=review();value.dimensions.prosody.evidence[0].suggestion=claim;
+  const result=normalizeReview(JSON.stringify(value),3);
+  assert.equal(result.dimensions.prosody.score,null);assert.equal(result.dimensions.prosody.confidence,'low');
+  assert.deepEqual(result.dimensions.prosody.evidence,[]);assert.equal(result.dimensions.intelligibility.score,12);
+ }
 });
 test('combined reference score requires all eight dimensions and preserves unavailable or rejected audio',()=>{
  const acoustic={status:'scored',scores:{accuracy:80,fluency:80,integrity:100},metrics:{wpm:110},words:[]},text={grammar:80,vocabulary:80,topicRelevance:80},audio=normalizeReview(JSON.stringify(review()),3);
