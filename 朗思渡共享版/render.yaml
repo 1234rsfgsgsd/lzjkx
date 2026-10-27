@@ -23,7 +23,3 @@ services:
         sync: false
       - key: XFYUN_API_SECRET
         sync: false
-      - key: XFYUN_DAILY_CALL_LIMIT
-        value: "5"
-      - key: XFYUN_MONTHLY_CALL_LIMIT
-        value: "20"

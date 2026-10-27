@@ -31,7 +31,7 @@ const dailyLimit = (key, fallback) => Math.max(1, Math.min(1000, Number(process.
 const usage = createPracticeUsage({ file: process.env.USAGE_STATE_FILE || path.join(require('node:os').tmpdir(), 'langsidu-usage-' + port + '.json'), limits: {vision:dailyLimit('DAILY_VISION_LIMIT',20),speech:dailyLimit('DAILY_SPEECH_LIMIT',20)} });
 const crypto = require('node:crypto');
 const xfyunAssessor=createXfyunAssessor();
-const xfyunBudget=createXfyunBudget({file:process.env.XFYUN_USAGE_FILE||path.join(require('node:os').tmpdir(),'langsidu-xfyun-'+port+'.json'),daily:dailyLimit('XFYUN_DAILY_CALL_LIMIT',5),monthly:dailyLimit('XFYUN_MONTHLY_CALL_LIMIT',20)});
+const xfyunBudget=createXfyunBudget({file:process.env.XFYUN_USAGE_FILE||path.join(require('node:os').tmpdir(),'langsidu-xfyun-'+port+'.json')});
 const pronunciationJobs=createPronunciationJobs({assessor:xfyunAssessor,budget:xfyunBudget,evaluateText:evaluateSpeech,reserveUsage:user=>usage.reserve(user,'speech')});
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {

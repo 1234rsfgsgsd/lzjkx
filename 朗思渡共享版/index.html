@@ -2200,8 +2200,8 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
       const res=await fetch('/api/pronunciation/config',{cache:'no-store',signal:AbortSignal.timeout(10000)});
       if(!res.ok)throw new Error();const config=await res.json();audioAssessmentConfiguration=config;
       $('useAudioAssessment').disabled=!config.enabled;$('useAudioAssessment').checked=Boolean(config.enabled);
-      const budget=config.budget,usage=budget?'全站今日 '+budget.dayUsed+'/'+budget.dailyLimit+' 次，本月 '+budget.monthUsed+'/'+budget.monthlyLimit+' 次。':'无法读取本站调用上限。';
-      $('audioAssessmentConfig').textContent=(config.enabled?'讯飞朗读评测已启用：支持3秒至3分钟录音。缺少独立指标时只展示部分诊断，不生成八项综合总分。':'讯飞语音评测尚未启用；当前使用文本分析模式。管理员配置凭据并通过测试后可开启录音诊断。')+' '+usage+' 这是调用次数上限，不是金额保证；服务重启或重新部署可能重置计数。';
+      const budget=config.budget,usage=budget?'本站已提交 '+budget.dayUsed+' 次（今日）/ '+budget.monthUsed+' 次（本月），额度由讯飞账户控制。':'额度由讯飞账户控制。';
+      $('audioAssessmentConfig').textContent=(config.enabled?'讯飞朗读评测已启用：支持3秒至3分钟录音。缺少独立指标时只展示部分诊断，不生成八项综合总分。':'讯飞语音评测尚未启用；当前使用文本分析模式。管理员配置凭据并通过测试后可开启录音诊断。')+' '+usage;
     }catch{$('audioAssessmentConfig').textContent='暂时无法确认语音评测配置，当前仍可使用文本分析；不会自动提交录音。';}
   }
   $('useAudioAssessment').addEventListener('change',clearFinalScore);

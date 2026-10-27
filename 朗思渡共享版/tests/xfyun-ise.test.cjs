@@ -54,11 +54,11 @@ test('rubric distinguishes text scores from incomplete acoustic measures without
   const acoustic={status:'scored',scores:{accuracy:80,fluency:70},metrics:{wpm:100},words:[]};const voice=speechReport(acoustic,{grammar:80,vocabulary:70,topicRelevance:90});
   assert.equal(voice.overallScore,null);assert.equal(voice.coverage,'partial');assert.equal(voice.dimensionScores.find(d=>d.key==='pronunciation').score,16);assert.equal(voice.dimensionScores.find(d=>d.key==='pace').score,9.5);assert.equal(voice.dimensionScores.find(d=>d.key==='prosody').score,null);assert.equal(voice.dimensionScores.find(d=>d.key==='intelligibility').score,null);
 });
-test('global provider call budget applies both daily and monthly limits without resetting on failed requests',t=>{
-  let clock=Date.parse('2026-10-26T02:00:00Z');const file=fixture(t),budget=createXfyunBudget({file,daily:2,monthly:3,now:()=>clock});budget.reserve();budget.reserve();assert.throws(()=>budget.reserve(),{code:'XFYUN_CALL_LIMIT'});clock+=24*3600000;budget.reserve();assert.throws(()=>budget.reserve(),{code:'XFYUN_CALL_LIMIT'});assert.equal(budget.view().monthUsed,3);
+test('provider call budget records usage without imposing a site hard limit',t=>{
+  let clock=Date.parse('2026-10-26T02:00:00Z');const file=fixture(t),budget=createXfyunBudget({file,now:()=>clock});for(let i=0;i<4;i++)budget.reserve();assert.equal(budget.view().monthUsed,4);assert.equal('dailyLimit' in budget.view(),false);assert.equal('monthlyLimit' in budget.view(),false);
 });
 test('pronunciation job is idempotent per user, marks provider calls before launch and never exposes raw audio',async t=>{
-  const file=fixture(t),user={id:'browser'},usage={used:0},budget=createXfyunBudget({file,daily:5,monthly:10});let audioCalls=0,textCalls=0;
+  const file=fixture(t),user={id:'browser'},usage={used:0},budget=createXfyunBudget({file});let audioCalls=0,textCalls=0;
   const assessor={configuration:()=>({enabled:true}),assess:async input=>{audioCalls++;assert.equal(input.reference,'Hello world.');return {status:'scored',scores:{accuracy:80,fluency:75},metrics:{wpm:100,alignedWordCount:2},words:[]};}};
   const textEval=async()=>{textCalls++;return {grammar:80,vocabulary:75,topicRelevance:90,scoreReasons:{}};};
   const jobs=createPronunciationJobs({assessor,budget,evaluateText:textEval,reserveUsage:()=>{usage.used++;return()=>usage.used--;}});
