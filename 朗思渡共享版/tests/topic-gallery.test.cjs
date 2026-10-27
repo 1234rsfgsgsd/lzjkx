@@ -12,9 +12,22 @@ function fixture(t){
   const image=(name,bytes=png)=>fs.writeFileSync(path.join(root,'gallery',name),bytes);
   return {root,manifestFile,write,image};
 }
-test('production manifest deliberately contains no pictures or substitute illustrations',()=>{
-  const data=createTopicGallery().list();assert.equal(data.themes.length,categories.length);assert.ok(data.themes.every(t=>t.count===0));
-  assert.throws(()=>createTopicGallery().select('餐饮美食'),{status:404,code:'GALLERY_EMPTY'});
+test('production gallery preserves the owner archive theme assignments and only lists readable imported photos',()=>{
+  const expected={'日常生活':39,'餐饮美食':21,'出行交通':38,'旅游观光':35,'工作职场':8,'休闲娱乐':102,'购物消费':11,'宠物动物':17,'运动健身':8,'自然风景':27,'学习校园':28,'医疗健康':0};
+  const gallery=createTopicGallery(),data=gallery.list();assert.equal(data.themes.length,categories.length);
+  assert.deepEqual(Object.fromEntries(data.themes.map(t=>[t.name,t.count])),expected);
+  const directory=path.join(__dirname,'../gallery'),manifest=JSON.parse(fs.readFileSync(path.join(directory,'manifest.json'),'utf8'));
+  for(const theme of manifest.themes){
+    const files=new Set();
+    for(const entry of theme.images){
+      assert.equal(entry.source.split('/')[0],theme.name);assert.equal(entry.file.split('/')[0],theme.name);
+      assert.equal(path.parse(entry.file).name,path.parse(entry.source).name);assert.ok(!files.has(entry.file));files.add(entry.file);
+      const bytes=fs.readFileSync(path.join(directory,entry.file));assert.ok(bytes.length>0&&bytes.length<=10*1024*1024);
+      assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WEBP');
+    }
+    if(theme.images.length){const first=gallery.select(theme.name);assert.equal(first.category,theme.name);assert.notEqual(gallery.select(theme.name,first.id).id,first.id);}
+  }
+  assert.throws(()=>gallery.select('医疗健康'),{status:404,code:'GALLERY_EMPTY'});
 });
 test('selected images belong exclusively to the requested theme and next selection excludes the last picture',t=>{
   const f=fixture(t);f.image('food/早餐（1）.png');f.image('food/002.png',Buffer.concat([png,Buffer.from('second')]));f.image('park.png');
