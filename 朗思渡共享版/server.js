@@ -13,6 +13,7 @@ const {createXfyunAssessor}=require('./xfyun-ise');
 const {createXfyunBudget}=require('./xfyun-budget');
 const {createPronunciationJobs}=require('./pronunciation-jobs');
 const {createAudioReviewer}=require('./audio-review');
+const {createTranscriber,createTranscriptionJobs}=require('./audio-transcription');
 const galleryDirectory=process.env.GALLERY_DIRECTORY || path.join(__dirname,'gallery');
 const topicGallery = createTopicGallery({directory:galleryDirectory,manifestFile:process.env.GALLERY_MANIFEST_FILE || path.join(galleryDirectory,'manifest.json')});
 
@@ -33,6 +34,8 @@ const usage = createPracticeUsage({ file: process.env.USAGE_STATE_FILE || path.j
 const crypto = require('node:crypto');
 const xfyunAssessor=createXfyunAssessor();
 const audioReviewer=createAudioReviewer();
+const transcriber=createTranscriber();
+const transcriptionJobs=createTranscriptionJobs({transcriber});
 const xfyunBudget=createXfyunBudget({file:process.env.XFYUN_USAGE_FILE||path.join(require('node:os').tmpdir(),'langsidu-xfyun-'+port+'.json')});
 const pronunciationJobs=createPronunciationJobs({assessor:xfyunAssessor,audioReviewer,budget:xfyunBudget,evaluateText:evaluateSpeech,reserveUsage:user=>usage.reserve(user,'speech')});
 
@@ -304,6 +307,19 @@ const server = http.createServer(async (req, res) => {
   }
   if(req.method==='GET'&&url.pathname==='/api/pronunciation/config'){
     usage.identity(req,res);res.setHeader('Cache-Control','no-store');return send(res,200,{...xfyunAssessor.configuration(),budget:xfyunBudget.view(),audioReview:audioReviewer.configuration()});
+  }
+  if(req.method==='GET'&&url.pathname==='/api/transcription/config'){
+    usage.identity(req,res);res.setHeader('Cache-Control','no-store');return send(res,200,transcriber.configuration());
+  }
+  if(req.method==='POST'&&url.pathname==='/api/transcription/jobs'){
+    if(!allowedRequest(req,res))return;
+    try{const body=await readBody(req);return send(res,202,{jobId:transcriptionJobs.start(body,usage.identity(req,res))});}
+    catch(error){return send(res,error.status||502,{error:error.status?error.message:'转写未完成，原录音已保留。',code:error.code||'TRANSCRIPTION_FAILED',retryable:false});}
+  }
+  const transcriptionMatch=url.pathname.match(/^\/api\/transcription\/jobs\/([0-9a-f-]{36})$/i);
+  if(req.method==='GET'&&transcriptionMatch){
+    res.setHeader('Cache-Control','no-store');try{return send(res,200,transcriptionJobs.get(transcriptionMatch[1],usage.identity(req,res)));}
+    catch(error){return send(res,error.status||502,{error:error.message,code:error.code,retryable:false});}
   }
   if(req.method==='POST'&&url.pathname==='/api/pronunciation/jobs'){
     if(!allowedRequest(req,res))return;

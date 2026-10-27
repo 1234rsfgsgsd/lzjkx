@@ -503,9 +503,15 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
         </div>
 
         <div id="manualInputBox" class="hidden" style="margin-top:1rem;">
-          <p style="color:#5c7b9c;font-size:.88rem;margin-bottom:.5rem;">当前浏览器不支持语音识别，请手动输入你的口述内容：</p>
+          <p style="color:#5c7b9c;font-size:.88rem;margin-bottom:.5rem;">浏览器实时转写不可用时，仍可录音，停止后点击“录音转文字”；也可以手动输入实际说出的内容：</p>
           <textarea id="manualTranscript" class="fallback-input" placeholder="在这里输入你想练习的口语内容..."></textarea>
           <button id="submitManualBtn" class="btn btn-sm" style="margin-top:.6rem;">提交口述稿</button>
+        </div>
+
+        <div id="firstTranscriptionBox" class="hidden" style="margin-top:1rem;">
+          <button id="firstTranscriptionBtn" class="btn btn-secondary" type="button">☁️ 录音转文字</button>
+          <p class="oral-note">点击后将本次录音发送给阿里云百炼进行英语转写，可能产生调用费用。支持1秒至3分钟；保留口语错误，结果需回听核对。</p>
+          <p id="firstTranscriptionStatus" role="status" aria-live="polite"></p>
         </div>
 
         <div id="transcriptEditArea" class="hidden" style="margin-top:1.6rem;">
@@ -571,6 +577,11 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
               <button id="stopRereadBtn" class="btn btn-secondary" disabled>■ 停止第二次录音</button>
             </div>
             <p id="rereadStatus" role="status" aria-live="polite"></p>
+            <div id="rereadTranscriptionBox" class="hidden" style="margin-top:.6rem;">
+              <button id="rereadTranscriptionBtn" class="btn btn-secondary" type="button">☁️ 第二次录音转文字</button>
+              <p class="oral-note">点击后将第二次实际录音发送给阿里云百炼进行转写，可能产生调用费用。不会用润色稿代填；请回听核对后评分。</p>
+              <p id="rereadTranscriptionStatus" role="status" aria-live="polite"></p>
+            </div>
             <div id="comparisonPanel" class="hidden" style="margin-top:.8rem;">
               <p class="comparison-key">三栏对比：橙色为原稿中需要修改的片段，绿色为对应修正；最后一栏保留实际第二次转写。</p>
               <div class="practice-comparison"><section><strong>改前：第一次自由口述</strong>
@@ -750,6 +761,8 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
   let manualStop = false;
   let audioBlob = null;
   let audioURL = null;
+  const transcriptionTasks = {first:null,reread:null};
+  const transcriptionRequests = new WeakMap();
 
   let welcomeCancelled = false;
 
@@ -1308,6 +1321,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
   });
 
   function cleanupRecording() {
+    cancelRecordingTranscription('first');
     recordingRequestId++;
     manualStop = true;
     if (mediaRecorder && mediaRecorder.state !== 'inactive') { try { mediaRecorder.stop(); } catch(e){} }
@@ -1318,6 +1332,8 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     isRecording = false;
   }
   function clearAudioPlayback() {
+    cancelRecordingTranscription('first');
+    $('firstTranscriptionBox').classList.add('hidden');
     if (audioURL) { URL.revokeObjectURL(audioURL); audioURL = null; }
     audioBlob = null;
     $('playbackAudio').removeAttribute('src');
@@ -1732,9 +1748,8 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
       return false;
     }
     if (!speechSupported) {
-      showStatus('ℹ️ 当前浏览器不支持语音识别，已切换为手动输入模式。建议使用 Chrome 或 Edge 获得完整体验。','info');
+      showStatus('ℹ️ 当前浏览器没有实时转写；仍可开始录音，停止后点击“录音转文字”，或手动填写。','info');
       $('manualInputBox').classList.remove('hidden');
-      return true;
     }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showStatus('❌ 当前浏览器不支持麦克风访问。','error');
@@ -1743,10 +1758,12 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     return true;
   }
   $('submitManualBtn').addEventListener('click', () => {
+    cancelRecordingTranscription('first');
     const text = $('manualTranscript').value.trim();
     if (!text) { showStatus('⚠️ 请先输入你的口述内容。','error'); return; }
     currentEditedTranscript = text;
     $('manualInputBox').classList.add('hidden');
+    $('firstTranscriptionBox').classList.add('hidden');
     displayTranscriptAndCorrections(text);
   });
 
@@ -1755,11 +1772,6 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
 
   async function startRecording() {
     if (isRecording) return;
-    if (!speechSupported) {
-      $('manualInputBox').classList.remove('hidden');
-      showStatus('ℹ️ 请在上方文本框中输入你的口述内容。','info');
-      return;
-    }
     if (!window.isSecureContext) {
       showStatus('❌ 当前环境不安全，无法使用麦克风。请通过 https:// 或 http://localhost 访问本页面。','error');
       return;
@@ -1773,6 +1785,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     setWolfWaiting('evaluationProgress', false);
     const recordingId = ++recordingRequestId;
     finalTranscript = ''; interimTranscript = ''; manualStop = false;
+    currentEditedTranscript = ''; $('transcriptEdit').value = '';
     clearAudioPlayback();
     $('transcriptArea').classList.add('hidden');
     $('transcriptEditArea').classList.add('hidden');
@@ -1803,14 +1816,17 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
               audioURL = URL.createObjectURL(audioBlob);
               $('playbackAudio').src = audioURL;
               $('playbackBox').classList.remove('hidden');
+              $('firstTranscriptionStatus').textContent = '';
+              $('firstTranscriptionBox').classList.remove('hidden');
             }
           };
           mediaRecorder.start(200);
         } catch(e) {}
       }
 
-      const SR = SpeechRecognitionAPI;
-      recognition = new SR();
+      isRecording = true;
+      if (SpeechRecognitionAPI) { try {
+      recognition = new SpeechRecognitionAPI();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = state.prefs.accent === '美式' ? 'en-US' : 'en-GB';
@@ -1835,10 +1851,10 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
       recognition.onerror = (event) => {
         if (recordingId !== recordingRequestId) return;
         const errs = {
-          'not-allowed':'❌ 麦克风权限被拒绝。请点击地址栏左侧的锁图标，将麦克风权限设为"允许"，然后刷新页面重试。',
-          'service-not-allowed':'❌ 语音服务不可用。请检查网络或浏览器设置。',
+          'not-allowed':'ℹ️ 实时转写权限不可用；录音仍在继续，停止后可点“录音转文字”。',
+          'service-not-allowed':'ℹ️ 实时转写服务不可用；录音仍在继续，停止后可点“录音转文字”。',
           'no-speech':'⚠️ 未检测到语音。请靠近麦克风，用正常音量说话。',
-          'network':'❌ 网络问题导致识别中断。请检查网络。',
+          'network':'ℹ️ 实时转写连接中断；录音仍在继续，停止后可点“录音转文字”。',
           'audio-capture':'❌ 未找到麦克风设备，请检查麦克风是否连接。',
           'aborted':null
         };
@@ -1848,9 +1864,11 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
       recognition.onend = () => {
         if (recordingId !== recordingRequestId) return;
         recognitionActive = false;
-        if (isRecording && !manualStop) { try { recognition.start(); } catch(e){} }
+        if (isRecording && !manualStop) { setTimeout(()=>{if(recordingId===recordingRequestId&&isRecording&&!manualStop){try{recognition.start();}catch{}}},500); }
       };
       recognition.start();
+      } catch { recognition = null; showStatus('🎤 录音正在继续；实时转写无法启动，停止后可点“录音转文字”。','info'); }
+      } else { showStatus('🎤 录音已开始；此浏览器没有实时转写，停止后点击“录音转文字”。','info'); }
 
       isRecording = true;
       $('startRecordBtn').disabled = true;
@@ -1877,6 +1895,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
   function stopRecording() {
     if (!isRecording) return;
     manualStop = true; isRecording = false;
+    $('firstTranscriptionBtn').disabled = true;
     if (recognition) { try { recognition.stop(); } catch(e){} }
     if (mediaRecorder && mediaRecorder.state !== 'inactive') { try { mediaRecorder.stop(); } catch(e){} }
     if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
@@ -1887,23 +1906,28 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     const recordingId = recordingRequestId;
     setTimeout(() => {
       if (recordingId !== recordingRequestId) return;
-      const finalText = finalTranscript.trim();
+      $('firstTranscriptionBtn').disabled = false;
+      const finalText = (finalTranscript + ' ' + interimTranscript).trim();
       $('liveTranscriptBox').classList.add('hidden');
+      recognition = null; recognitionActive = false;
+      $('transcriptEdit').value = finalText;
+      $('transcriptEditArea').classList.remove('hidden');
       if (!finalText) {
-        showStatus('⚠️ 未识别到任何语音内容。可能原因：1) 麦克风没声音 2) 说话声音太小 3) 环境噪音太大 4) 网络问题。请重试。','error');
+        showStatus(audioBlob ? '录音已保存，但浏览器没有返回文字。请点击“录音转文字”，或回听后手动填写。' : '没有获得识别文字，请检查录音回放，或手动填写实际说出的内容。','info');
         return;
       }
       currentEditedTranscript = finalText;
       $('transcriptEdit').value = finalText;
       $('transcriptEditArea').classList.remove('hidden');
-      showStatus('✅ 识别完成，请检查并修改口述稿，确认后点击"确定"。','success');
-      recognition = null; recognitionActive = false;
+      showStatus('✅ 已获得识别文字，请回听核对后生成纠错与润色。','success');
     }, 800);
   }
 
   $('confirmTranscriptBtn').addEventListener('click', () => {
+    if (transcriptionTasks.first) { showStatus('请等待录音转写完成后再生成纠错与润色。','info'); return; }
     const text = $('transcriptEdit').value.trim();
     if (!text) { showStatus('⚠️ 口述稿为空，请先录音或输入内容。','error'); return; }
+    $('firstTranscriptionBox').classList.add('hidden');
     currentEditedTranscript = text;
     $('transcriptEditArea').classList.add('hidden');
     displayTranscriptAndCorrections(text);
@@ -2066,6 +2090,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
   $('rereadSection').appendChild($('scorePanel'));
 
   function releaseRereadCapture() {
+    cancelRecordingTranscription('reread');
     rereadRequestId++;
     rereadActive = false;
     if (rereadRecorder?.state !== 'inactive') { try { rereadRecorder?.stop(); } catch {} }
@@ -2088,6 +2113,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     $('saveSessionBtn').disabled = false;
   }
   function clearReread() {
+    $('rereadTranscriptionBox').classList.add('hidden');
     releaseRereadCapture();
     clearFinalScore();
     if (rereadURL) URL.revokeObjectURL(rereadURL);
@@ -2114,6 +2140,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     }
     if (isRecording) { $('rereadStatus').textContent = '请先停止第一次录音。'; return; }
     stopPronunciation(); $('playbackAudio').pause(); $('firstComparisonAudio').pause(); $('secondComparisonAudio').pause();
+    cancelRecordingTranscription('reread');
     const id = ++rereadRequestId;
     $('startRereadBtn').disabled = true; $('startRecordBtn').disabled = true;
     $('rereadStatus').textContent = '正在请求麦克风权限...';
@@ -2134,16 +2161,20 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
         if(!chunks.length) { $('rereadStatus').textContent='没有录到有效音频，请重新录制。'; return; }
         rereadBlob = new Blob(chunks,{type:recorder.mimeType || 'audio/webm'});
         rereadURL = URL.createObjectURL(rereadBlob);
+        $('rereadTranscriptionStatus').textContent = '';
+        $('rereadTranscriptionBox').classList.remove('hidden');
         updateComparison();
         $('scoreRereadBtn').disabled = true;
+        $('rereadTranscriptionBtn').disabled = true;
         $('rereadTranscript').readOnly = true;
         setTimeout(()=>{
           if(id !== rereadRequestId) return;
+          $('rereadTranscriptionBtn').disabled = false;
           rereadRecognition = null;
           $('rereadTranscript').value = (rereadFinalText + ' ' + rereadInterim).trim();
           $('rereadTranscript').readOnly = false;
           $('scoreRereadBtn').disabled = false;
-          $('rereadStatus').textContent = $('rereadTranscript').value ? '第二次录音已保留，请核对转写，再点击“为这次朗读评分”。' : '第二次录音已保存，但未获得转写。请回听并填写实际读出的英文，或换支持语音识别的浏览器重录；不会自动拿润色稿代替录音内容。';
+          $('rereadStatus').textContent = $('rereadTranscript').value ? '第二次录音已保留，请核对转写，再点击“为这次朗读评分”。' : '第二次录音已保存，但未获得转写。请点击“第二次录音转文字”，或回听后手动填写；不会自动拿润色稿代替录音内容。';
         },650);
       };
       recorder.onerror = () => {
@@ -2157,6 +2188,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
       clearFinalScore();
       if(rereadURL) URL.revokeObjectURL(rereadURL);
       rereadURL=null;rereadBlob=null;rereadFinalText='';rereadInterim='';
+      $('rereadTranscriptionBox').classList.add('hidden');
       rereadAccent = state.prefs.accent;
       $('rereadTranscript').value='';$('comparisonPanel').classList.add('hidden');
       $('startRecordBtn').disabled=true;$('stopRereadBtn').disabled=false;
@@ -2211,19 +2243,90 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
   }
   $('useAudioAssessment').addEventListener('change',()=>{clearFinalScore();$('useAudioReview').disabled=!($('useAudioAssessment').checked&&audioAssessmentConfiguration.audioReview?.enabled);if($('useAudioReview').disabled)$('useAudioReview').checked=false;});
   $('useAudioReview').addEventListener('change',clearFinalScore);
-  async function recordingToPcm(blob){
+  function cancelRecordingTranscription(which) {
+    const task = transcriptionTasks[which];
+    if (!task) return;
+    transcriptionTasks[which] = null;
+    task.controller.abort();
+    $(which+'TranscriptionBtn').disabled = false;
+    $(which+'TranscriptionStatus').textContent = '已停止等待；已提交的云端任务可能仍会产生费用。';
+    if(which==='first') $('confirmTranscriptBtn').disabled=false;
+    else $('scoreRereadBtn').disabled=false;
+  }
+  async function fetchTranscription(url, options, signal) {
+    const controller = new AbortController(), abort=()=>controller.abort();
+    if(signal.aborted)controller.abort();else signal.addEventListener('abort',abort,{once:true});
+    const timer=setTimeout(abort,15000);
+    try { return await fetch(url,{...options,signal:controller.signal}); }
+    finally { clearTimeout(timer);signal.removeEventListener('abort',abort); }
+  }
+  async function transcribeRecording(which) {
+    const first=which==='first', blob=first?audioBlob:rereadBlob;
+    if(!blob||isRecording||rereadActive||transcriptionTasks[which])return;
+    const textarea=$(first?'transcriptEdit':'rereadTranscript'), originalText=textarea.value;
+    const task={blob,controller:new AbortController()},status=$(which+'TranscriptionStatus'),button=$(which+'TranscriptionBtn');
+    transcriptionTasks[which]=task;button.disabled=true;
+    const active=()=>transcriptionTasks[which]===task&&(first?audioBlob:rereadBlob)===blob;
+    if(first)$('confirmTranscriptBtn').disabled=true;else{clearFinalScore();$('scoreRereadBtn').disabled=true;}
+    status.textContent='正在检查云端转写服务，原录音已保留。';
+    let request=transcriptionRequests.get(blob);
+    try {
+      const configResponse=await fetchTranscription('/api/transcription/config',{cache:'no-store'},task.controller.signal);
+      if(!configResponse.ok)throw new Error('暂时无法确认转写服务，请稍后重试。');
+      const config=await configResponse.json();
+      if(!config.enabled)throw new Error('云端转写尚未启用，请联系站主；可先回听并手动填写。');
+      if(!active())return;
+      status.textContent='正在整理录音格式…';
+      const audio=await recordingToPcm(blob,{minSeconds:1,maxSeconds:180,transcription:true});
+      if(!active())return;
+      const accent=first?state.prefs.accent:rereadAccent;
+      if(!request||request.failed||request.accent!==accent){request={id:crypto.randomUUID(),failed:false,accent};transcriptionRequests.set(blob,request);}
+      status.textContent='正在根据实际录音转写英语，请稍候…';
+      const payload={requestId:request.id,audio,accent,consent:true};
+      try {
+        const response=await fetchTranscription('/api/transcription/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)},task.controller.signal);
+        const data=await response.json();
+        if(!response.ok){request.failed=true;throw Object.assign(new Error(data.error||'无法开始转写。'),{explicit:true});}
+        request.id=data.jobId;
+      } catch(error) { if(error.explicit||!active())throw error; /* Recover the same job after a lost submission response. */ }
+      const started=Date.now();
+      while(active()&&Date.now()-started<110000){
+        let response;
+        try { response=await fetchTranscription('/api/transcription/jobs/'+encodeURIComponent(request.id),{cache:'no-store'},task.controller.signal); }
+        catch(error){if(!active())return;status.textContent='连接暂时中断，正在继续获取同一个转写任务；不会重新调用模型。';await new Promise(resolve=>setTimeout(resolve,1500));continue;}
+        const data=await response.json();if(!active())return;
+        if(!response.ok){if(response.status===404)request.failed=true;throw new Error(data.error||'无法读取转写结果。');}
+        if(data.status==='failed'){request.failed=true;throw new Error(data.error||'转写未完成。');}
+        if(data.status==='complete'){
+          if(typeof data.result?.text!=='string'||!data.result.text.trim())throw new Error('转写服务没有返回文字。');
+          if(textarea.value!==originalText){status.textContent='你在等待时修改了文稿，已保留你的输入。需要替换时请再次点击“录音转文字”（同一录音复用已完成结果）。';return;}
+          textarea.value=data.result.text;
+          if(first){currentEditedTranscript=data.result.text;$('manualInputBox').classList.add('hidden');$('transcriptEditArea').classList.remove('hidden');showStatus('✅ 云端转写完成，请回听核对后生成纠错与润色。','success');}
+          else{clearFinalScore();renderPracticeComparison();$('rereadStatus').textContent='第二次实际录音转写完成，请回听核对后再评分。';}
+          status.textContent='转写完成。模型可能有识别错误，请核对实际说出的内容。';return;
+        }
+        status.textContent='正在转写实际录音，已等待 '+Math.floor((Date.now()-started)/1000)+' 秒；请保留此页面。';
+        await new Promise(resolve=>setTimeout(resolve,1500));
+      }
+      if(active())throw new Error('等待较久，原录音已保留。可再次点击继续获取同一个任务。');
+    } catch(error) { if(active())status.textContent=(error.message||'转写暂未完成。')+' 原录音和已有文字均保留，可重试或手动填写。'; }
+    finally { if(active()){transcriptionTasks[which]=null;button.disabled=false;if(first)$('confirmTranscriptBtn').disabled=false;else $('scoreRereadBtn').disabled=false;} }
+  }
+  $('firstTranscriptionBtn').addEventListener('click',()=>transcribeRecording('first'));
+  $('rereadTranscriptionBtn').addEventListener('click',()=>transcribeRecording('reread'));
+  async function recordingToPcm(blob,{minSeconds=audioAssessmentConfiguration.minSeconds,maxSeconds=audioAssessmentConfiguration.maxSeconds,transcription=false}={}){
     const AudioContextClass=window.AudioContext||window.webkitAudioContext,Offline=window.OfflineAudioContext||window.webkitOfflineAudioContext;
     if(!AudioContextClass||!Offline)throw new Error('当前浏览器无法转换录音格式，可换浏览器，或取消勾选后使用文本分析。');
     const context=new AudioContextClass();
     try{
       const decoded=await context.decodeAudioData(await blob.arrayBuffer());
-      if(!Number.isFinite(decoded.duration)||decoded.duration<audioAssessmentConfiguration.minSeconds||decoded.duration>audioAssessmentConfiguration.maxSeconds)throw new Error('讯飞朗读评测需要3秒至3分钟录音，请重新录制。');
+      if(!Number.isFinite(decoded.duration)||decoded.duration<minSeconds||decoded.duration>maxSeconds)throw new Error(transcription?'云端转写需要1秒至3分钟录音，请保留原录音并分段练习。':'讯飞朗读评测需要3秒至3分钟录音，请重新录制。');
       const offline=new Offline(1,Math.ceil(decoded.duration*16000),16000),source=offline.createBufferSource();
       source.buffer=decoded;source.connect(offline.destination);source.start();
       const rendered=await offline.startRendering(),samples=rendered.getChannelData(0),buffer=new ArrayBuffer(samples.length*2),view=new DataView(buffer);
       for(let i=0;i<samples.length;i++){const sample=Math.max(-1,Math.min(1,samples[i]));view.setInt16(i*2,sample<0?sample*32768:sample*32767,true);}
       return 'data:audio/pcm;rate=16000;channels=1;base64,'+(await blobDataUrl(new Blob([buffer],{type:'application/octet-stream'}))).split(',')[1];
-    }catch(error){if(/讯飞朗读评测|当前浏览器/.test(error.message))throw error;throw new Error('录音格式未能转换，原录音已保留。可换浏览器重录，或取消勾选后使用文本分析。');}
+    }catch(error){if(/讯飞朗读评测|云端转写|当前浏览器/.test(error.message))throw error;throw new Error('录音格式未能转换，原录音已保留。可换浏览器重录，或回听后手动填写实际说出的内容。');}
     finally{await context.close().catch(()=>{});}
   }
   function renderOralReport(report,warning=''){
