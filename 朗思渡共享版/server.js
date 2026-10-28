@@ -305,6 +305,21 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/health') {
     return send(res, 200, { ok: true, revision: process.env.RENDER_GIT_COMMIT || 'local' });
   }
+  if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/assets/wolf-mascot.png') {
+    const file = path.join(root, 'assets', 'wolf-mascot.png');
+    fs.stat(file, (error, stat) => {
+      if (error) return send(res, 404, 'Not found', 'text/plain; charset=utf-8');
+      res.writeHead(200, {
+        'Content-Type': 'image/png',
+        'Content-Length': stat.size,
+        'Cache-Control': 'public, max-age=3600',
+        'X-Content-Type-Options': 'nosniff'
+      });
+      if (req.method === 'HEAD') res.end();
+      else fs.createReadStream(file).pipe(res);
+    });
+    return;
+  }
   if(req.method==='GET'&&url.pathname==='/api/pronunciation/config'){
     usage.identity(req,res);res.setHeader('Cache-Control','no-store');return send(res,200,{...xfyunAssessor.configuration(),budget:xfyunBudget.view(),audioReview:audioReviewer.configuration()});
   }
