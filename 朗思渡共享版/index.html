@@ -23,15 +23,13 @@
 
   *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;}
   body{
-    background-color:#dcecf5;
-    background-image:linear-gradient(rgba(231,244,251,.22),rgba(244,249,252,.22)),url("/assets/app-background.webp?v=5e22e999");
-    background-size:cover;background-position:center top;background-attachment:fixed;
+    background:linear-gradient(145deg,#f0f4fa 0%,#e6ecf5 100%);
     min-height:100vh;display:flex;justify-content:center;
     padding:1.5rem 1rem 7rem;
   }
   .app{
     max-width:880px;width:100%;
-    background:rgba(255,255,255,.7);backdrop-filter:blur(12px);
+    background:rgba(255,255,255,.85);backdrop-filter:blur(12px);
     -webkit-backdrop-filter:blur(12px);
     border-radius:2.5rem;box-shadow:var(--shadow),inset 0 0 0 1px rgba(255,255,255,.6);
     padding:2rem 2rem 2.5rem;
@@ -379,22 +377,20 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
 @media(max-width:360px){body{padding-left:16px;padding-right:16px}#wolf-title{font-size:27px}.wolf-header-note{display:none}.wolf-hero-art{height:235px}.profile-card{gap:10px}.wolf-steps{gap:18px 10px}.wolf-steps small{font-size:10px}.btn{padding:10px 15px}.category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.welcome-line,.welcome-question,.bubble{transform:none;filter:none}}
 
-/* Owner-provided visual direction: the second image supplies the app canvas and the illustrated navigation strip. */
-body{background-color:#dcecf5;background-image:linear-gradient(rgba(231,244,251,.22),rgba(244,249,252,.22)),url("/assets/app-background.webp?v=20261028b");background-size:cover;background-position:center top;background-attachment:fixed;}
-.app{background:rgba(255,255,255,.7);}
+/* Keep the owner's welcome artwork and use her drawings for the navigation icons. */
 .welcome-overlay{background-color:#c5ecfb;background-image:linear-gradient(rgba(201,237,251,.05),rgba(201,237,251,.05)),url("/assets/home-background.webp?v=5e22e999");background-size:contain;background-position:center;background-repeat:no-repeat;}
 .welcome-overlay .wolf-welcome-art,.welcome-overlay .welcome-stage{display:none;}
 .welcome-overlay .welcome-question{position:absolute;top:43%;left:0;width:100%;margin:0;color:#183c5a;text-shadow:0 1px 1px rgba(255,255,255,.6);}
 .welcome-overlay .bubble-stage{position:absolute;top:51%;left:0;width:100%;margin:0;padding:0 1rem;}
-.bottom-nav{position:fixed;left:0;bottom:0;transform:none;width:100%;max-width:none;height:calc(108px + env(safe-area-inset-bottom));background:#d9e6ef;border:0;border-radius:0;padding:0 0 env(safe-area-inset-bottom);gap:0;box-shadow:0 -8px 25px rgba(35,75,100,.12);z-index:100;}
-.bottom-nav .nav-item{position:relative;flex:1;min-width:0;justify-content:center;font-size:0;letter-spacing:0;color:transparent;background-color:transparent;background-repeat:no-repeat;background-position:center center;background-size:auto 98px;border-radius:0;padding:0;min-height:44px;}
-.bottom-nav .nav-item:nth-child(1){background-image:url("/assets/nav-now.webp?v=20261028b");}
-.bottom-nav .nav-item:nth-child(2){background-image:url("/assets/nav-past.webp?v=20261028b");}
-.bottom-nav .nav-item:nth-child(3){background-image:url("/assets/nav-me.webp?v=20261028b");}
-.bottom-nav .nav-item:hover{background-color:rgba(255,255,255,.12);color:transparent}
-.bottom-nav .nav-item.active{background-color:rgba(255,255,255,.12);box-shadow:inset 0 -4px 0 rgba(61,125,165,.58);color:transparent}
-@media(min-width:761px){body{padding-bottom:11rem}.bottom-nav{left:50%;transform:translateX(-50%);width:min(720px,calc(100% - 48px));height:142px;border-radius:24px 24px 0 0}.bottom-nav .nav-item{background-size:auto 128px}}
-@media(max-width:760px){body{padding-bottom:calc(124px + env(safe-area-inset-bottom))}.bottom-nav{left:0;transform:none;width:100%;max-width:none;height:calc(108px + env(safe-area-inset-bottom));border-radius:0}.bottom-nav .nav-item{background-size:auto 98px}}
+.bottom-nav{height:auto;}
+.bottom-nav .nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:0;height:70px;padding:6px;border-radius:12px;background:transparent;box-shadow:none;color:#73777d;font:600 12px/1 'Segoe UI',Arial,sans-serif;letter-spacing:0;}
+.bottom-nav .nav-item .nav-icon{display:block;flex:none;width:34px;height:32px;background-color:currentColor;-webkit-mask-repeat:no-repeat;-webkit-mask-position:center;-webkit-mask-size:contain;mask-repeat:no-repeat;mask-position:center;mask-size:contain;}
+.bottom-nav [data-nav="now"] .nav-icon{-webkit-mask-image:url("/assets/nav-icon-now.png?v=20261028c");mask-image:url("/assets/nav-icon-now.png?v=20261028c");}
+.bottom-nav [data-nav="past"] .nav-icon{-webkit-mask-image:url("/assets/nav-icon-past.png?v=20261028c");mask-image:url("/assets/nav-icon-past.png?v=20261028c");}
+.bottom-nav [data-nav="me"] .nav-icon{-webkit-mask-image:url("/assets/nav-icon-me.png?v=20261028c");mask-image:url("/assets/nav-icon-me.png?v=20261028c");}
+.bottom-nav .nav-item:hover{background:#f1f3f5;color:#73777d;}
+.bottom-nav .nav-item.active,.bottom-nav .nav-item.active:hover{background:#f1f3f5;box-shadow:none;color:#111;}
+@media(max-width:760px){.bottom-nav{bottom:max(12px,env(safe-area-inset-bottom));width:calc(100% - 32px);max-width:450px;padding:6px 10px;gap:5px;border-radius:18px}}
 
 </style>
 </head>
@@ -727,9 +723,9 @@ body{background-color:#dcecf5;background-image:linear-gradient(rgba(231,244,251,
 </div>
 
 <nav aria-label="Primary navigation" class="bottom-nav" id="bottomNav" style="display:none;">
-  <button type="button" class="nav-item" data-nav="now" aria-label="NOW，开始练习">NOW</button>
-  <button type="button" class="nav-item" data-nav="past" aria-label="PAST，查看练习记录">PAST</button>
-  <button type="button" class="nav-item" data-nav="me" aria-label="ME，修改学习偏好">ME</button>
+  <button type="button" class="nav-item" data-nav="now" aria-label="NOW，开始练习"><span class="nav-icon" aria-hidden="true"></span><span>NOW</span></button>
+  <button type="button" class="nav-item" data-nav="past" aria-label="PAST，查看练习记录"><span class="nav-icon" aria-hidden="true"></span><span>PAST</span></button>
+  <button type="button" class="nav-item" data-nav="me" aria-label="ME，修改学习偏好"><span class="nav-icon" aria-hidden="true"></span><span>ME</span></button>
 </nav>
 
 <script>
@@ -938,7 +934,12 @@ body{background-color:#dcecf5;background-image:linear-gradient(rgba(231,244,251,
   });
 
   function switchNav(target) {
-    navItems.forEach(n => n.classList.toggle('active', n.dataset.nav === target));
+    navItems.forEach(n => {
+      const active = n.dataset.nav === target;
+      n.classList.toggle('active', active);
+      if (active) n.setAttribute('aria-current', 'page');
+      else n.removeAttribute('aria-current');
+    });
     nowModule.classList.toggle('hidden', target !== 'now');
     pastModule.classList.toggle('hidden', target !== 'past');
     meModule.classList.toggle('hidden', target !== 'me');

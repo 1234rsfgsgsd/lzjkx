@@ -306,7 +306,7 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { ok: true, revision: process.env.RENDER_GIT_COMMIT || 'local' });
   }
   const assetName = url.pathname.startsWith('/assets/') ? url.pathname.slice('/assets/'.length) : '';
-  const assetMatch = ['wolf-mascot.png', 'home-background.webp', 'app-background.webp', 'nav-now.webp', 'nav-past.webp', 'nav-me.webp'].includes(assetName) ? [null, assetName] : null;
+  const assetMatch = ['wolf-mascot.png', 'home-background.webp', 'app-background.webp', 'nav-now.webp', 'nav-past.webp', 'nav-me.webp', 'nav-icon-now.png', 'nav-icon-past.png', 'nav-icon-me.png'].includes(assetName) ? [null, assetName] : null;
   if ((req.method === 'GET' || req.method === 'HEAD') && assetMatch) {
     const file = path.join(root, 'assets', assetMatch[1]);
     const type = file.endsWith('.webp') ? 'image/webp' : 'image/png';
