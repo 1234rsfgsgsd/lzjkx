@@ -305,12 +305,15 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/health') {
     return send(res, 200, { ok: true, revision: process.env.RENDER_GIT_COMMIT || 'local' });
   }
-  if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/assets/wolf-mascot.png') {
-    const file = path.join(root, 'assets', 'wolf-mascot.png');
+  const assetName = url.pathname.startsWith('/assets/') ? url.pathname.slice('/assets/'.length) : '';
+  const assetMatch = ['wolf-mascot.png', 'home-background.webp', 'app-background.webp', 'nav-now.webp', 'nav-past.webp', 'nav-me.webp'].includes(assetName) ? [null, assetName] : null;
+  if ((req.method === 'GET' || req.method === 'HEAD') && assetMatch) {
+    const file = path.join(root, 'assets', assetMatch[1]);
+    const type = file.endsWith('.webp') ? 'image/webp' : 'image/png';
     fs.stat(file, (error, stat) => {
       if (error) return send(res, 404, 'Not found', 'text/plain; charset=utf-8');
       res.writeHead(200, {
-        'Content-Type': 'image/png',
+        'Content-Type': type,
         'Content-Length': stat.size,
         'Cache-Control': 'public, max-age=3600',
         'X-Content-Type-Options': 'nosniff'
