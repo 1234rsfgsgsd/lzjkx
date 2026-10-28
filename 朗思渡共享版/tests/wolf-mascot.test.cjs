@@ -16,6 +16,7 @@ test('the hand-drawn transparent mascot is served safely as the logo, favicon an
  assert.match(page,/<link rel="icon" type="image\/png" href="\/assets\/wolf-mascot\.png\?v=7043ffd">/);
  assert.match(page,/<link rel="apple-touch-icon" href="\/assets\/wolf-mascot\.png\?v=7043ffd">/);
  assert.equal((page.match(/\/assets\/wolf-mascot\.png\?v=7043ffd/g)||[]).length,8,'header, welcome, hero, empty-state, waiting art and browser icons all use one asset');
+ assert.match(page,/\.wolf-brand img\{width:48px;height:48px;object-fit:contain;background:transparent\}/,'the header logo keeps the transparent edges visible without a white tile');
  assert.doesNotMatch(page,/data:image\/svg\+xml;base64,/);
  const response=await fetch(base+'/assets/wolf-mascot.png?v=7043ffd'),served=Buffer.from(await response.arrayBuffer());
  assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/image\/png/);assert.deepEqual(served,asset);
