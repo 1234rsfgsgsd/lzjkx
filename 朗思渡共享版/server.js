@@ -14,6 +14,8 @@ const {createXfyunBudget}=require('./xfyun-budget');
 const {createPronunciationJobs}=require('./pronunciation-jobs');
 const {createAudioReviewer}=require('./audio-review');
 const {createTranscriber,createTranscriptionJobs}=require('./audio-transcription');
+const {createCloudAccounts}=require('./cloud-accounts');
+const cloudAccounts=createCloudAccounts();
 const galleryDirectory=process.env.GALLERY_DIRECTORY || path.join(__dirname,'gallery');
 const topicGallery = createTopicGallery({directory:galleryDirectory,manifestFile:process.env.GALLERY_MANIFEST_FILE || path.join(galleryDirectory,'manifest.json')});
 
@@ -302,6 +304,7 @@ function getSpeechJob(res, jobId) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  if(await cloudAccounts.handle(req,res,url))return;
   if (req.method === 'GET' && url.pathname === '/health') {
     return send(res, 200, { ok: true, revision: process.env.RENDER_GIT_COMMIT || 'local' });
   }
@@ -423,7 +426,8 @@ const server = http.createServer(async (req, res) => {
     if (error) return send(res, 404, 'Not found', 'text/plain; charset=utf-8');
     const type = file.endsWith('.html') ? 'text/html; charset=utf-8' : 'application/octet-stream';
     res.writeHead(200, { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff' });
-    res.end(req.method === 'HEAD' ? undefined : data);
+    const html=data.toString('utf8').replace('data-cloud-accounts="false"',`data-cloud-accounts="${cloudAccounts.enabled}"`);
+    res.end(req.method === 'HEAD' ? undefined : html);
   });
 });
 

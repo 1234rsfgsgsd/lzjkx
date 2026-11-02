@@ -63,7 +63,7 @@ function wave(frequency){const samples=4*48000,bytes=Buffer.alloc(44+samples*4);
       await page.locator('#saveSessionBtn').click();await page.locator('[data-nav="past"]').click();await page.locator('.history-item').waitFor();assert.match(await page.locator('.history-item').innerText(),/真实录音.*讯飞/);assert.equal(await page.locator('.history-item audio').count(),2);
       const pendingDownload=page.waitForEvent('download');await page.locator('#exportHistoryBtn').click();const backup=JSON.parse(fs.readFileSync(await(await pendingDownload).path(),'utf8'));
       assert.equal(backup.records[0].finalEvaluation.oralReport.mode,'speech');assert.equal(backup.records[0].finalEvaluation.overall,undefined,'a text-model score must not appear as a speech total');
-      page.once('dialog',d=>d.accept());await page.locator('#clearHistoryBtn').click();await page.waitForFunction(()=>document.querySelectorAll('.history-item').length===0);
+      let clearDialog=0;const acceptClear=d=>{clearDialog++;d.accept();};page.on('dialog',acceptClear);await page.locator('#clearHistoryBtn').click();page.off('dialog',acceptClear);await page.waitForFunction(()=>document.querySelectorAll('.history-item').length===0);assert.equal(clearDialog,2);
       await page.locator('#historyFileInput').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))});await page.locator('.history-item').waitFor();assert.match(await page.locator('.history-item').innerText(),/发音准确度/);
       const saved=await page.locator('.history-item').innerText();await page.reload();await page.locator('[data-nav="past"]').click();await page.locator('.history-item').waitFor();assert.equal(await page.locator('.history-item').innerText(),saved);
     }

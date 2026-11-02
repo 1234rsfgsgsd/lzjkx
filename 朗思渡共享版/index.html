@@ -381,7 +381,22 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
 .welcome-overlay{background-color:#c5ecfb;background-image:linear-gradient(rgba(201,237,251,.05),rgba(201,237,251,.05)),url("/assets/home-background.webp?v=5e22e999");background-size:contain;background-position:center;background-repeat:no-repeat;}
 .welcome-overlay .wolf-welcome-art,.welcome-overlay .welcome-stage{display:none;}
 .welcome-overlay .welcome-question{position:absolute;top:43%;left:0;width:100%;margin:0;color:#183c5a;text-shadow:0 1px 1px rgba(255,255,255,.6);}
-.welcome-overlay .bubble-stage{position:absolute;top:51%;left:0;width:100%;margin:0;padding:0 1rem;}
+.welcome-overlay .welcome-question{right:0;text-align:center;justify-content:center;}
+.welcome-overlay .bubble-stage{position:absolute;top:51%;left:50%;transform:translateX(-50%);width:min(720px,100%);margin:0;padding:0 1rem;justify-content:center;text-align:center;}
+.welcome-overlay.cloud-onboarding{padding:24px;overflow:auto;}
+.cloud-onboarding>.wolf-welcome-art,.cloud-onboarding>.welcome-stage,.cloud-onboarding>#welcomeQuestion,.cloud-onboarding>#bubbleStage{display:none;}
+.account-gate{position:relative;margin:auto;width:min(520px,100%);padding:30px 26px;background:rgba(250,253,255,.96);border:1px solid #d3e4f1;border-radius:24px;box-shadow:0 16px 48px #234b6e22;text-align:center;color:#1f3857;}
+.account-gate h2{font-size:25px;line-height:1.55;margin-bottom:16px;overflow-wrap:anywhere;}
+.account-gate p{font-size:14px;line-height:1.8;margin:12px 0;color:#526b83;}
+.account-options{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin:20px auto 0;max-width:100%;}
+.account-options button{max-width:100%;white-space:normal;}
+.account-form{display:flex;flex-direction:column;gap:12px;margin-top:20px;}
+.account-form label{text-align:center;font-size:14px;font-weight:600;display:block;}
+.account-form input{display:block;width:100%;padding:12px;margin-top:8px;border:1px solid #bed4e9;border-radius:10px;background:#fff;color:#1f3857;font:inherit;text-align:center;}
+.account-gate .account-error{color:#a82c2c;min-height:1.8em;}
+.account-gate button:disabled{opacity:.55;cursor:wait;}
+#accountSyncStatus{font-size:13px;line-height:1.8;overflow-wrap:anywhere;color:#526b83;}
+@media(max-width:360px){.welcome-overlay.cloud-onboarding{padding:14px}.account-gate{padding:22px 16px}.account-gate h2{font-size:21px}}
 .bottom-nav{height:auto;}
 .bottom-nav .nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:0;height:70px;padding:6px;border-radius:12px;background:transparent;box-shadow:none;color:#73777d;font:600 12px/1 'Segoe UI',Arial,sans-serif;letter-spacing:0;}
 .bottom-nav .nav-item .nav-icon{display:block;flex:none;width:34px;height:32px;background-color:currentColor;-webkit-mask-repeat:no-repeat;-webkit-mask-position:center;-webkit-mask-size:contain;mask-repeat:no-repeat;mask-position:center;mask-size:contain;}
@@ -394,7 +409,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
 
 </style>
 </head>
-<body data-theme="blue">
+<body data-theme="blue" data-cloud-accounts="false">
 
 <aside id="localFileNotice" role="alert" hidden style="position:fixed;top:1rem;left:50%;transform:translateX(-50%);width:min(840px,calc(100% - 2rem));z-index:10001;padding:1rem 1.2rem;border:1px solid #e7b45a;border-radius:1rem;background:#fff7e6;color:#664500;box-shadow:0 4px 18px #0002;">
   当前打开的是本地文件。照片识别和智能评测需要使用在线版。
@@ -412,6 +427,20 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
   </div>
   <div id="welcomeQuestion" class="welcome-question"></div>
   <div id="bubbleStage" class="bubble-stage"></div>
+  <section id="accountGate" class="account-gate hidden" aria-labelledby="accountHeading">
+    <h2 id="accountHeading" tabindex="-1">欢迎来到朗思渡，你的智能英语口语陪练</h2>
+    <p id="accountDescription">用图片开启你的英语表达。</p>
+    <div id="accountOptions" class="account-options"></div>
+    <form id="accountForm" class="account-form hidden">
+      <label>昵称<input id="accountNickname" name="username" autocomplete="username" maxlength="20" required></label>
+      <label>密码<input id="accountPassword" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required aria-describedby="passwordHint"></label>
+      <p id="passwordHint">密码为 8–128 位，至少包含英文大写字母、小写字母和数字。</p>
+      <label id="passwordConfirmLabel">再次输入密码<input id="accountConfirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128"></label>
+      <button id="accountSubmit" type="submit" class="btn">登录</button>
+      <button id="accountBack" type="button" class="btn btn-secondary">返回</button>
+    </form>
+    <p id="accountError" class="account-error" role="status" aria-live="polite"></p>
+  </section>
 </div>
 <button id="skipWelcomeBtn" class="skip-btn">跳过 →</button>
 
@@ -648,7 +677,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
   <div id="pastModule" class="hidden">
     <h1>我的记录 <span>PAST</span></h1>
     <div class="subhead">回顾你练过的场景、录音和修正文稿</div>
-    <p style="color:#5c7b9c;">记录仅保存在当前浏览器，不会分享给其他访客；同一浏览器的其他使用者也可查看。清理浏览器会删除记录，请定期导出备份。识图和评测会将所提交的内容发送给模型服务处理。</p>
+    <p id="historyPrivacyNote" style="color:#5c7b9c;">记录仅保存在当前浏览器，不会分享给其他访客；同一浏览器的其他使用者也可查看。清理浏览器会删除记录，请定期导出备份。识图和评测会将所提交的内容发送给模型服务处理。</p>
     <div class="btn-group">
       <button id="exportHistoryBtn" class="btn btn-sm">导出记录与录音</button>
       <button id="importHistoryBtn" class="btn btn-secondary btn-sm">导入备份</button>
@@ -656,7 +685,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
       <input id="historyFileInput" type="file" accept="application/json,.json" class="hidden">
     </div>
     <p id="historyStatus" role="status" aria-live="polite"></p>
-    <div class="storage-note"><strong>记录保管与换设备</strong><p id="historyStorageSummary"></p><p>换设备时：在旧设备导出 → 将备份传到自己的新设备 → 在这里导入。备份含文稿、照片和录音，请私下保管。本网站当前没有账号云同步。</p><button id="requestStorageBtn" class="btn btn-secondary btn-sm" type="button">请求浏览器保留本地记录</button><p id="storagePersistenceStatus" role="status"></p></div>
+    <div class="storage-note"><strong>记录保管与换设备</strong><p id="historyStorageSummary"></p><p id="historyTransferNote">换设备时：在旧设备导出 → 将备份传到自己的新设备 → 在这里导入。备份含文稿、照片和录音，请私下保管。本网站当前没有账号云同步。</p><button id="requestStorageBtn" class="btn btn-secondary btn-sm" type="button">请求浏览器保留本地记录</button><p id="storagePersistenceStatus" role="status"></p><button id="importLocalRecordsBtn" type="button" class="btn btn-secondary btn-sm hidden">导入升级前的本机记录</button><p id="localImportStatus" role="status"></p></div>
 
     <div id="historyEmpty" class="empty-state">
       <img class="wolf-empty-art" src="/assets/wolf-mascot.png?v=7043ffd" width="180" height="132" alt="小狼在等你的第一段故事">
@@ -669,6 +698,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
   <div id="meModule" class="hidden">
     <h1>学习偏好 <span>ME</span></h1>
     <div class="subhead">修改昵称、头像、偏好和主题色</div>
+    <section id="accountInfo" class="me-section hidden"><h3>云端账号</h3><p id="accountIdentity"></p><p>登录昵称保持不变；下方昵称是练习时显示的名字。换设备登录同一账号即可查看已保存的记录与录音。</p><p id="accountSyncStatus" role="status" aria-live="polite"></p><button id="retryAccountSyncBtn" class="btn btn-secondary btn-sm hidden" type="button">重试保存偏好</button><button id="logoutBtn" type="button" class="btn btn-secondary btn-sm">退出登录</button></section>
 
     <div class="me-section">
       <h3><span class="icon">👤</span> 昵称与头像</h3>
@@ -737,6 +767,9 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     }
   }
   const STORAGE_KEY = 'langsidu_state_v5';
+  const cloudEnabled = document.body.dataset.cloudAccounts === 'true';
+  let cloudUser=null, cloudRevision=0, settingsTimer=null, settingsWrite=Promise.resolve();
+  let settingsVersion=0, savedSettingsVersion=0;
   const defaultState = {
     profile: { nick: '', avatarType: 'emoji', avatarValue: '🦊', avatarImage: '' },
     prefs: { purpose:'学习', accent:'美式', education:'大学及以上（仅作一般口语练习）' },
@@ -745,7 +778,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     history: [],
     skipWelcome: false
   };
-  let state = loadState();
+  let state = cloudEnabled ? JSON.parse(JSON.stringify(defaultState)) : loadState();
   let historyReady = false;
   let historyDb;
   let historyWrite = Promise.resolve();
@@ -805,6 +838,10 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     } catch(e) { return JSON.parse(JSON.stringify(defaultState)); }
   }
   function saveState() {
+    if(cloudEnabled){
+      if(cloudUser){settingsVersion++;clearTimeout(settingsTimer);settingsTimer=setTimeout(()=>syncAccountSettings().catch(()=>{}),400);}
+      return true;
+    }
     try {
       const toSave = JSON.parse(JSON.stringify(state));
       delete toSave.welcomeDone;
@@ -902,12 +939,13 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
+    if(cloudEnabled&&(!/^image\/(jpeg|png|webp)$/.test(file.type)||file.size>550*1024)){showToast('请使用小于 550 KB 的 JPG、PNG 或 WebP 头像');e.target.value='';return;}
+    reader.onload = async ev => {
       state.profile.avatarType = 'image';
       state.profile.avatarImage = ev.target.result;
       saveState();
       renderProfile();
-      showToast('✅ 头像图片已保存');
+      try{if(cloudEnabled)await syncAccountSettings();showToast('✅ 头像图片已保存');}catch(error){showToast('头像尚未保存：'+error.message);}
     };
     reader.readAsDataURL(file);
   });
@@ -925,12 +963,13 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     }, 300);
   });
 
-  $('saveProfileBtn').addEventListener('click', () => {
+  $('saveProfileBtn').addEventListener('click', async () => {
+    clearTimeout(nickSaveTimer);
     const nick = $('meNickInput').value.trim();
     state.profile.nick = nick;
     saveState();
     renderProfile();
-    showToast('✅ 昵称与头像已保存');
+    try{if(cloudEnabled)await syncAccountSettings();showToast('✅ 昵称与头像已保存');}catch(error){showToast('昵称与头像尚未保存：'+error.message);}
   });
 
   function switchNav(target) {
@@ -943,7 +982,10 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     nowModule.classList.toggle('hidden', target !== 'now');
     pastModule.classList.toggle('hidden', target !== 'past');
     meModule.classList.toggle('hidden', target !== 'me');
-    if (target === 'past') renderHistory();
+    if (target === 'past') {
+      renderHistory();
+      if(cloudEnabled&&cloudUser)historyWrite=historyWrite.then(()=>loadHistory()).then(()=>renderHistory()).catch(error=>{$('historyStatus').textContent='同步未完成：'+error.message;});
+    }
     if (target === 'me') renderMePrefs();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1001,13 +1043,115 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     renderProfile();
   }
 
-  $('savePrefsBtn').addEventListener('click', () => {
+  $('savePrefsBtn').addEventListener('click', async () => {
     saveState();
     renderProfile();
-    showToast('学习偏好已更新');
+    try{if(cloudEnabled)await syncAccountSettings();showToast('学习偏好已更新');}catch(error){showToast('学习偏好尚未保存：'+error.message);}
   });
 
-  // ========== 欢迎流程 ==========
+  // ========== 云端账号与欢迎流程 ==========
+  async function accountRequest(path,body,method=body===undefined?'GET':'POST') {
+    const response=await fetch(path,{method,credentials:'same-origin',cache:'no-store',headers:body===undefined?{}:{'Content-Type':'application/json','X-Langsidu-Request':'account'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(90000)});
+    const data=await response.json();
+    if(!response.ok)throw Object.assign(new Error(data.error||'云端请求未完成'),{status:response.status});
+    return data;
+  }
+  function accountSettings(){return {profile:state.profile,prefs:state.prefs,theme:state.theme,themeCustom:state.themeCustom};}
+  function syncAccountSettings(){
+    if(!cloudUser)return Promise.resolve();
+    clearTimeout(settingsTimer);
+    const version=settingsVersion,settings=JSON.parse(JSON.stringify(accountSettings()));
+    $('accountSyncStatus').textContent='正在保存偏好到云端…';
+    settingsWrite=settingsWrite.catch(()=>{}).then(async()=>{
+      try{
+        await accountRequest('/api/account/settings',settings,'PUT');
+        savedSettingsVersion=Math.max(savedSettingsVersion,version);
+        $('accountSyncStatus').textContent='偏好已保存到云端';$('retryAccountSyncBtn').classList.add('hidden');
+      }catch(error){$('accountSyncStatus').textContent='偏好未保存：'+error.message;$('retryAccountSyncBtn').classList.remove('hidden');throw error;}
+    });
+    return settingsWrite;
+  }
+  $('retryAccountSyncBtn').addEventListener('click',()=>syncAccountSettings().catch(()=>{}));
+  function gateScreen(title,description=''){
+    $('accountHeading').textContent=title;$('accountDescription').textContent=description;
+    $('accountOptions').replaceChildren();$('accountForm').classList.add('hidden');$('accountError').textContent='';
+    $('accountHeading').focus({preventScroll:true});
+  }
+  function gateButton(label,action){
+    const button=document.createElement('button');button.type='button';button.className='btn btn-secondary';button.textContent=label;
+    button.addEventListener('click',action);$('accountOptions').append(button);return button;
+  }
+  function showAccountChoice(){
+    gateScreen('你已经注册账号了吗？','登录后，你的学习偏好、练习记录与录音会保存在自己的账号中。');
+    gateButton('已经注册账号',()=>showAccountForm('login'));
+    gateButton('还没有账号',()=>startPreferenceSurvey());
+  }
+  function startPreferenceSurvey(index=0){
+    const questions=[['你想达到怎样的成就？','purpose',PURPOSE_OPTIONS],['你的口音偏好？','accent',ACCENT_OPTIONS],['你的学历水平？','education',EDUCATION_OPTIONS]];
+    if(index>=questions.length){showAccountForm('register');return;}
+    const [title,key,options]=questions[index];
+    gateScreen(title,`学习偏好 ${index+1} / ${questions.length}`);
+    for(const value of options)gateButton(value,()=>{state.prefs[key]=value;startPreferenceSurvey(index+1);});
+  }
+  let accountFormMode='login';
+  function showAccountForm(mode){
+    accountFormMode=mode;
+    gateScreen(mode==='register'?'创建你的朗思渡账号':'登录朗思渡',mode==='register'?'设置昵称和密码，即可保存刚才选择的学习偏好。':'请输入注册时的昵称和密码。');
+    $('accountForm').reset();$('accountForm').classList.remove('hidden');
+    $('passwordConfirmLabel').classList.toggle('hidden',mode!=='register');
+    $('accountConfirmPassword').required=mode==='register';
+    $('accountPassword').autocomplete=mode==='register'?'new-password':'current-password';
+    $('accountSubmit').textContent=mode==='register'?'注册并进入':'登录';
+  }
+  $('accountBack').addEventListener('click',showAccountChoice);
+  $('accountForm').addEventListener('submit',async event=>{
+    event.preventDefault();if(!cloudEnabled)return;
+    const password=$('accountPassword').value,confirmPassword=$('accountConfirmPassword').value;
+    if(!/[A-Z]/.test(password)||!/[a-z]/.test(password)||!/[0-9]/.test(password)||password.length<8){$('accountError').textContent='密码须至少 8 位，并包含英文大写字母、小写字母和数字。';return;}
+    if(accountFormMode==='register'&&password!==confirmPassword){$('accountError').textContent='两次输入的密码不一致，请重新确认。';return;}
+    const fields=[...$('accountForm').querySelectorAll('button,input')];fields.forEach(el=>el.disabled=true);$('accountError').textContent='正在连接账号…';
+    try{
+      const data=await accountRequest('/api/auth/'+accountFormMode,{nickname:$('accountNickname').value.trim(),password,confirmPassword,settings:accountSettings()});
+      $('accountForm').reset();await enterCloudAccount(data.user);
+    }catch(error){$('accountError').textContent=error.message;}
+    finally{fields.forEach(el=>el.disabled=false);}
+  });
+  async function enterCloudAccount(user){
+    cloudUser=user;state=Object.assign(JSON.parse(JSON.stringify(defaultState)),user.settings||{});state.history=[];historyReady=false;
+    settingsVersion=0;savedSettingsVersion=0;
+    try{await loadHistory();}catch(error){cloudUser=null;throw error;}
+    $('accountInfo').classList.remove('hidden');$('accountIdentity').textContent='登录昵称：'+user.loginName;
+    $('historyPrivacyNote').textContent='记录、照片和录音保存在当前账号的云端空间，其他账号无法读取。识图和评测会将你提交的内容发送给模型服务处理。使用共用设备后请退出登录。';
+    $('historyTransferNote').textContent='换设备时登录同一账号，即可读取已保存的记录和录音；你也可以导出备份留存。升级前的本机记录须由你确认归属后主动导入。';
+    $('requestStorageBtn').classList.add('hidden');$('storagePersistenceStatus').textContent='';$('importLocalRecordsBtn').classList.remove('hidden');
+    applyTheme(state.theme);renderProfile();renderEmojiGrid();renderHistory();
+    $('welcomeOverlay').classList.add('hidden');document.querySelector('.app').classList.remove('hidden');document.querySelector('.app').inert=false;
+    bottomNav.style.display='flex';switchNav('now');
+    refreshPracticeUsage();loadGalleryCatalog();loadAudioAssessmentConfiguration();
+  }
+  async function initCloudAccount(){
+    document.querySelector('.app').inert=true;document.querySelector('.app').classList.add('hidden');
+    $('skipWelcomeBtn').classList.add('hidden');$('welcomeOverlay').classList.add('cloud-onboarding');$('accountGate').classList.remove('hidden');
+    gateScreen('正在连接你的账号…');
+    try{
+      const data=await accountRequest('/api/auth/me');await enterCloudAccount(data.user);
+    }catch(error){
+      if(error.status===401){gateScreen('欢迎来到朗思渡，你的智能英语口语陪练','用图片开启你的英语表达。');gateButton('开始',showAccountChoice);}
+      else {gateScreen('暂时无法连接云端账号',error.message);gateButton('重新连接',initCloudAccount);}
+    }
+  }
+  $('logoutBtn').addEventListener('click',async()=>{
+    const button=$('logoutBtn');button.disabled=true;
+    try{
+      if(currentScene&&!confirm('退出后，当前页面尚未保存的练习将丢失，是否退出？'))return;
+      await historyWrite;
+      if(settingsVersion>savedSettingsVersion)await syncAccountSettings();
+      await accountRequest('/api/auth/logout',{});cloudUser=null;state.history=[];location.reload();
+    }catch(error){$('accountSyncStatus').textContent='退出未完成：'+error.message;}
+    finally{button.disabled=false;}
+  });
+
+  // ========== 原有本机模式欢迎流程 ==========
   async function runWelcomeFlow() {
     const overlay = $('welcomeOverlay');
     if (!overlay) return;
@@ -2754,6 +2898,11 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     });
   }
   async function loadHistory() {
+    if(cloudEnabled){
+      if(!cloudUser)throw new Error('请先登录云端账号');
+      const data=await accountRequest('/api/account/history');
+      state.history=data.records;cloudRevision=data.revision;historyReady=true;return;
+    }
     try {
       historyDb = await openHistoryDb();
       const saved = await historyTransaction('readonly');
@@ -2766,6 +2915,19 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     }
   }
   function updateHistory(change) {
+    if(cloudEnabled){
+      const operation=historyWrite.then(async()=>{
+        if(!cloudUser||!historyReady)throw new Error('请先登录并同步记录');
+        for(let attempt=0;attempt<3;attempt++){
+          const next=change(JSON.parse(JSON.stringify(state.history)));
+          try{
+            const data=await accountRequest('/api/account/history',{records:next,revision:cloudRevision},'PUT');
+            state.history=next;cloudRevision=data.revision;renderHistory();return;
+          }catch(error){if(error.status!==409||attempt===2)throw error;await loadHistory();}
+        }
+      });
+      historyWrite=operation.catch(()=>{});return operation;
+    }
     const operation = historyWrite.then(() => new Promise((resolve,reject) => {
       if(!historyReady) { reject(new Error('浏览器数据库不可用，请允许网站存储后刷新')); return; }
       const tx = historyDb.transaction('records','readwrite');
@@ -2809,7 +2971,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
       if(secondBlob) item.rereadAudio = await blobDataUrl(secondBlob);
       if((firstBlob && !item.audio) || (secondBlob && !item.rereadAudio)) throw new Error('录音转换失败，请重试');
       await updateHistory(items => [item, ...items]);
-      showToast('已保存到当前浏览器的 PAST（含录音）');
+      showToast(cloudEnabled?'已保存到当前账号的云端 PAST（含录音）':'已保存到当前浏览器的 PAST（含录音）');
     } catch(error) { showStatus('保存失败：' + error.message + '。原稿和录音仍在当前页面，请释放空间后重试。','error'); }
     finally { button.disabled = false; }
   });
@@ -2872,6 +3034,27 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     $('historyStatus').textContent = '已发起导出，请确认下载文件已保存。共 ' + backup.records.length + ' 条记录；备份包含文稿和有效录音，请自行保管。旧记录中已失效的临时录音无法恢复。';
   });
   $('importHistoryBtn').addEventListener('click', () => $('historyFileInput').click());
+  $('importLocalRecordsBtn').addEventListener('click',async()=>{
+    if(!cloudUser)return;
+    const button=$('importLocalRecordsBtn');
+    if(!confirm('升级前的本机记录可能属于共用设备的其他人。请确认这些记录都属于你，再导入当前账号；原本机数据保留。'))return;
+    button.disabled=true;
+    try{
+      const db=await openHistoryDb();
+      const records=await new Promise((resolve,reject)=>{const tx=db.transaction('records','readonly');const request=tx.objectStore('records').get('history');tx.oncomplete=()=>resolve(request.result);tx.onerror=()=>reject(tx.error);});db.close();
+      const legacy=Array.isArray(records)?records:loadState().history;
+      const normalized=legacy.map((item,index)=>({...item,id:Number.isSafeInteger(item.id)?item.id:Date.now()+index,image:safeHistoryImage(item.image)?item.image:'',audio:safeHistoryAudio(item.audio)?item.audio:'',rereadAudio:safeHistoryAudio(item.rereadAudio)?item.rereadAudio:''}));
+      let added=0;
+      await updateHistory(items=>{
+        const signature=item=>JSON.stringify([item.time,item.transcript,item.corrected,item.rereadTranscript||'']);
+        const keys=new Set(items.map(signature)),ids=new Set(items.map(item=>item.id));const unique=[];
+        for(const source of normalized){if(keys.has(signature(source)))continue;keys.add(signature(source));const item={...source};while(ids.has(item.id))item.id++;ids.add(item.id);unique.push(item);}
+        added=unique.length;return [...unique,...items];
+      });
+      $('localImportStatus').textContent='已导入 '+added+' 条本机记录，重复记录已跳过；本机原件保留。';
+    }catch(error){$('localImportStatus').textContent='导入未完成：'+error.message+'。本机原件保留。';}
+    finally{button.disabled=false;}
+  });
   $('historyFileInput').addEventListener('change', async event => {
     const file=event.target.files[0]; if(!file) return;
     try {
@@ -2899,8 +3082,9 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
     finally { event.target.value=''; }
   });
   $('clearHistoryBtn').addEventListener('click', async () => {
-    if(!confirm('清除当前浏览器的全部练习记录和录音？建议先导出备份。此操作不能撤销。')) return;
-    try { await updateHistory(()=>[]); $('historyStatus').textContent='已清除当前浏览器的全部练习记录。'; }
+    if(!confirm('是否删除所有记录？')) return;
+    if(!confirm('删除后，所有记录不可找回，是否确认删除？')) return;
+    try { await updateHistory(()=>[]); $('historyStatus').textContent=cloudEnabled?'已清除当前账号的全部云端练习记录。':'已清除当前浏览器的全部练习记录。'; }
     catch(error) { $('historyStatus').textContent='清除失败：'+error.message; }
   });
 
@@ -2964,6 +3148,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
   }
   async function updateStorageSummary() {
     const count=state.history.length, recorded=state.history.filter(item=>safeHistoryAudio(item.audio)||safeHistoryAudio(item.rereadAudio)).length;
+    if(cloudEnabled){$('historyStorageSummary').textContent='当前账号已保存 '+count+' 条云端练习，其中 '+recorded+' 条含录音。换设备请登录同一账号；建议定期导出备份。';return;}
     let last=0;try{last=Number(localStorage.getItem('langsidu_backup_started'))||0;}catch{}
     $('historyStorageSummary').textContent='当前浏览器保存 '+count+' 条练习，其中 '+recorded+' 条含录音。'+(last?'上次发起备份：'+new Date(last).toLocaleString('zh-CN')+'。':'尚未导出备份。')+((count&&(!last||Date.now()-last>7*86400000))?'建议现在导出备份；清理浏览器数据、换设备或更换域名不会自动带走这些记录。':'');
     try {const persisted=await navigator.storage?.persisted?.();$('storagePersistenceStatus').textContent=persisted?'浏览器已授予持久存储，但手动清除网站数据仍会删除记录。':'可请求浏览器减少自动清理；是否批准由浏览器决定。';}catch{}
@@ -2982,6 +3167,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,.entry-card:focus-visi
   renderCategoryGrid();
 
   async function initApp() {
+    if(cloudEnabled){await initCloudAccount();return;}
     refreshPracticeUsage();loadGalleryCatalog();loadAudioAssessmentConfiguration();
     await loadHistory();
     updateStorageSummary();
