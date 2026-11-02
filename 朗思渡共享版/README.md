@@ -22,6 +22,8 @@
 
 验证命令：`node --test tests/*.test.cjs`；`node tests/cloud-accounts-browser.cjs`；`node tests/workflow-regression.cjs`；`node tests/xfyun-browser.cjs`。可用 `PLAYWRIGHT_MODULE` 指定已安装的 Playwright 路径。云端接口测试使用实际 PostgreSQL 引擎 PGlite，并关闭后重新打开磁盘数据库验证持久化；浏览器测试连接这些真实接口，覆盖换设备、记录与录音隔离、旧数据主动导入和两次删除确认。正式 Neon/Render 连通及真实多设备验证仍需在连接数据库后进行。
 
+真实数据库联调：显式设置 `DATABASE_URL` 后运行 `node tests/cloud-accounts-live-smoke.cjs`。它创建两个随机测试账号，验证隔离、第二个设备登录和服务重启后的数据保留，最后只清理这两个测试账号。设置 `CLOUD_SMOKE_BROWSER=true` 可同时验证真实网页登录和两段可解码的测试音频；设置 `CLOUD_SMOKE_ORIGIN=https://你的站点` 可验证已部署网站（不重启远程服务）。测试使用合成音频，不调用识图、转写或评分模型。连接字符串及会话不会打印。
+
 ## 本地运行
 
 需要安装 Node.js 20 或更高版本。配置一个兼容 OpenAI Chat Completions、并且明确支持图片输入的视觉模型服务：
