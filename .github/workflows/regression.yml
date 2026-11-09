@@ -8,6 +8,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install application dependencies
+        run: npm install --prefix './朗思渡共享版' --ignore-scripts
       - name: Backend regression checks
         run: npm test --prefix './朗思渡共享版'
       - name: Install browser test tools
@@ -22,3 +24,7 @@ jobs:
           PLAYWRIGHT_MODULE: ${{ github.workspace }}/node_modules/playwright
           BROWSER_CHANNEL: chromium
         run: node './朗思渡共享版/tests/workflow-regression.cjs'
+      - name: Calendar, account menus and responsive pages
+        env:
+          PLAYWRIGHT_MODULE: ${{ github.workspace }}/node_modules/playwright
+        run: node './朗思渡共享版/tests/page-layout-browser.cjs'

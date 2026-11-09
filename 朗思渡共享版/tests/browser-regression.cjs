@@ -53,16 +53,19 @@ const success = {
         assert.equal(await page.locator('#pickFileBtn').isVisible(),true,'another upload must remain possible');
       } else {
         assert.equal(calls,scenario==='success'?1:3);
-        for(const id of ['photoSection','hintSection','recordingSection','hintList']) assert.equal(await page.locator('#'+id).isVisible(),true,id);
+        for(const id of ['photoSection','hintSection','hintList']) assert.equal(await page.locator('#'+id).isVisible(),true,id);
+        assert.equal(await page.locator('#recordingSection').isVisible(),false,'recording is on the next screen');
         assert.match(await page.locator('#hintList').innerText(),/book/);
         if(scenario==='success') {
           const longText='I have a book. '.repeat(100);
           let speechRequest;
           await page.route('**/api/analyze-speech/jobs',route=>{speechRequest=route.request().postDataJSON();return route.fulfill({status:202,json:{jobId:'test-job'}});});
           await page.route('**/api/analyze-speech/jobs/test-job',route=>route.fulfill({json:{status:'complete',result:{overall:85,grammar:85,vocabulary:85,fluency:85,coherence:85,topicRelevance:85,taskCompletion:85,polished:longText,errors:[],styleSuggestions:[],keywords:[{en:'book',zh:'书'}],keyInformation:['叙述者谈到一本书。'],topicSummary:'介绍书本',originalWordCount:500,polishedWordCount:500,targetMinWords:400,targetMaxWords:600,wordCountWithinRange:true,sentences:[]}}}));
+          await page.locator('#goRecordBtn').click();
           await page.locator('#manualTranscript').fill(longText);
           await page.locator('#submitManualBtn').click();
-          await page.locator('#rereadSection').waitFor({state:'visible'});
+          await page.locator('#goRereadBtn').waitFor({state:'visible'});
+          await page.waitForFunction(()=>!document.getElementById('goRereadBtn').disabled);
           assert.equal(speechRequest.phase,'polish');
           assert.equal(await page.locator('#scorePanel').isVisible(),false);
           assert.equal(speechRequest.accent,'英式');
@@ -80,11 +83,13 @@ const success = {
           await page.locator('#polishedSentences button').first().click();
           assert.equal(await page.evaluate(()=>window.__spoken[0].lang),'en-GB');
           assert.deepEqual(await page.evaluate(()=>window.__spoken.map(s=>s.text)),['I have a book.']);
+          await page.locator('[data-app-view="now/polish"] .page-back').click();
+          await page.locator('[data-app-view="now/record"] .page-back').click();
           await page.locator('#backToEntryBtn').click();
           await page.route('**/api/gallery/random?*',route=>route.fulfill({json:{id:'book-test',name:'桌前阅读',category:'学习校园',image:'data:image/png;base64,'+data}}));
           await page.locator('[data-mode="gallery"]').click();await page.locator('#categoryGrid [data-category="学习校园"]').click();
           await page.locator('#photoSection').waitFor({state:'visible'});
-          assert.equal(await page.locator('#recordingSection').isVisible(),true,'gallery photos enter the existing practice workflow');
+          assert.equal(await page.locator('#recordingSection').isVisible(),false,'gallery photos enter a dedicated scene screen');
           assert.match(await page.locator('#photoCaption').innerText(),/主题图库/);
           assert.match(await page.locator('#photoPreview').getAttribute('src'),/^data:image\/jpeg;base64,/);
           await page.waitForFunction(()=>document.getElementById('imageHintsStatus').textContent.includes('实际图片'));

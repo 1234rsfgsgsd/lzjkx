@@ -10,7 +10,7 @@ const keywords = {
 };
 
 (async () => {
-  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'msedge', headless: true });
   try {
     for (const mode of ['upload', 'gallery', 'provider-error']) {
       const page = await browser.newPage({ viewport: { width: mode === 'gallery' ? 390 : 1280, height: 844 }, reducedMotion: 'reduce' });
@@ -64,6 +64,8 @@ const keywords = {
         await page.waitForFunction(() => document.getElementById('hintList').textContent.includes('book'), null, { timeout: 20000 });
         assert.equal(posts, 2);
         assert.equal(polls, 3);
+        assert.equal(await page.locator('#recordingSection').isVisible(), false);
+        await page.locator('#goRecordBtn').click();
         assert.equal(await page.locator('#recordingSection').isVisible(), true);
         if (mode === 'gallery') {
           assert.equal(firstPayload.mode, undefined);

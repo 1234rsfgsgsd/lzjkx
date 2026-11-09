@@ -22,7 +22,7 @@ const path=require('node:path');
    const errors=[];page.on('pageerror',error=>errors.push(error.message));
    await page.goto(process.env.LAYOUT_BASE_URL||'http://127.0.0.1:3000/',{waitUntil:'networkidle'});
    assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundImage),'none');
-   assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(241, 246, 252)');
+   assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(245, 249, 252)');
    assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('.app')).backgroundColor),'rgba(0, 0, 0, 0)');
    for(const name of ['now','past','me']){
     const item=page.locator(`[data-nav="${name}"]`);
@@ -31,7 +31,7 @@ const path=require('node:path');
     for(const nav of ['now','past','me']){
      const button=page.locator(`[data-nav="${nav}"]`);
      const css=await button.evaluate(el=>{const icon=el.querySelector('.nav-icon');return {color:getComputedStyle(el).color,iconColor:getComputedStyle(icon).backgroundColor,mask:getComputedStyle(icon).maskImage,size:getComputedStyle(icon).maskSize,width:el.getBoundingClientRect().width,current:el.getAttribute('aria-current'),label:el.innerText.trim()};});
-     const expected=nav===name?'rgb(17, 17, 17)':'rgb(115, 119, 125)';
+     const expected=nav===name?'rgb(66, 72, 77)':'rgb(147, 155, 161)';
      assert.equal(css.color,expected,`${nav} text color with ${name} selected`);
      assert.equal(css.iconColor,expected,`${nav} icon color with ${name} selected`);
      assert.equal(css.current,nav===name?'page':null);
