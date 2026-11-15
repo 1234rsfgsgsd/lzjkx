@@ -10,7 +10,7 @@ NOW 拆为素材首页、主题选择或上传、场景与关键词、自由口�
 
 页面回归：`node tests/page-layout-browser.cjs`（本地隔离数据库、日期/搜索、账号与响应式截图）、`node tests/workflow-regression.cjs`（分页后的完整练习与备份流程），通过 `BROWSER_CHANNEL` 选择已安装的浏览器，`PLAYWRIGHT_MODULE` 指定测试工具位置。
 
-网站统一使用站主手绘小狼图片（assets/wolf-mascot.png）：浏览器图标、手机添加到主屏幕图标、首页、首次欢迎页、等待动画和空记录页都读取同一张透明底图片。发布用副本只裁去空白并去除连通白色背景，没有重新绘制或更改形象。
+网站使用站主手绘小狼图片（assets/wolf-mascot.png）作为浏览器图标、首页、首次欢迎页、等待动画和空记录页插画。iPhone 主屏幕图标单独使用 assets/langsidu-apple-touch-icon.png，并由 index.html 中的 apple-touch-icon 标签指定。
 
 设置 `DATABASE_URL` 后启用真实云端账号：昵称和密码登录，学习偏好、PAST 练习、图片及两次录音保存在 PostgreSQL，换设备登录同一账号即可读取。接口使用登录会话确认记录归属，其他账号不能读取或修改这些数据；数据库管理员仍有管理权限。密码只保存带独立盐的 scrypt 哈希；会话使用 HttpOnly、SameSite Cookie，线上 HTTPS 下设为 Secure。
 

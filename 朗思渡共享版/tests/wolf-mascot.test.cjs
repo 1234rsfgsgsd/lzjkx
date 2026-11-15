@@ -9,18 +9,23 @@ before(async()=>{
  for(let i=0;i<100;i++){try{if((await fetch(base+'/health')).ok)return;}catch{}await new Promise(resolve=>setTimeout(resolve,30));}throw Error('mascot asset test server did not start');
 });
 after(async()=>{if(child?.exitCode===null){const exited=new Promise(resolve=>child.once('exit',resolve));child.kill();await exited;}if(temp)fs.rmSync(temp,{recursive:true,force:true});});
-test('the hand-drawn transparent mascot is served safely as the logo, favicon and touch icon',async()=>{
+test('the mascot and dedicated iPhone touch icon are served safely',async()=>{
  const asset=fs.readFileSync(path.join(directory,'assets','wolf-mascot.png'));
+ const touchIcon=fs.readFileSync(path.join(directory,'assets','langsidu-apple-touch-icon.png'));
  assert.equal(asset.toString('hex',0,8),'89504e470d0a1a0a');
+ assert.equal(touchIcon.toString('hex',0,8),'89504e470d0a1a0a');
+ assert.equal(touchIcon.readUInt32BE(16),180);assert.equal(touchIcon.readUInt32BE(20),180);
  const page=fs.readFileSync(path.join(directory,'index.html'),'utf8');
  assert.match(page,/<link rel="icon" type="image\/png" href="\/assets\/wolf-mascot\.png\?v=7043ffd">/);
- assert.match(page,/<link rel="apple-touch-icon" href="\/assets\/wolf-mascot\.png\?v=7043ffd">/);
- assert.equal((page.match(/\/assets\/wolf-mascot\.png\?v=7043ffd/g)||[]).length,8,'header, welcome, hero, empty-state, waiting art and browser icons all use one asset');
+ assert.match(page,/<link rel="apple-touch-icon" sizes="180x180" href="\/assets\/langsidu-apple-touch-icon\.png">/);
+ assert.equal((page.match(/\/assets\/wolf-mascot\.png\?v=7043ffd/g)||[]).length,7,'header, welcome, hero, empty-state, waiting art and favicon use the mascot');
  assert.match(page,/\.wolf-brand img\{width:48px;height:48px;object-fit:contain;background:transparent\}/,'the header logo keeps the transparent edges visible without a white tile');
  assert.doesNotMatch(page,/data:image\/svg\+xml;base64,/);
  const response=await fetch(base+'/assets/wolf-mascot.png?v=7043ffd'),served=Buffer.from(await response.arrayBuffer());
  assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/image\/png/);assert.deepEqual(served,asset);
  const head=await fetch(base+'/assets/wolf-mascot.png',{method:'HEAD'});assert.equal(head.status,200);assert.equal(head.headers.get('content-length'),String(asset.length));
+ const touchResponse=await fetch(base+'/assets/langsidu-apple-touch-icon.png'),servedTouchIcon=Buffer.from(await touchResponse.arrayBuffer());
+ assert.equal(touchResponse.status,200);assert.match(touchResponse.headers.get('content-type'),/image\/png/);assert.deepEqual(servedTouchIcon,touchIcon);
  assert.equal((await fetch(base+'/assets/not-approved.png')).status,404);
  assert.ok((await fetch(base+'/health')).ok);
 });
