@@ -16,9 +16,9 @@ test('the mascot and dedicated iPhone touch icon are served safely',async()=>{
  assert.equal(touchIcon.toString('hex',0,8),'89504e470d0a1a0a');
  assert.equal(touchIcon.readUInt32BE(16),180);assert.equal(touchIcon.readUInt32BE(20),180);
  const page=fs.readFileSync(path.join(directory,'index.html'),'utf8');
- assert.match(page,/<link rel="icon" type="image\/png" href="\/assets\/wolf-mascot\.png\?v=7043ffd">/);
+ assert.match(page,/<link rel="icon" type="image\/png" sizes="192x192" href="\/assets\/langsidu-icon-192\.png">/);
  assert.match(page,/<link rel="apple-touch-icon" sizes="180x180" href="\/assets\/langsidu-apple-touch-icon\.png">/);
- assert.equal((page.match(/\/assets\/wolf-mascot\.png\?v=7043ffd/g)||[]).length,7,'header, welcome, hero, empty-state, waiting art and favicon use the mascot');
+ assert.equal((page.match(/\/assets\/wolf-mascot\.png\?v=7043ffd/g)||[]).length,6,'header, welcome, hero, empty-state and waiting art use the mascot');
  assert.match(page,/\.wolf-brand img\{width:48px;height:48px;object-fit:contain;background:transparent\}/,'the header logo keeps the transparent edges visible without a white tile');
  assert.doesNotMatch(page,/data:image\/svg\+xml;base64,/);
  const response=await fetch(base+'/assets/wolf-mascot.png?v=7043ffd'),served=Buffer.from(await response.arrayBuffer());
@@ -28,4 +28,25 @@ test('the mascot and dedicated iPhone touch icon are served safely',async()=>{
  assert.equal(touchResponse.status,200);assert.match(touchResponse.headers.get('content-type'),/image\/png/);assert.deepEqual(servedTouchIcon,touchIcon);
  assert.equal((await fetch(base+'/assets/not-approved.png')).status,404);
  assert.ok((await fetch(base+'/health')).ok);
+});
+
+test('Android home screen manifest and all icon sizes are accessible',async()=>{
+ const page=await (await fetch(base+'/')).text();
+ assert.match(page,/<link rel="manifest" href="\/manifest\.webmanifest">/);
+ const response=await fetch(base+'/manifest.webmanifest');
+ assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/application\/manifest\+json/);
+ const manifest=await response.json();
+ assert.equal(manifest.start_url,'/');assert.equal(manifest.scope,'/');
+ assert.ok(manifest.icons.some(icon=>icon.sizes==='192x192'&&icon.purpose==='any'));
+ assert.ok(manifest.icons.some(icon=>icon.sizes==='512x512'&&icon.purpose==='any'));
+ assert.ok(manifest.icons.some(icon=>icon.purpose==='maskable'));
+ for(const icon of manifest.icons){
+  const assetResponse=await fetch(base+icon.src),bytes=Buffer.from(await assetResponse.arrayBuffer());
+  assert.equal(assetResponse.status,200);assert.match(assetResponse.headers.get('content-type'),/image\/png/);
+  assert.equal(bytes.toString('hex',0,8),'89504e470d0a1a0a');
+  assert.equal(`${bytes.readUInt32BE(16)}x${bytes.readUInt32BE(20)}`,icon.sizes);
+  assert.deepEqual(bytes,fs.readFileSync(path.join(directory,icon.src)));
+  const head=await fetch(base+icon.src,{method:'HEAD'});assert.equal(head.status,200);assert.equal(head.headers.get('content-length'),String(bytes.length));
+ }
+ assert.equal((await fetch(base+'/manifest.webmanifest',{method:'HEAD'})).status,200);
 });

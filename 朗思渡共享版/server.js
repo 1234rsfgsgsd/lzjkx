@@ -309,10 +309,11 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { ok: true, revision: process.env.RENDER_GIT_COMMIT || 'local' });
   }
   const assetName = url.pathname.startsWith('/assets/') ? url.pathname.slice('/assets/'.length) : '';
-  const assetMatch = ['wolf-mascot.png', 'langsidu-apple-touch-icon.png', 'home-background.webp', 'app-background.webp', 'nav-now.webp', 'nav-past.webp', 'nav-me.webp', 'nav-icon-now.png', 'nav-icon-past.png', 'nav-icon-me.png'].includes(assetName) ? [null, assetName] : null;
-  if ((req.method === 'GET' || req.method === 'HEAD') && assetMatch) {
-    const file = path.join(root, 'assets', assetMatch[1]);
-    const type = file.endsWith('.webp') ? 'image/webp' : 'image/png';
+  const assetMatch = ['wolf-mascot.png', 'langsidu-apple-touch-icon.png', 'langsidu-icon-192.png', 'langsidu-icon-512.png', 'langsidu-icon-maskable-512.png', 'home-background.webp', 'app-background.webp', 'nav-now.webp', 'nav-past.webp', 'nav-me.webp', 'nav-icon-now.png', 'nav-icon-past.png', 'nav-icon-me.png'].includes(assetName) ? [null, assetName] : null;
+  const isWebManifest = url.pathname === '/manifest.webmanifest';
+  if ((req.method === 'GET' || req.method === 'HEAD') && (assetMatch || isWebManifest)) {
+    const file = isWebManifest ? path.join(root, 'manifest.webmanifest') : path.join(root, 'assets', assetMatch[1]);
+    const type = isWebManifest ? 'application/manifest+json; charset=utf-8' : file.endsWith('.webp') ? 'image/webp' : 'image/png';
     fs.stat(file, (error, stat) => {
       if (error) return send(res, 404, 'Not found', 'text/plain; charset=utf-8');
       res.writeHead(200, {
