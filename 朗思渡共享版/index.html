@@ -3066,6 +3066,7 @@ body{color:var(--sketch-ink);background:#f5f9fc}
   function renderRecordDetail(item) {
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const evaluation=item.finalEvaluation,report=evaluation?.oralReport,speech=report?.mode==='speech';
+    const firstAudio=normalizeHistoryAudio(item.audio),secondAudio=normalizeHistoryAudio(item.rereadAudio);
     const dimensions=(report?.dimensionScores||[]).filter(d=>!speech||Number.isFinite(d.score));
     const summary=(evaluation?.summary||'');
     // Older history entries may have saved the placeholder wording in their summary.
@@ -3084,8 +3085,8 @@ body{color:var(--sketch-ink);background:#f5f9fc}
             <div class="row"><strong>偏好：</strong>${escapeHtml(item.accent || '未记录')} · ${speech?(report.aiReference?'录音诊断（含 AI 参考评分）':'录音诊断'):item.evaluation?.provisional ? '未完成智能评测' : item.evaluation?.overall != null ? escapeHtml(item.evaluation.overall) + '分（文本）' : '历史练习'}</div><div class="row"><strong>关键词：</strong>${escapeHtml(item.keywords)}</div>
             <div class="row"><strong>第一次口述：</strong>${escapeHtml(item.transcript)}</div>
             <div class="row"><strong>修正稿：</strong>${escapeHtml(item.corrected)}</div>
-            ${safeHistoryAudio(item.audio) ? `<div class="row"><strong>改前录音：</strong><audio controls src="${escapeHtml(item.audio)}" style="width:100%;margin-top:.5rem;"></audio></div>` : ''}
-            ${safeHistoryAudio(item.rereadAudio) ? `<div class="row"><strong>改后录音（第二次朗读）：</strong><audio controls src="${escapeHtml(item.rereadAudio)}" style="width:100%;margin-top:.5rem;"></audio></div>` : ''}
+            ${firstAudio ? `<div class="row"><strong>改前录音：</strong><audio controls src="${escapeHtml(firstAudio)}" style="width:100%;margin-top:.5rem;"></audio></div>` : ''}
+            ${secondAudio ? `<div class="row"><strong>改后录音（第二次朗读）：</strong><audio controls src="${escapeHtml(secondAudio)}" style="width:100%;margin-top:.5rem;"></audio></div>` : ''}
             ${item.rereadTranscript ? `<div class="row"><strong>第二次转写：</strong>${escapeHtml(item.rereadTranscript)}</div>` : ''}
             ${evaluation ? `<div class="row"><strong>最后评分依据：</strong>${speech?(report.aiReference?'第二次真实录音（讯飞及百炼 AI 参考）。':'第二次真实录音（讯飞）。'):'第二次转写文本。'}${speech&&dimensions.some(d=>d.source==='transcript')?'语法、词汇与内容来自实际转写。':''}${escapeHtml(historySummary)}</div>${dimensions.length?'<div class="row">'+dimensions.slice(0,8).map(d=>escapeHtml(d.label)+'：'+escapeHtml(Number.isFinite(d.score)?d.score+'/'+d.max:'待评')).join('；')+'</div>':''}` : ''}
           </div>
@@ -3113,10 +3114,17 @@ body{color:var(--sketch-ink);background:#f5f9fc}
   }
   $('historyList').addEventListener('click', handleHistoryClick);
   function safeHistoryImage(value) { return typeof value === 'string' && /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(value); }
-  function safeHistoryAudio(value) { return typeof value === 'string' && /^data:(?:audio\/(?:webm|ogg|mp4|mpeg|wav)(?:;codecs=[a-zA-Z0-9.,-]+)?|video\/webm);base64,[A-Za-z0-9+/=]+$/.test(value); }
+  function normalizeHistoryAudio(value) {
+    if(typeof value!=='string')return '';
+    const parts=/^data:(?:(audio\/(?:webm|ogg|mp4|mpeg|wav))(?:;[ \t]*codecs=(?:([a-zA-Z0-9.,-]+)|"([a-zA-Z0-9.,-]+)"))?|(video\/webm));base64,([A-Za-z0-9+/=]+)$/.exec(value);
+    if(!parts)return '';
+    const [,audio,codec,quotedCodec,video,payload]=parts;
+    return 'data:'+(audio||video)+(codec||quotedCodec?';codecs='+(codec||quotedCodec):'')+';base64,'+payload;
+  }
+  function safeHistoryAudio(value) { return Boolean(normalizeHistoryAudio(value)); }
   $('exportHistoryBtn').addEventListener('click', async () => {
     await historyWrite;
-    const backup={format:'langsidu-history',version:1,exportedAt:new Date().toISOString(),records:state.history.map(item => ({...item,audio:safeHistoryAudio(item.audio)?item.audio:'',image:safeHistoryImage(item.image)?item.image:'',rereadAudio:safeHistoryAudio(item.rereadAudio)?item.rereadAudio:''}))};
+    const backup={format:'langsidu-history',version:1,exportedAt:new Date().toISOString(),records:state.history.map(item => ({...item,audio:normalizeHistoryAudio(item.audio),image:safeHistoryImage(item.image)?item.image:'',rereadAudio:normalizeHistoryAudio(item.rereadAudio)}))};
     const url=URL.createObjectURL(new Blob([JSON.stringify(backup)],{type:'application/json'}));
     const link=document.createElement('a'); link.href=url;link.download='朗思渡练习备份-'+new Date().toISOString().slice(0,10)+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
     try{localStorage.setItem('langsidu_backup_started',String(Date.now()));}catch{}
@@ -3133,7 +3141,7 @@ body{color:var(--sketch-ink);background:#f5f9fc}
       const db=await openHistoryDb();
       const records=await new Promise((resolve,reject)=>{const tx=db.transaction('records','readonly');const request=tx.objectStore('records').get('history');tx.oncomplete=()=>resolve(request.result);tx.onerror=()=>reject(tx.error);});db.close();
       const legacy=Array.isArray(records)?records:loadState().history;
-      const normalized=legacy.map((item,index)=>({...item,id:Number.isSafeInteger(item.id)?item.id:Date.now()+index,image:safeHistoryImage(item.image)?item.image:'',audio:safeHistoryAudio(item.audio)?item.audio:'',rereadAudio:safeHistoryAudio(item.rereadAudio)?item.rereadAudio:''}));
+      const normalized=legacy.map((item,index)=>({...item,id:Number.isSafeInteger(item.id)?item.id:Date.now()+index,image:safeHistoryImage(item.image)?item.image:'',audio:normalizeHistoryAudio(item.audio),rereadAudio:normalizeHistoryAudio(item.rereadAudio)}));
       let added=0;
       await updateHistory(items=>{
         const signature=item=>JSON.stringify([item.time,item.transcript,item.corrected,item.rereadTranscript||'']);
@@ -3154,15 +3162,17 @@ body{color:var(--sketch-ink);background:#f5f9fc}
       const records=backup.records.map((item,index)=>{
         if(!item || typeof item!=='object' || typeof item.transcript!=='string' || typeof item.corrected!=='string' || item.transcript.length>100000 || item.corrected.length>100000) throw new Error('备份中的文稿数据无效');
         if(item.image&&!safeHistoryImage(item.image)) throw new Error('备份包含无效图片地址');
-        if(item.audio&&!safeHistoryAudio(item.audio)) throw new Error('备份包含无效录音地址');
-        if(item.rereadAudio&&!safeHistoryAudio(item.rereadAudio)) throw new Error('备份包含无效的第二次录音地址');
+        const audio=normalizeHistoryAudio(item.audio),rereadAudio=normalizeHistoryAudio(item.rereadAudio);
+        if(item.audio&&!audio) throw new Error('备份包含无效录音地址');
+        if(item.rereadAudio&&!rereadAudio) throw new Error('备份包含无效的第二次录音地址');
         if(item.rereadTranscript != null && (typeof item.rereadTranscript !== 'string' || item.rereadTranscript.length > 100000)) throw new Error('备份中的第二次转写无效');
-        return {id:Date.now()+index,time:String(item.time||'导入记录').slice(0,100),sceneName:String(item.sceneName||'练习').slice(0,160),sceneCategory:String(item.sceneCategory||'').slice(0,80),intent:String(item.intent||'').slice(0,300),keywords:String(item.keywords||'').slice(0,5000),transcript:item.transcript,corrected:item.corrected,image:item.image||'',audio:item.audio||'',rereadAudio:item.rereadAudio||'',rereadTranscript:item.rereadTranscript||'',rereadAccent:item.rereadAccent==='英式'?'英式':'美式',polishEvaluation:item.polishEvaluation&&typeof item.polishEvaluation==='object'?item.polishEvaluation:null,finalEvaluation:item.finalEvaluation&&typeof item.finalEvaluation==='object'?item.finalEvaluation:null,accent:item.accent==='英式'?'英式':'美式',evaluation:item.evaluation&&typeof item.evaluation==='object'?item.evaluation:null};
+        return {id:Date.now()+index,time:String(item.time||'导入记录').slice(0,100),sceneName:String(item.sceneName||'练习').slice(0,160),sceneCategory:String(item.sceneCategory||'').slice(0,80),intent:String(item.intent||'').slice(0,300),keywords:String(item.keywords||'').slice(0,5000),transcript:item.transcript,corrected:item.corrected,image:item.image||'',audio,rereadAudio,rereadTranscript:item.rereadTranscript||'',rereadAccent:item.rereadAccent==='英式'?'英式':'美式',polishEvaluation:item.polishEvaluation&&typeof item.polishEvaluation==='object'?item.polishEvaluation:null,finalEvaluation:item.finalEvaluation&&typeof item.finalEvaluation==='object'?item.finalEvaluation:null,accent:item.accent==='英式'?'英式':'美式',evaluation:item.evaluation&&typeof item.evaluation==='object'?item.evaluation:null};
       });
       let added=0;
       await updateHistory(items=>{
-        const keys=new Set(items.map(item=>JSON.stringify([item.time,item.transcript,item.corrected,item.rereadTranscript||'',item.rereadAudio||''])));
-        const unique=records.filter(item=>{const key=JSON.stringify([item.time,item.transcript,item.corrected,item.rereadTranscript||'',item.rereadAudio||'']);if(keys.has(key))return false;keys.add(key);return true;});
+        const signature=item=>JSON.stringify([item.time,item.transcript,item.corrected,item.rereadTranscript||'',normalizeHistoryAudio(item.rereadAudio)]);
+        const keys=new Set(items.map(signature));
+        const unique=records.filter(item=>{const key=signature(item);if(keys.has(key))return false;keys.add(key);return true;});
         added=unique.length;
         const ids=new Set(items.map(item=>item.id));for(const item of unique){while(ids.has(item.id))item.id++;ids.add(item.id);}
         return [...unique,...items];

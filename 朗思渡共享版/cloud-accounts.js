@@ -3,6 +3,7 @@ const {promisify} = require('node:util');
 const scrypt = promisify(crypto.scrypt);
 const COOKIE = 'langsidu_session';
 const SESSION_SECONDS = 30 * 86400;
+const HISTORY_AUDIO_DATA_URL = /^data:(?:(audio\/(?:webm|ogg|mp4|mpeg|wav))(?:;[ \t]*codecs=(?:([a-zA-Z0-9.,-]+)|"([a-zA-Z0-9.,-]+)"))?|(video\/webm));base64,([A-Za-z0-9+/=]+)$/;
 const passwordOK = value => typeof value === 'string' && value.length >= 8 && value.length <= 128 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /[0-9]/.test(value);
 const fail = (status, message) => Object.assign(new Error(message), {status});
 const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
@@ -39,9 +40,17 @@ function cleanRecords(records) {
     }
     for(const key of ['image','audio','rereadAudio']){
       const value=item[key]||'';
-      const pattern=key==='image'?/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/:/^data:(?:audio\/(?:webm|ogg|mp4|mpeg|wav)(?:;codecs=[a-zA-Z0-9.,-]+)?|video\/webm);base64,[A-Za-z0-9+/=]+$/;
-      if(typeof value!=='string'||(value&&!pattern.test(value)))throw fail(400,'照片或录音格式无效，请使用实际录音或图片');
-      record[key]=value;
+      if(typeof value!=='string')throw fail(400,'照片或录音格式无效，请使用实际录音或图片');
+      if(!value){record[key]='';continue;}
+      if(key==='image'){
+        if(!/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(value))throw fail(400,'场景照片格式无效，请使用 JPG、PNG 或 WebP');
+        record[key]=value;continue;
+      }
+      const parts=HISTORY_AUDIO_DATA_URL.exec(value);
+      if(!parts)throw fail(400,(key==='audio'?'第一次':'第二次')+'录音格式无法保存');
+      // Safari adds whitespace to the codecs parameter. Normalize only the header so older open pages can read it.
+      const [,audio,codec,quotedCodec,video,payload]=parts;
+      record[key]='data:'+(audio||video)+(codec||quotedCodec?';codecs='+(codec||quotedCodec):'')+';base64,'+payload;
     }
     for(const key of ['evaluation','polishEvaluation','finalEvaluation']){
       if(item[key]!=null && (typeof item[key]!=='object'||Array.isArray(item[key])||JSON.stringify(item[key]).length>500000))throw fail(400,'评测结果格式无效');

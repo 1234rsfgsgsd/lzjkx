@@ -63,3 +63,22 @@ test('cloud accounts: authentication, isolation, persistence, concurrent updates
 test('cloud accounts stay disabled when no database is configured',async()=>{
   const app=createCloudAccounts({connectionString:''});assert.equal(app.enabled,false);await assert.rejects(app.ready(),/尚未配置/);
 });
+
+test('an open Safari page can save both recordings without changing their bytes',async()=>{
+  const app=await fixture();
+  try{
+    const registered=await app.request('/api/auth/register',{method:'POST',body:registration()});
+    const cookie=registered.cookie.split(';')[0];
+    const audio='Zmluc3Q=',reread='c2Vjb25k';
+    const safariRecord={...record(),audio:'data:audio/mp4; codecs=mp4a.40.2;base64,'+audio,rereadAudio:'data:audio/mp4; codecs="mp4a.40.2";base64,'+reread};
+    const saved=await app.request('/api/account/history',{method:'PUT',body:{records:[safariRecord],revision:0},cookie});
+    assert.equal(saved.status,200);
+    const result=await app.request('/api/account/history',{cookie});
+    assert.equal(result.data.records[0].audio,'data:audio/mp4;codecs=mp4a.40.2;base64,'+audio);
+    assert.equal(result.data.records[0].rereadAudio,'data:audio/mp4;codecs=mp4a.40.2;base64,'+reread);
+    assert.equal(result.data.records[0].image,safariRecord.image);
+    const rejected=await app.request('/api/account/history',{method:'PUT',body:{records:[{...safariRecord,audio:'data:audio/mp4; codecs="mp4a.40.2";extra=bad;base64,'+audio}],revision:1},cookie});
+    assert.equal(rejected.status,400);
+    assert.deepEqual((await app.request('/api/account/history',{cookie})).data,result.data);
+  }finally{await app.close();}
+});
