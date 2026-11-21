@@ -33,10 +33,10 @@ function wave(frequency){const samples=4*48000,bytes=Buffer.alloc(44+samples*4);
       if(audioPosts===1)return r.abort('connectionfailed');
       return r.fulfill({status:202,json:{jobId:'audio'}});
     });
-    await page.route('**/api/pronunciation/jobs/audio',r=>{audioPolls++;if(audioPolls===1)return r.fulfill({json:{status:'pending',stage:scenario==='audio-review'?'audio-review':'text'}});return r.fulfill({json:{status:'complete',result:{report:speechReport(acoustic,scenario==='no-transcript'?null:textEvaluation,scenario==='audio-review'?audioReview:null),textEvaluation:scenario==='no-transcript'?null:textEvaluation,textWarning:scenario==='no-transcript'?'没有实际转写，语法、词汇和内容仍待评。':'',audioReviewWarning:scenario==='review-failure'?'百炼音频分析超时；讯飞结果仍保留。':''}}});});
+    await page.route('**/api/pronunciation/jobs/audio',r=>{audioPolls++;if(audioPolls===1)return r.fulfill({json:{status:'pending',stage:scenario==='audio-review'?'audio-review':'text'}});return r.fulfill({json:{status:'complete',result:{report:speechReport(acoustic,scenario==='no-transcript'?null:textEvaluation,scenario==='audio-review'?audioReview:null),textEvaluation:scenario==='no-transcript'?null:textEvaluation,textWarning:scenario==='no-transcript'?'第二次录音缺少实际转写，本次仅提供音频分析。':'',audioReviewWarning:scenario==='review-failure'?'百炼音频分析超时；讯飞结果仍保留。':''}}});});
     await page.goto(origin+'/');await page.locator('[data-nav="now"]').click();await page.locator('[data-mode="upload"]').click();
-    const image=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=c.height=16;return c.toDataURL('image/png').split(',')[1];});await page.locator('#photoInput').setInputFiles({name:'test.png',mimeType:'image/png',buffer:Buffer.from(image,'base64')});await page.locator('#recognizeImageBtn').click();await page.locator('#recordingSection').waitFor();
-    await page.locator('#startRecordBtn').click();await page.locator('#stopRecordBtn').click();await page.locator('#transcriptEditArea').waitFor();await page.locator('#confirmTranscriptBtn').click();await page.locator('#rereadSection').waitFor();assert.equal(audioPosts,0);assert.equal(await page.locator('#scorePanel').isVisible(),false);
+    const image=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=c.height=16;return c.toDataURL('image/png').split(',')[1];});await page.locator('#photoInput').setInputFiles({name:'test.png',mimeType:'image/png',buffer:Buffer.from(image,'base64')});await page.locator('#recognizeImageBtn').click();await page.locator('#goRecordBtn').click();
+    await page.locator('#startRecordBtn').click();await page.locator('#stopRecordBtn').click();await page.locator('#transcriptEditArea').waitFor();await page.locator('#confirmTranscriptBtn').click();await page.locator('#goRereadBtn').click();await page.locator('#rereadSection').waitFor();assert.equal(audioPosts,0);assert.equal(await page.locator('#scorePanel').isVisible(),false);
     const firstAudio=await page.locator('#playbackAudio').getAttribute('src');await page.locator('#startRereadBtn').click();await page.locator('#stopRereadBtn').click();await page.waitForFunction(()=>!document.getElementById('rereadTranscript').readOnly&&document.getElementById('rereadTranscript').value.length>0);
     const secondAudio=await page.locator('#secondComparisonAudio').getAttribute('src');assert.notEqual(secondAudio,firstAudio);
     if(scenario==='no-transcript')await page.locator('#rereadTranscript').fill('');
@@ -45,27 +45,48 @@ function wave(frequency){const samples=4*48000,bytes=Buffer.alloc(44+samples*4);
     await page.locator('#scoreRereadBtn').click();
     if(scenario==='quota'){
       await page.waitForFunction(()=>document.getElementById('finalEvaluationProgress').textContent.includes('上限'));assert.equal(audioPosts,1);assert.equal(await page.locator('#oralReportPanel').isVisible(),false);assert.equal(await page.locator('#firstComparisonAudio').getAttribute('src'),firstAudio);assert.equal(await page.locator('#secondComparisonAudio').getAttribute('src'),secondAudio);
+      await page.locator('[data-app-view="now/result"] [data-open-view="now/reread"]').click();
       await page.locator('#useAudioAssessment').uncheck();await page.locator('#scoreRereadBtn').click();await page.waitForFunction(()=>document.getElementById('oralReportTitle').textContent.includes('文本分析'));assert.equal(textRequest.rubric,'oral-v1');
     }else if(scenario==='disabled'){
       await page.waitForFunction(()=>document.getElementById('oralReportTitle').textContent.includes('文本分析'));assert.equal(audioPosts,0);assert.equal(textRequest.rubric,'oral-v1');assert.equal(await page.locator('#useAudioAssessment').isDisabled(),true);
     }else{
-      await page.waitForFunction(()=>document.getElementById('finalEvaluationProgress').textContent.includes('真实录音诊断已完成'),null,{timeout:25000});assert.equal(audioPosts,2,'reconnect reuses the same submission ID');assert.equal(await page.locator('#scorePanel').isVisible(),false);assert.equal(await page.locator('#oralReportDimensions li').count(),8);assert.match(await page.locator('#oralReportSummary').innerText(),scenario==='audio-review'?/含AI估计/:/没有八项综合分/);assert.match(await page.locator('#oralReportMetrics').innerText(),/120 WPM/);assert.equal(await page.locator('#comparisonPolished').innerText(),polished);
+      await page.waitForFunction(()=>document.getElementById('finalEvaluationProgress').textContent.includes('真实录音诊断已完成'),null,{timeout:25000});
+      assert.equal(audioPosts,2,'reconnect reuses the same submission ID');
+      assert.equal(await page.locator('#scorePanel').isVisible(),false);
+      assert.equal(await page.locator('#oralReportDimensions li').count(),scenario==='audio-review'?8:scenario==='no-transcript'?3:6);
+      assert.doesNotMatch(await page.locator('#oralReportPanel').innerText(),/待评/);
+      assert.match(await page.locator('#oralReportSummary').innerText(),scenario==='audio-review'?/含 AI 估计/:/小计.*评分覆盖不全/);
+      assert.match(await page.locator('#oralReportMetrics').innerText(),/120 WPM/);
+      assert.equal(await page.locator('#comparisonPolished').innerText(),polished);
       assert.equal(speechRequest.audioReviewConsent,['audio-review','review-failure'].includes(scenario));
       if(scenario==='audio-review'){assert.equal(await page.locator('[data-audio-review-start]').count(),2);assert.match(await page.locator('#oralReportAudioReview').innerText(),/模型独立听到/);assert.match(await page.locator('#oralReportNotice').innerText(),/未经人工校准/);if(process.env.XFYUN_SCREENSHOT_DIR)await page.locator('#oralReportPanel').screenshot({path:path.join(process.env.XFYUN_SCREENSHOT_DIR,'audio-review-report.png')});}
       if(scenario==='review-failure')assert.match(await page.locator('#oralReportNotice').innerText(),/百炼音频分析超时/);
-      if(scenario==='no-transcript'){assert.equal(speechRequest.text,'');assert.equal(await page.locator('#oralReportDimensions strong').allInnerTexts().then(a=>a.filter(s=>s==='待评').length),5);}
+      if(scenario==='no-transcript'){assert.equal(speechRequest.text,'');assert.match(await page.locator('#oralReportNotice').innerText(),/缺少实际转写/);}
       await page.locator('[data-audio-word-speak]').click();assert.equal(await page.evaluate(()=>window.__spoken.at(-1).lang),'en-GB');
       if(scenario==='speech'&&process.env.XFYUN_SCREENSHOT_DIR){
         await page.locator('#oralReportPanel').screenshot({path:path.join(process.env.XFYUN_SCREENSHOT_DIR,'xfyun-report-1280.png')});
         await page.setViewportSize({width:390,height:900});await page.locator('#oralReportPanel').screenshot({path:path.join(process.env.XFYUN_SCREENSHOT_DIR,'xfyun-report-390.png')});
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
       }
-      await page.locator('#saveSessionBtn').click();await page.locator('[data-nav="past"]').click();await page.locator('.history-item').waitFor();assert.match(await page.locator('.history-item').innerText(),/真实录音.*讯飞/);assert.equal(await page.locator('.history-item audio').count(),2);
+      await page.locator('#saveSessionBtn').click();await page.locator('[data-nav="past"]').click();await page.locator('[data-history-open]').click();
+      const detail=page.locator('#recordDetailContent');
+      assert.match(await detail.innerText(),/真实录音.*讯飞/);
+      assert.doesNotMatch(await detail.innerText(),/待评/);
+      assert.equal(await detail.locator('audio').count(),2);
+      await page.locator('[data-app-view="past/detail"] [data-open-view="past/home"]').click();
+      await page.locator('[data-app-view="past/home"] [data-open-view="past/tools"]').click();
       const pendingDownload=page.waitForEvent('download');await page.locator('#exportHistoryBtn').click();const backup=JSON.parse(fs.readFileSync(await(await pendingDownload).path(),'utf8'));
       assert.equal(backup.records[0].finalEvaluation.oralReport.mode,'speech');assert.equal(backup.records[0].finalEvaluation.overall,undefined,'a text-model score must not appear as a speech total');
       let clearDialog=0;const acceptClear=d=>{clearDialog++;d.accept();};page.on('dialog',acceptClear);await page.locator('#clearHistoryBtn').click();page.off('dialog',acceptClear);await page.waitForFunction(()=>document.querySelectorAll('.history-item').length===0);assert.equal(clearDialog,2);
-      await page.locator('#historyFileInput').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))});await page.locator('.history-item').waitFor();assert.match(await page.locator('.history-item').innerText(),/发音准确度/);
-      const saved=await page.locator('.history-item').innerText();await page.reload();await page.locator('[data-nav="past"]').click();await page.locator('.history-item').waitFor();assert.equal(await page.locator('.history-item').innerText(),saved);
+      if(scenario==='speech')backup.records[0].finalEvaluation.summary='真实录音诊断；部分指标待评。';
+      await page.locator('#historyFileInput').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))});
+      await page.locator('[data-app-view="past/tools"] [data-open-view="past/home"]').click();
+      await page.locator('[data-history-open]').click();
+      assert.match(await detail.innerText(),/发音准确度/);
+      assert.doesNotMatch(await detail.innerText(),/待评/);
+      const saved=await detail.innerText();
+      await page.reload();await page.locator('[data-nav="past"]').click();await page.locator('[data-history-open]').click();
+      assert.equal(await detail.innerText(),saved);
     }
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.deepEqual(errors,[]);await page.close();console.log('PASS new audio workflow, actual 48-kHz stereo WAV conversion and preserved practice:',scenario);
   }

@@ -41,7 +41,8 @@ function normalizeReview(content,durationSeconds){
     const valid=!unsupported&&data.status==='scored'&&data.heardTranscript.trim()&&['high','medium'].includes(d.confidence)&&typeof d.score==='number'&&Number.isFinite(d.score)&&d.score>=0&&d.score<=MAX[key]&&evidence.length;
     dimensions[key]={label:LABELS[key],max:MAX[key],score:valid?Math.round(d.score*10)/10:null,confidence:valid?d.confidence:'low',reason:valid?evidence.map(e=>e.observation).join(' '):unsupported?'模型包含未经核实的单词读音或音节纠正，本项已拦截，仍待评。':'音频反馈证据或置信度不足，本项仍待评。',evidence:valid?evidence:[],source:'audio-ai-reference'};
   }
-  return {status:Object.values(dimensions).some(d=>d.score!==null)?'scored':'insufficient',heardTranscript:data.heardTranscript.slice(0,12000),dimensions,reason:Object.values(dimensions).some(d=>d.score!==null)?'':'没有足够可靠的音频观察，本次保持待评。',provider:'bailian-omni',experimental:true};
+  const hasScore=Object.values(dimensions).some(d=>d.score!==null);
+  return {status:hasScore?'scored':'insufficient',heardTranscript:data.heardTranscript.slice(0,12000),dimensions,reason:hasScore?'':'补充音频分析未获得足够可靠的依据。',provider:'bailian-omni',experimental:true};
 }
 async function readCompletion(response){
   if(!response.body)throw failure('百炼未返回音频反馈。');

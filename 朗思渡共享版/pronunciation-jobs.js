@@ -31,7 +31,7 @@ function createPronunciationJobs({assessor,audioReviewer,budget,evaluateText,res
         job.stage='text';
         try{textEvaluation=await evaluateText({...body,text,phase:'final',reference:input.reference,rubric:'oral-v1'});}
         catch{textWarning='语音诊断已完成，但文字部分暂未完成；不会从参考稿代填语法、词汇和内容分数。';}
-      }else if(!context)textWarning='没有第二次实际转写，本次只分析录音；语法、词汇和内容仍待评。';
+      }else if(!context)textWarning='第二次录音缺少实际转写，本次仅提供音频分析。';
       if(acoustic.status==='scored'&&audioReviewConsent&&audioReviewer?.configuration().enabled)job.stage='audio-review';
       await reviewTask;
       const report=speechReport(acoustic,textEvaluation,audioReview);

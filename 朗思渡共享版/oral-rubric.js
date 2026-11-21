@@ -48,6 +48,11 @@ function speechReport(acoustic,evaluation,audioReview=null){
   if(acoustic?.words?.some(w=>w.error))priorities.push('先回听标出的词，再听示范并短句跟读；接口误判可手动核对。');
   if(metrics.longPauseCount>0)priorities.push('回听超过两秒的词间间隔，判断是否需要按意群分句；合理停顿不必消除。');
   const aiReference=dimensionScores.some(d=>d.source==='audio-ai-reference');
-  return {mode:'speech',status:acoustic?.status||'unscorable',rubricVersion:'oral-v1',coverage:complete?'complete':'partial',overallScore:total,level:total===null?null:level(total),dimensionScores,availablePoints:rounded(available.reduce((s,d)=>s+d.max,0)),subtotal:available.length?rounded(available.reduce((s,d)=>s+d.score,0)):null,metrics,words:acoustic?.words||[],provider:'xfyun-ise',providerScore:finiteScore(raw.total),integrity:finiteScore(raw.integrity),priorities:priorities.slice(0,3),reason:acoustic?.reason||'',aiReference,audioReview:audioReview?{status:audioReview.status,heardTranscript:audioReview.heardTranscript,reason:audioReview.reason}:null,disclaimer:'本次使用真实录音。讯飞朗读分不是本标准的八项综合分；缺少可靠指标的项目显示待评，不按零分处理，也不将部分分数换算成100分。'+(aiReference?'重音语调与可理解度使用百炼直接听录音生成AI参考评分，未经人工校准；综合分也仅供练习参考。':'重音语调与可理解度未完成独立音频评估，仍待评。')+'讯飞接口暂未提供独立英式/美式评测参数；百炼的口音偏好提示不等于专门英美评测认证，英美偏好继续用于示范播放和音标。'};
+  const disclaimer=[
+    '发音、流利度和语速依据录音，语法、词汇和内容依据实际转写。',
+    aiReference?'百炼给出的音频评分未经人工校准，仅供练习参考。':'',
+    '讯飞采用通用英语朗读评测。英美偏好用于示范播放和音标。'
+  ].filter(Boolean).join(' ');
+  return {mode:'speech',status:acoustic?.status||'unscorable',rubricVersion:'oral-v1',coverage:complete?'complete':'partial',overallScore:total,level:total===null?null:level(total),dimensionScores,availablePoints:rounded(available.reduce((s,d)=>s+d.max,0)),subtotal:available.length?rounded(available.reduce((s,d)=>s+d.score,0)):null,metrics,words:acoustic?.words||[],provider:'xfyun-ise',providerScore:finiteScore(raw.total),integrity:finiteScore(raw.integrity),priorities:priorities.slice(0,3),reason:acoustic?.reason||'',aiReference,audioReview:audioReview?{status:audioReview.status,heardTranscript:audioReview.heardTranscript,reason:audioReview.reason}:null,disclaimer};
 }
 module.exports={dimensions,TEXT_WEIGHTS,readingPace,textReport,speechReport};
